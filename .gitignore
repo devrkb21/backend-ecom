@@ -1,0 +1,52 @@
+/vendor/
+node_modules/
+.env
+.env.*
+!.env.example
+.phpunit.result.cache
+.phpunit.cache
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+
+# IDE
+/.idea
+/.vscode
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Laravel storage
+/storage/*.key
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*
+!/storage/logs/.gitkeep
+!/storage/framework/.gitkeep
+!/storage/framework/cache/.gitkeep
+!/storage/framework/sessions/.gitkeep
+!/storage/framework/views/.gitkeep
+
+# Laravel bootstrap cache
+/bootstrap/cache/*.php
+
+# Public uploads (keep the directory, ignore contents)
+/public/storage
+/public/hot
+/storage/app/public/*
+!/storage/app/public/.gitkeep
+
+# Compiled assets
+/public/build
+
+# PHP
+*.phpunit.result.cache
+.php-cs-fixer.cache
+.user.ini
+.phpstorm.meta.php
+

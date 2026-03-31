@@ -1,0 +1,344 @@
+@extends('admin.layouts.app')
+
+@section('title', 'Abandoned Carts')
+
+@section('content')
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Abandoned Carts</h1>
+            <p class="text-muted mb-0">Track and recover incomplete checkouts</p>
+        </div>
+        <a href="{{ route('admin.abandoned-carts.export', request()->query()) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-download me-1"></i> Export CSV
+        </a>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="card bg-warning bg-opacity-10 border-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-warning mb-1">Pending</h6>
+                            <h3 class="mb-0">{{ number_format($stats['pending']) }}</h3>
+                        </div>
+                        <div class="text-warning opacity-50">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card bg-info bg-opacity-10 border-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-info mb-1">Follow Up</h6>
+                            <h3 class="mb-0">{{ number_format($stats['follow_up']) }}</h3>
+                        </div>
+                        <div class="text-info opacity-50">
+                            <i class="fas fa-phone fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card bg-success bg-opacity-10 border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-success mb-1">Recovered</h6>
+                            <h3 class="mb-0">{{ number_format($stats['recovered']) }}</h3>
+                        </div>
+                        <div class="text-success opacity-50">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card bg-primary bg-opacity-10 border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-primary mb-1">Potential Revenue</h6>
+                            <h3 class="mb-0">৳{{ number_format($stats['potential_revenue'], 0) }}</h3>
+                        </div>
+                        <div class="text-primary opacity-50">
+                            <i class="fas fa-coins fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Recovery Rate (30 days)</h6>
+                    <h2 class="mb-0 {{ $stats['recovery_rate'] >= 10 ? 'text-success' : 'text-warning' }}">
+                        {{ $stats['recovery_rate'] }}%
+                    </h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">With Contact Info</h6>
+                    <h2 class="mb-0 text-info">{{ number_format($stats['with_contact']) }}</h2>
+                    <small class="text-muted">actionable leads</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Total Abandoned</h6>
+                    <h2 class="mb-0">{{ number_format($stats['total']) }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="follow_up" {{ request('status') == 'follow_up' ? 'selected' : '' }}>Follow Up</option>
+                        <option value="recovered" {{ request('status') == 'recovered' ? 'selected' : '' }}>Recovered</option>
+                        <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Checkout Step</label>
+                    <select name="checkout_step" class="form-select">
+                        <option value="">All Steps</option>
+                        <option value="cart" {{ request('checkout_step') == 'cart' ? 'selected' : '' }}>Cart Page</option>
+                        <option value="shipping" {{ request('checkout_step') == 'shipping' ? 'selected' : '' }}>Shipping Info</option>
+                        <option value="payment" {{ request('checkout_step') == 'payment' ? 'selected' : '' }}>Payment</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Has Contact</label>
+                    <select name="has_contact" class="form-select">
+                        <option value="">All</option>
+                        <option value="yes" {{ request('has_contact') == 'yes' ? 'selected' : '' }}>With Contact</option>
+                        <option value="no" {{ request('has_contact') == 'no' ? 'selected' : '' }}>No Contact</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Min Value</label>
+                    <input type="number" name="min_value" class="form-control" placeholder="৳0" value="{{ request('min_value') }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Search</label>
+                    <input type="text" name="search" class="form-control" placeholder="Email, Phone, Name" value="{{ request('search') }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter"></i> Filter
+                    </button>
+                    <a href="{{ route('admin.abandoned-carts.index') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bulk Actions Form -->
+    <form id="bulkForm" action="{{ route('admin.abandoned-carts.bulk-action') }}" method="POST">
+        @csrf
+        
+        <!-- Bulk Actions Bar -->
+        <div class="card mb-3" id="bulkActionsBar" style="display: none;">
+            <div class="card-body py-2">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="text-muted"><span id="selectedCount">0</span> selected</span>
+                    <button type="submit" name="action" value="follow_up" class="btn btn-sm btn-info">
+                        <i class="fas fa-phone me-1"></i> Mark Follow Up
+                    </button>
+                    <button type="submit" name="action" value="recovered" class="btn btn-sm btn-success">
+                        <i class="fas fa-check me-1"></i> Mark Recovered
+                    </button>
+                    <button type="submit" name="action" value="cancelled" class="btn btn-sm btn-secondary">
+                        <i class="fas fa-ban me-1"></i> Cancel
+                    </button>
+                    <button type="submit" name="action" value="delete" class="btn btn-sm btn-danger" onclick="return confirm('Delete selected abandoned carts?')">
+                        <i class="fas fa-trash me-1"></i> Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Abandoned Carts Table -->
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="40">
+                                <input type="checkbox" class="form-check-input" id="selectAll">
+                            </th>
+                            <th>Contact Info</th>
+                            <th>Cart Summary</th>
+                            <th>Step</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Time</th>
+                            <th width="100">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($abandonedCarts as $cart)
+                        <tr>
+                            <td>
+                                <input type="checkbox" class="form-check-input cart-checkbox" name="ids[]" value="{{ $cart->id }}">
+                            </td>
+                            <td>
+                                <div>
+                                    @if($cart->name)
+                                        <strong>{{ $cart->name }}</strong><br>
+                                    @endif
+                                    @if($cart->phone)
+                                        <a href="tel:{{ $cart->phone }}" class="text-decoration-none">
+                                            <i class="fas fa-phone text-success me-1"></i>{{ $cart->phone }}
+                                        </a><br>
+                                    @endif
+                                    @if($cart->email)
+                                        <small class="text-muted">
+                                            <i class="fas fa-envelope me-1"></i>{{ $cart->email }}
+                                        </small>
+                                    @endif
+                                    @if(!$cart->phone && !$cart->email)
+                                        <span class="text-muted">No contact info</span>
+                                    @endif
+                                </div>
+                                @if($cart->user)
+                                    <small class="badge bg-light text-dark">
+                                        <i class="fas fa-user me-1"></i>{{ $cart->user->name }}
+                                    </small>
+                                @endif
+                            </td>
+                            <td>
+                                <span class="fw-semibold">{{ $cart->item_count }} items</span>
+                                @if($cart->cart_items && count($cart->cart_items) > 0)
+                                    <br>
+                                    <small class="text-muted">
+                                        {{ \Illuminate\Support\Str::limit(collect($cart->cart_items)->pluck('product_name')->implode(', '), 50) }}
+                                    </small>
+                                @endif
+                                @if($cart->coupon_code)
+                                    <br><span class="badge bg-success">{{ $cart->coupon_code }}</span>
+                                @endif
+                            </td>
+                            <td>
+                                @php
+                                    $stepColors = [
+                                        'cart' => 'secondary',
+                                        'shipping' => 'warning',
+                                        'payment' => 'info',
+                                    ];
+                                @endphp
+                                <span class="badge bg-{{ $stepColors[$cart->checkout_step] ?? 'secondary' }}">
+                                    {{ $cart->checkout_step_label }}
+                                </span>
+                            </td>
+                            <td>
+                                <strong>৳{{ number_format($cart->total, 0) }}</strong>
+                                @if($cart->discount_amount > 0)
+                                    <br><small class="text-success">-৳{{ number_format($cart->discount_amount, 0) }}</small>
+                                @endif
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ $cart->status_color }}">
+                                    {{ $cart->status_label }}
+                                </span>
+                                @if($cart->followed_up_at)
+                                    <br><small class="text-muted">{{ $cart->followed_up_at->format('M d') }}</small>
+                                @endif
+                            </td>
+                            <td>
+                                <small>
+                                    {{ $cart->created_at->format('M d, H:i') }}<br>
+                                    <span class="text-muted">{{ $cart->time_since_abandoned }}</span>
+                                </small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ route('admin.abandoned-carts.show', $cart) }}" class="btn btn-outline-primary" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    @if($cart->status === 'pending')
+                                    <form action="{{ route('admin.abandoned-carts.mark-follow-up', $cart) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="btn btn-outline-info" title="Mark Follow Up">
+                                            <i class="fas fa-phone"></i>
+                                        </button>
+                                    </form>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+                                <p class="text-muted mb-0">No abandoned carts found</p>
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            @if($abandonedCarts->hasPages())
+            <div class="card-footer">
+                {{ $abandonedCarts->links() }}
+            </div>
+            @endif
+        </div>
+    </form>
+</div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.cart-checkbox');
+    const bulkActionsBar = document.getElementById('bulkActionsBar');
+    const selectedCount = document.getElementById('selectedCount');
+
+    function updateBulkBar() {
+        const checked = document.querySelectorAll('.cart-checkbox:checked').length;
+        selectedCount.textContent = checked;
+        bulkActionsBar.style.display = checked > 0 ? 'block' : 'none';
+    }
+
+    selectAll.addEventListener('change', function() {
+        checkboxes.forEach(cb => cb.checked = this.checked);
+        updateBulkBar();
+    });
+
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateBulkBar);
+    });
+});
+</script>
+@endpush
+@endsection
