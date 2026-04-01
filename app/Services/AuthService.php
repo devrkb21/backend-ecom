@@ -7,15 +7,20 @@ use App\Notifications\ResetPasswordNotification;
 use App\Notifications\VerifyEmailNotification;
 use App\Notifications\WelcomeNotification;
 use App\Repositories\Interfaces\UserRepositoryInterface;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 class AuthService
 {
+    private const RESET_OTP_TTL_MINUTES = 10;
+
     public function __construct(
-        protected UserRepositoryInterface $userRepository
+        protected UserRepositoryInterface $userRepository,
+        protected SmsService $smsService
     ) {}
 
     public function register(array $data): array
@@ -24,6 +29,10 @@ class AuthService
         $data['role'] = 'customer';
 
         $user = $this->userRepository->create($data);
+        if (!$user instanceof User) {
+            throw new \RuntimeException('Failed to create user.');
+        }
+
         $token = $user->createToken('auth-token')->plainTextToken;
 
         // Send welcome notification
@@ -82,6 +91,23 @@ class AuthService
             ]
         );
 
+        // Generate OTP for optional SMS-based reset verification.
+        $otp = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+        Cache::put($this->otpCacheKey($email), Hash::make($otp), now()->addMinutes(self::RESET_OTP_TTL_MINUTES));
+
+        if (!empty($user->phone)) {
+            $smsResult = $this->smsService->sendOtp($user->phone, $otp);
+
+            if (!$smsResult['success']) {
+                Log::warning('Failed to send password reset OTP SMS.', [
+                    'email' => $email,
+                    'phone' => $user->phone,
+                    'sms_code' => $smsResult['code'] ?? null,
+                    'sms_message' => $smsResult['message'] ?? null,
+                ]);
+            }
+        }
+
         $user->notify(new ResetPasswordNotification($token));
 
         return true;
@@ -100,11 +126,20 @@ class AuthService
         // Check if token is expired (60 minutes)
         if (now()->diffInMinutes($record->created_at) > 60) {
             DB::table('password_reset_tokens')->where('email', $data['email'])->delete();
+            Cache::forget($this->otpCacheKey($data['email']));
             return false;
         }
 
-        if (!Hash::check($data['token'], $record->token)) {
-            return false;
+        $otp = trim((string) ($data['otp'] ?? ''));
+
+        if ($otp !== '') {
+            if (!$this->verifyOtp($data['email'], $otp)) {
+                return false;
+            }
+        } else {
+            if (!isset($data['token']) || !Hash::check($data['token'], $record->token)) {
+                return false;
+            }
         }
 
         $user = $this->userRepository->findByEmail($data['email']);
@@ -119,11 +154,28 @@ class AuthService
 
         // Delete the reset token
         DB::table('password_reset_tokens')->where('email', $data['email'])->delete();
+        Cache::forget($this->otpCacheKey($data['email']));
 
         // Revoke all existing tokens
         $user->tokens()->delete();
 
         return true;
+    }
+
+    private function otpCacheKey(string $email): string
+    {
+        return 'password_reset_otp:' . strtolower(trim($email));
+    }
+
+    private function verifyOtp(string $email, string $otp): bool
+    {
+        $otpHash = Cache::get($this->otpCacheKey($email));
+
+        if (!is_string($otpHash) || $otpHash === '') {
+            return false;
+        }
+
+        return Hash::check($otp, $otpHash);
     }
 
     public function sendVerificationEmail(User $user): void

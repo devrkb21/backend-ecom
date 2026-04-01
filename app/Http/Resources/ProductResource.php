@@ -11,10 +11,10 @@ class ProductResource extends JsonResource
     public function toArray(Request $request): array
     {
         // Determine if product has active variants
-        $hasVariants = $this->relationLoaded('variants') 
-            ? $this->variants->isNotEmpty() 
+        $hasVariants = $this->relationLoaded('variants')
+            ? $this->variants->isNotEmpty()
             : ($this->variants_count ?? 0) > 0;
-        
+
         // Calculate effective stock - use variant stock sum if variants exist, otherwise base stock
         $effectiveStock = $hasVariants && $this->relationLoaded('variants') && $this->variants->isNotEmpty()
             ? $this->variants->sum('stock_quantity')
@@ -23,7 +23,8 @@ class ProductResource extends JsonResource
         // Get primary image from product_images table
         $primaryImage = null;
         $primaryImageUrl = null;
-        
+        $dynamicDiscountTiers = $this->quantity_pricing_tiers;
+
         if ($this->relationLoaded('images') && $this->images->isNotEmpty()) {
             $primaryImg = $this->images->firstWhere('is_primary', true) ?? $this->images->first();
             if ($primaryImg) {
@@ -43,7 +44,11 @@ class ProductResource extends JsonResource
             'price' => (float) $this->regular_price,
             'sale_price' => $this->sale_price ? (float) $this->sale_price : null,
             'current_price' => (float) ($this->sale_price ?? $this->regular_price),
+            'dynamic_price_for_quantity_1' => $this->getPriceForQuantity(1),
             'is_on_sale' => $this->sale_price !== null && $this->sale_price < $this->regular_price,
+            'has_dynamic_discount' => !empty($dynamicDiscountTiers),
+            'dynamic_discount_tiers' => $dynamicDiscountTiers,
+            'free_delivery' => $this->hasFreeDeliveryOffer(),
             'sku' => $this->sku,
             'stock_quantity' => $this->stock_quantity,
             'total_stock' => $effectiveStock,

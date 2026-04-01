@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register middleware aliases
         $middleware->alias([
             'is_admin' => \App\Http\Middleware\IsAdmin::class,
+            'admin_permission' => \App\Http\Middleware\EnsureAdminPermission::class,
         ]);
 
         // Append API request logging middleware

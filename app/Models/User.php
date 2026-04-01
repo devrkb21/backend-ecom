@@ -8,13 +8,21 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 use App\Traits\Auditable;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes, Auditable;
+
+    public const ROLE_ADMIN = 'admin';
+    public const ROLE_SHOP_MANAGER = 'shop_manager';
+    public const ROLE_CASHIER = 'cashier';
+    public const ROLE_SALES = 'sales';
+    public const ROLE_CUSTOMER = 'customer';
 
     protected $fillable = [
         'name',
@@ -66,6 +74,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function addresses(): HasMany
     {
         return $this->hasMany(Address::class);
+    }
+
+    public function adminRole(): BelongsTo
+    {
+        return $this->belongsTo(AdminRole::class, 'role', 'key');
     }
 
     /**
@@ -131,6 +144,73 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->role === self::ROLE_ADMIN;
+    }
+
+    public function canAccessAdminPanel(): bool
+    {
+        $role = $this->relationLoaded('adminRole') ? $this->adminRole : $this->adminRole()->first();
+
+        if ($role instanceof AdminRole) {
+            return $role->is_active && $role->can_access_admin_panel;
+        }
+
+        // Backward compatibility fallback before admin_roles migration.
+        return $this->role === self::ROLE_ADMIN;
+    }
+
+    public function hasAdminPermission(string $permission): bool
+    {
+        if (!$this->canAccessAdminPanel()) {
+            return false;
+        }
+
+        $role = $this->relationLoaded('adminRole') ? $this->adminRole : $this->adminRole()->first();
+
+        if ($role instanceof AdminRole) {
+            return $role->hasPermission($permission);
+        }
+
+        // Legacy admin has full access.
+        return $this->role === self::ROLE_ADMIN;
+    }
+
+    public static function roleOptions(bool $onlyActive = true): array
+    {
+        if (!Schema::hasTable('admin_roles')) {
+            return self::legacyRoleOptions();
+        }
+
+        $query = AdminRole::query()->orderBy('sort_order')->orderBy('name');
+
+        if ($onlyActive) {
+            $query->where('is_active', true);
+        }
+
+        $options = $query->pluck('name', 'key')->toArray();
+
+        return !empty($options) ? $options : self::legacyRoleOptions();
+    }
+
+    public function getRoleLabelAttribute(): string
+    {
+        $role = $this->relationLoaded('adminRole') ? $this->adminRole : $this->adminRole()->first();
+
+        if ($role instanceof AdminRole) {
+            return $role->name;
+        }
+
+        return self::legacyRoleOptions()[$this->role] ?? ucfirst(str_replace('_', ' ', $this->role));
+    }
+
+    private static function legacyRoleOptions(): array
+    {
+        return [
+            self::ROLE_ADMIN => 'Admin',
+            self::ROLE_SHOP_MANAGER => 'Shop Manager',
+            self::ROLE_CASHIER => 'Cashier',
+            self::ROLE_SALES => 'Sales',
+            self::ROLE_CUSTOMER => 'Customer',
+        ];
     }
 }

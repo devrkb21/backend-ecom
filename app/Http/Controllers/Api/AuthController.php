@@ -60,7 +60,7 @@ class AuthController extends Controller
     {
         $this->authService->sendPasswordResetLink($request->email);
 
-        return $this->successResponse(null, 'If an account exists with that email, a password reset link has been sent.');
+        return $this->successResponse(null, 'If an account exists with that email, a password reset link and SMS OTP have been sent.');
     }
 
     public function resetPassword(ResetPasswordRequest $request): JsonResponse
@@ -68,7 +68,7 @@ class AuthController extends Controller
         $result = $this->authService->resetPassword($request->validated());
 
         if (!$result) {
-            return $this->errorResponse('Invalid or expired reset token.', 400);
+            return $this->errorResponse('Invalid or expired reset token/OTP.', 400);
         }
 
         return $this->successResponse(null, 'Password has been reset successfully. Please login with your new password.');

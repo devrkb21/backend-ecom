@@ -30,7 +30,10 @@ class CartRepository extends BaseRepository implements CartRepositoryInterface
             ->first();
 
         if ($existingItem) {
-            $existingItem->increment('quantity', $quantity);
+            $existingItem->update([
+                'quantity' => $existingItem->quantity + $quantity,
+                'price' => $price,
+            ]);
         } else {
             CartItem::create([
                 'cart_id' => $cartId,
@@ -41,11 +44,17 @@ class CartRepository extends BaseRepository implements CartRepositoryInterface
         }
     }
 
-    public function updateItemQuantity(int $cartId, int $productId, int $quantity): void
+    public function updateItemQuantity(int $cartId, int $productId, int $quantity, ?float $price = null): void
     {
+        $updateData = ['quantity' => $quantity];
+
+        if ($price !== null) {
+            $updateData['price'] = $price;
+        }
+
         CartItem::where('cart_id', $cartId)
             ->where('product_id', $productId)
-            ->update(['quantity' => $quantity]);
+            ->update($updateData);
     }
 
     public function removeItem(int $cartId, int $productId): void

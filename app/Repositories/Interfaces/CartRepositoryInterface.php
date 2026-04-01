@@ -12,7 +12,7 @@ interface CartRepositoryInterface extends BaseRepositoryInterface
 
     public function addItem(int $cartId, int $productId, int $quantity, float $price): void;
 
-    public function updateItemQuantity(int $cartId, int $productId, int $quantity): void;
+    public function updateItemQuantity(int $cartId, int $productId, int $quantity, ?float $price = null): void;
 
     public function removeItem(int $cartId, int $productId): void;
 

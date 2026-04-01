@@ -32,13 +32,12 @@
                             </td>
                             <td>
                                 @foreach($attribute->values as $value)
-                                    @if($value->color_code)
-                                        <span class="badge" style="background-color: {{ $value->color_code }}; color: {{ $value->color_code == '#FFFFFF' || $value->color_code == '#fff' ? '#000' : '#fff' }}">
-                                            {{ $value->value }}
-                                        </span>
-                                    @else
-                                        <span class="badge bg-secondary">{{ $value->value }}</span>
-                                    @endif
+                                    <span class="badge {{ $value->color_code ? '' : 'bg-secondary' }} d-inline-flex align-items-center" @if($value->color_code) style="background-color: {{ $value->color_code }}; color: {{ $value->color_code == '#FFFFFF' || $value->color_code == '#fff' ? '#000' : '#fff' }}" @endif>
+                                        @if($value->image_url)
+                                            <img src="{{ $value->image_url }}" alt="{{ $value->value }}" class="rounded me-1" style="width: 14px; height: 14px; object-fit: cover; border: 1px solid rgba(0, 0, 0, 0.2);">
+                                        @endif
+                                        {{ $value->value }}
+                                    </span>
                                 @endforeach
                                 @if($attribute->values->isEmpty())
                                     <span class="text-muted small">No values</span>

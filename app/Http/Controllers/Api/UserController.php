@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\UpdateUserRequest;
 use App\Http\Resources\UserResource;
+use App\Models\User;
 use App\Services\UserService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -84,7 +85,7 @@ class UserController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
             'phone' => ['nullable', 'string', 'max:20'],
-            'role' => ['nullable', 'string', 'in:admin,customer'],
+            'role' => ['nullable', 'string', 'in:' . implode(',', array_keys(User::roleOptions()))],
         ]);
 
         $user = $this->userService->createUser($request->only(['name', 'email', 'password', 'phone', 'role']));

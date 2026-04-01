@@ -150,12 +150,76 @@ class Product extends Model
 
     public function getCurrentPriceAttribute(): float
     {
-        return $this->sale_price ?? $this->regular_price;
+        return (float) ($this->sale_price ?? $this->regular_price);
     }
 
     public function getIsOnSaleAttribute(): bool
     {
         return $this->sale_price !== null && $this->sale_price < $this->regular_price;
+    }
+
+    /**
+     * Get normalized quantity pricing tiers from meta_data.
+     *
+     * Format:
+     * [
+     *   ['min_quantity' => 1, 'unit_price' => 100.00],
+     *   ['min_quantity' => 3, 'unit_price' => 90.00],
+     * ]
+     */
+    public function getQuantityPricingTiersAttribute(): array
+    {
+        $tiers = data_get($this->meta_data, 'quantity_pricing', []);
+
+        if (!is_array($tiers)) {
+            return [];
+        }
+
+        $normalized = [];
+
+        foreach ($tiers as $tier) {
+            if (!is_array($tier)) {
+                continue;
+            }
+
+            $minQuantity = (int) ($tier['min_quantity'] ?? 0);
+            $unitPrice = isset($tier['unit_price']) ? (float) $tier['unit_price'] : null;
+
+            if ($minQuantity < 1 || $unitPrice === null || $unitPrice <= 0) {
+                continue;
+            }
+
+            // Keep the latest value for duplicate quantities.
+            $normalized[$minQuantity] = [
+                'min_quantity' => $minQuantity,
+                'unit_price' => round($unitPrice, 2),
+            ];
+        }
+
+        ksort($normalized);
+
+        return array_values($normalized);
+    }
+
+    public function getPriceForQuantity(int $quantity): float
+    {
+        $quantity = max(1, $quantity);
+        $price = (float) ($this->sale_price ?? $this->regular_price);
+
+        foreach ($this->quantity_pricing_tiers as $tier) {
+            if ($quantity >= $tier['min_quantity']) {
+                $price = (float) $tier['unit_price'];
+            } else {
+                break;
+            }
+        }
+
+        return round($price, 2);
+    }
+
+    public function hasFreeDeliveryOffer(): bool
+    {
+        return (bool) data_get($this->meta_data, 'free_delivery', false);
     }
 
     /**

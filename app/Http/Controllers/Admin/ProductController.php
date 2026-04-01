@@ -72,7 +72,7 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request)
     {
-        $data = $request->validated();
+        $data = $this->prepareProductData($request->validated(), $request);
 
         DB::transaction(function () use ($data, $request) {
             $product = Product::create($data);
@@ -102,7 +102,7 @@ class ProductController extends Controller
             if ($request->has('variants')) {
                 foreach ($request->input('variants', []) as $variantData) {
                     if (empty($variantData['sku'])) continue;
-                    
+
                     $variant = $product->variants()->create([
                         'sku' => $variantData['sku'],
                         'price_adjustment' => $variantData['price_adjustment'] ?? 0,
@@ -138,7 +138,7 @@ class ProductController extends Controller
 
     public function update(UpdateProductRequest $request, Product $product)
     {
-        $data = $request->validated();
+        $data = $this->prepareProductData($request->validated(), $request, $product);
 
         DB::transaction(function () use ($data, $request, $product) {
             $product->update($data);
@@ -146,7 +146,7 @@ class ProductController extends Controller
             // Handle primary image removal
             if ($request->boolean('remove_image')) {
                 $primaryImage = $product->images()->where('is_primary', true)->first();
-                if ($primaryImage) {
+                if ($primaryImage instanceof ProductImage) {
                     // Don't delete from storage if it's from media library
                     if (!str_starts_with($primaryImage->image, 'media/')) {
                         Storage::disk('public')->delete($primaryImage->image);
@@ -158,7 +158,7 @@ class ProductController extends Controller
             // Handle primary image from media library
             if ($imagePath = $request->input('image_path')) {
                 $existingPrimary = $product->images()->where('is_primary', true)->first();
-                if ($existingPrimary) {
+                if ($existingPrimary instanceof ProductImage) {
                     // Update existing primary
                     $existingPrimary->update(['image' => $imagePath]);
                 } else {
@@ -222,7 +222,7 @@ class ProductController extends Controller
     {
         // Multiple attribute values selection
         $attributeValueIds = $request->input('attribute_value_ids', []);
-        
+
         if (empty($attributeValueIds)) {
             return redirect()
                 ->route('admin.products.edit', $product)
@@ -254,7 +254,7 @@ class ProductController extends Controller
             try {
                 // Generate unique SKU
                 $baseSku = $product->sku . '-' . strtoupper(substr(md5($valueId . time() . $created), 0, 6));
-                
+
                 $variant = $product->variants()->create([
                     'sku' => $baseSku,
                     'price_adjustment' => $priceAdjustment,
@@ -297,7 +297,7 @@ class ProductController extends Controller
     public function bulkUpdateVariants(Request $request, Product $product)
     {
         $variantIds = $request->input('variant_ids', []);
-        
+
         if (empty($variantIds)) {
             return redirect()
                 ->route('admin.products.edit', $product)
@@ -314,26 +314,26 @@ class ProductController extends Controller
 
         // Build update data
         $updateData = [];
-        
+
         if ($request->filled('bulk_price_adjustment')) {
             $updateData['price_adjustment'] = $request->input('bulk_price_adjustment');
         }
-        
+
         if ($request->filled('bulk_stock_quantity')) {
             $updateData['stock_quantity'] = $request->input('bulk_stock_quantity');
         }
-        
+
         if ($request->filled('bulk_is_active')) {
             $updateData['is_active'] = $request->input('bulk_is_active') === '1';
         }
 
         $updated = 0;
-        
+
         // Update variants
         if (!empty($updateData)) {
             $updated = $product->variants()->whereIn('id', $variantIds)->update($updateData);
         }
-        
+
         // Handle add stock (increment)
         if ($request->filled('bulk_add_stock')) {
             $addStock = (int) $request->input('bulk_add_stock');
@@ -464,7 +464,7 @@ class ProductController extends Controller
     {
         // Remove primary from all images
         $product->images()->update(['is_primary' => false]);
-        
+
         // Set this as primary
         $image->update(['is_primary' => true]);
 
@@ -481,5 +481,67 @@ class ProductController extends Controller
         return redirect()
             ->route('admin.products.edit', $product)
             ->with('success', 'Image deleted successfully.');
+    }
+
+    private function prepareProductData(array $data, Request $request, ?Product $product = null): array
+    {
+        unset($data['dynamic_discount_tiers'], $data['free_delivery']);
+
+        $metaData = is_array($product?->meta_data) ? $product->meta_data : [];
+        $metaData = is_array($metaData) ? $metaData : [];
+
+        $normalizedTiers = $this->normalizeDynamicDiscountTiers($request->input('dynamic_discount_tiers', []));
+        if (!empty($normalizedTiers)) {
+            $metaData['quantity_pricing'] = $normalizedTiers;
+        } else {
+            unset($metaData['quantity_pricing']);
+        }
+
+        if ($request->boolean('free_delivery')) {
+            $metaData['free_delivery'] = true;
+        } else {
+            unset($metaData['free_delivery']);
+        }
+
+        $data['meta_data'] = empty($metaData) ? null : $metaData;
+
+        return $data;
+    }
+
+    private function normalizeDynamicDiscountTiers(mixed $tiers): array
+    {
+        if (!is_array($tiers)) {
+            return [];
+        }
+
+        $normalized = [];
+
+        foreach ($tiers as $tier) {
+            if (!is_array($tier)) {
+                continue;
+            }
+
+            $minQuantity = (int) ($tier['min_quantity'] ?? 0);
+            $unitPriceInput = $tier['unit_price'] ?? null;
+
+            if ($minQuantity < 1 || $unitPriceInput === null || $unitPriceInput === '') {
+                continue;
+            }
+
+            $unitPrice = round((float) $unitPriceInput, 2);
+            if ($unitPrice <= 0) {
+                continue;
+            }
+
+            // Last value wins for duplicate min quantities.
+            $normalized[$minQuantity] = [
+                'min_quantity' => $minQuantity,
+                'unit_price' => $unitPrice,
+            ];
+        }
+
+        ksort($normalized);
+
+        return array_values($normalized);
     }
 }

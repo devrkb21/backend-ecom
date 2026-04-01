@@ -15,6 +15,8 @@ use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\PaymentGatewayController;
 use App\Http\Controllers\Admin\ShippingMethodController;
 use App\Http\Controllers\Admin\SiteSettingController;
+use App\Http\Controllers\Admin\IntegrationSettingController;
+use App\Http\Controllers\Admin\AdminRoleController;
 use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\AbandonedCartController;
@@ -40,7 +42,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     });
 
     // Admin Protected Routes
-    Route::middleware(['auth:web', 'is_admin'])->group(function () {
+    Route::middleware(['auth:web', 'is_admin', 'admin_permission'])->group(function () {
         Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 
         // Dashboard
@@ -51,14 +53,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Products CRUD
         Route::resource('products', ProductController::class);
-        
+
         // Product Variants
         Route::post('products/{product}/variants', [ProductController::class, 'storeVariant'])->name('products.variants.store');
         Route::put('products/{product}/variants/{variant}', [ProductController::class, 'updateVariant'])->name('products.variants.update');
         Route::post('products/{product}/variants/generate', [ProductController::class, 'generateVariants'])->name('products.variants.generate');
         Route::put('products/{product}/variants-bulk', [ProductController::class, 'bulkUpdateVariants'])->name('products.variants.bulk-update');
         Route::delete('products/{product}/variants/{variant}', [ProductController::class, 'destroyVariant'])->name('products.variants.destroy');
-        
+
         // Product Images
         Route::post('products/{product}/images/{image}/primary', [ProductController::class, 'setPrimaryImage'])->name('products.images.primary');
         Route::delete('products/{product}/images/{image}', [ProductController::class, 'destroyImage'])->name('products.images.destroy');
@@ -85,9 +87,22 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
         Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
 
-        // Users (Read Only)
+        // Users
         Route::get('users', [UserController::class, 'index'])->name('users.index');
-        Route::get('users/{user}', [UserController::class, 'show'])->name('users.show');
+        Route::get('users/create', [UserController::class, 'create'])->name('users.create');
+        Route::post('users', [UserController::class, 'store'])->name('users.store');
+        Route::patch('users/{id}/role', [UserController::class, 'updateRole'])->name('users.update-role');
+        Route::patch('users/{id}/status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
+        Route::get('users/{id}', [UserController::class, 'show'])->name('users.show');
+
+        // Roles & Permissions
+        Route::prefix('roles')->name('roles.')->group(function () {
+            Route::get('/', [AdminRoleController::class, 'index'])->name('index');
+            Route::post('/', [AdminRoleController::class, 'store'])->name('store');
+            Route::get('{role}/edit', [AdminRoleController::class, 'edit'])->name('edit');
+            Route::put('{role}', [AdminRoleController::class, 'update'])->name('update');
+            Route::delete('{role}', [AdminRoleController::class, 'destroy'])->name('destroy');
+        });
 
         // Media Library
         Route::get('media', [MediaController::class, 'index'])->name('media.index');
@@ -134,6 +149,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('shipping-methods/{method}', [ShippingMethodController::class, 'destroy'])->name('shipping-methods.destroy');
             Route::patch('shipping-methods/{method}/toggle', [ShippingMethodController::class, 'toggle'])->name('shipping-methods.toggle');
             Route::post('shipping-methods/order', [ShippingMethodController::class, 'updateOrder'])->name('shipping-methods.order');
+
+            // Integrations
+            Route::get('integrations', [IntegrationSettingController::class, 'index'])->name('integrations');
+            Route::put('integrations', [IntegrationSettingController::class, 'update'])->name('integrations.update');
+            Route::get('integrations/sms-balance', [IntegrationSettingController::class, 'smsBalance'])->name('integrations.sms-balance');
         });
 
         // Coupons
@@ -188,11 +208,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/inventory-alerts', [BusinessIntelligenceController::class, 'inventoryAlerts'])->name('inventory-alerts');
             Route::get('/customer-analytics', [BusinessIntelligenceController::class, 'customerAnalytics'])->name('customer-analytics');
             Route::get('/product-performance', [BusinessIntelligenceController::class, 'productPerformance'])->name('product-performance');
-            
+
             // AJAX endpoints
             Route::get('/product-trends', [BusinessIntelligenceController::class, 'productTrends'])->name('product-trends');
             Route::get('/frequently-bought-together', [BusinessIntelligenceController::class, 'frequentlyBoughtTogether'])->name('frequently-bought-together');
-            
+
             // Export endpoints
             Route::get('/export-sales', [BusinessIntelligenceController::class, 'exportSalesReport'])->name('export-sales');
             Route::get('/export-inventory', [BusinessIntelligenceController::class, 'exportInventoryReport'])->name('export-inventory');
@@ -219,7 +239,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Loyalty Program
         Route::prefix('loyalty')->name('loyalty.')->group(function () {
             Route::get('/', [LoyaltyController::class, 'index'])->name('index');
-            
+
             // Rewards
             Route::get('/rewards', [LoyaltyController::class, 'rewards'])->name('rewards.index');
             Route::get('/rewards/create', [LoyaltyController::class, 'createReward'])->name('rewards.create');
@@ -227,7 +247,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/rewards/{reward}/edit', [LoyaltyController::class, 'editReward'])->name('rewards.edit');
             Route::put('/rewards/{reward}', [LoyaltyController::class, 'updateReward'])->name('rewards.update');
             Route::delete('/rewards/{reward}', [LoyaltyController::class, 'destroyReward'])->name('rewards.destroy');
-            
+
             // Tiers
             Route::get('/tiers', [LoyaltyController::class, 'tiers'])->name('tiers.index');
             Route::get('/tiers/create', [LoyaltyController::class, 'createTier'])->name('tiers.create');
@@ -235,16 +255,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/tiers/{tier}/edit', [LoyaltyController::class, 'editTier'])->name('tiers.edit');
             Route::put('/tiers/{tier}', [LoyaltyController::class, 'updateTier'])->name('tiers.update');
             Route::delete('/tiers/{tier}', [LoyaltyController::class, 'destroyTier'])->name('tiers.destroy');
-            
+
             // Members
             Route::get('/members', [LoyaltyController::class, 'members'])->name('members.index');
             Route::get('/members/export', [LoyaltyController::class, 'exportMembers'])->name('members.export');
             Route::get('/members/{user}', [LoyaltyController::class, 'showMember'])->name('members.show');
             Route::post('/members/{user}/adjust', [LoyaltyController::class, 'adjustPoints'])->name('members.adjust');
-            
+
             // Redemptions
             Route::get('/redemptions', [LoyaltyController::class, 'redemptions'])->name('redemptions');
-            
+
             // Transactions
             Route::get('/transactions', [LoyaltyController::class, 'transactions'])->name('transactions');
         });

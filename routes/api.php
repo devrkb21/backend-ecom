@@ -55,7 +55,9 @@ Route::prefix('v1')->group(function () {
         ->middleware('signed')
         ->name('verification.verify');
 
-    // Public product and category endpoints
+    // Secure all remaining API routes by default.
+    Route::middleware('auth:sanctum')->group(function () {
+    // Product and category endpoints
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::get('/categories/menu', [CategoryController::class, 'menu']);
     Route::get('/categories/{id}', [CategoryController::class, 'show'])->where('id', '[0-9]+');
@@ -104,15 +106,15 @@ Route::prefix('v1')->group(function () {
 
     // Stripe (public config)
     Route::get('/stripe/config', [StripeController::class, 'config']);
-    
-    // Stripe webhook (no auth, verified by signature)
-    Route::post('/stripe/webhook', [StripeController::class, 'webhook']);
+
+    // Stripe webhook (must stay public for Stripe callback)
+    Route::post('/stripe/webhook', [StripeController::class, 'webhook'])->withoutMiddleware('auth:sanctum');
 
     // bKash (public config)
     Route::get('/bkash/config', [BkashController::class, 'config']);
-    
-    // bKash callback (no auth, from bKash redirect)
-    Route::get('/bkash/callback', [BkashController::class, 'callback']);
+
+    // bKash callback (must stay public for bKash redirect)
+    Route::get('/bkash/callback', [BkashController::class, 'callback'])->withoutMiddleware('auth:sanctum');
 
     // Order Tracking (public - by order number or tracking number)
     Route::prefix('track')->group(function () {
@@ -154,24 +156,30 @@ Route::prefix('v1')->group(function () {
         Route::get('/profile', [UserController::class, 'profile']);
         Route::put('/profile', [UserController::class, 'updateProfile']);
 
-        // Users (Admin only for full CRUD)
-        Route::get('/users', [UserController::class, 'index']);
-        Route::post('/users', [UserController::class, 'store']);
+        // Users
+        Route::middleware('admin_permission:users.manage')->group(function () {
+            Route::get('/users', [UserController::class, 'index']);
+            Route::post('/users', [UserController::class, 'store']);
+            Route::delete('/users/{id}', [UserController::class, 'destroy'])->where('id', '[0-9]+');
+            Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->where('id', '[0-9]+');
+        });
         Route::get('/users/{id}', [UserController::class, 'show'])->where('id', '[0-9]+');
         Route::put('/users/{id}', [UserController::class, 'update'])->where('id', '[0-9]+');
-        Route::delete('/users/{id}', [UserController::class, 'destroy'])->where('id', '[0-9]+');
-        Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->where('id', '[0-9]+');
 
-        // Categories (Admin only for CUD)
-        Route::post('/categories', [CategoryController::class, 'store']);
-        Route::put('/categories/{id}', [CategoryController::class, 'update'])->where('id', '[0-9]+');
-        Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->where('id', '[0-9]+');
+        // Categories (admin catalog permission required for CUD)
+        Route::middleware('admin_permission:catalog.manage')->group(function () {
+            Route::post('/categories', [CategoryController::class, 'store']);
+            Route::put('/categories/{id}', [CategoryController::class, 'update'])->where('id', '[0-9]+');
+            Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->where('id', '[0-9]+');
+        });
 
-        // Products (Admin only for CUD)
-        Route::post('/products', [ProductController::class, 'store']);
-        Route::put('/products/{id}', [ProductController::class, 'update'])->where('id', '[0-9]+');
-        Route::delete('/products/{id}', [ProductController::class, 'destroy'])->where('id', '[0-9]+');
-        Route::post('/products/bulk-action', [ProductController::class, 'bulkAction']);
+        // Products (admin catalog permission required for CUD)
+        Route::middleware('admin_permission:catalog.manage')->group(function () {
+            Route::post('/products', [ProductController::class, 'store']);
+            Route::put('/products/{id}', [ProductController::class, 'update'])->where('id', '[0-9]+');
+            Route::delete('/products/{id}', [ProductController::class, 'destroy'])->where('id', '[0-9]+');
+            Route::post('/products/bulk-action', [ProductController::class, 'bulkAction']);
+        });
 
         // Cart
         Route::prefix('cart')->group(function () {
@@ -276,11 +284,12 @@ Route::prefix('v1')->group(function () {
             Route::get('/{id}/invoice', [\App\Http\Controllers\Api\InvoiceController::class, 'show'])->where('id', '[0-9]+');
             // Order Notes
             Route::get('/{id}/notes', [OrderNoteController::class, 'index'])->where('id', '[0-9]+');
-            Route::post('/{id}/notes', [OrderNoteController::class, 'store'])->where('id', '[0-9]+');
-            Route::delete('/{id}/notes/{noteId}', [OrderNoteController::class, 'destroy'])->where(['id' => '[0-9]+', 'noteId' => '[0-9]+']);
-            // Admin only
-            Route::put('/{id}/status', [OrderController::class, 'updateStatus'])->where('id', '[0-9]+');
-            Route::get('/status/{status}', [OrderController::class, 'byStatus']);
+            Route::middleware('admin_permission:orders.manage')->group(function () {
+                Route::post('/{id}/notes', [OrderNoteController::class, 'store'])->where('id', '[0-9]+');
+                Route::delete('/{id}/notes/{noteId}', [OrderNoteController::class, 'destroy'])->where(['id' => '[0-9]+', 'noteId' => '[0-9]+']);
+                Route::put('/{id}/status', [OrderController::class, 'updateStatus'])->where('id', '[0-9]+');
+                Route::get('/status/{status}', [OrderController::class, 'byStatus']);
+            });
         });
 
         // Payments
@@ -288,8 +297,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/order/{orderId}', [PaymentController::class, 'show'])->where('orderId', '[0-9]+');
             Route::post('/', [PaymentController::class, 'store']);
             Route::post('/{paymentId}/process', [PaymentController::class, 'process'])->where('paymentId', '[0-9]+');
-            // Admin only
-            Route::post('/{paymentId}/refund', [PaymentController::class, 'refund'])->where('paymentId', '[0-9]+');
+            Route::middleware('admin_permission:returns.manage')->group(function () {
+                Route::post('/{paymentId}/refund', [PaymentController::class, 'refund'])->where('paymentId', '[0-9]+');
+            });
         });
 
         // Stripe payment routes
@@ -302,16 +312,19 @@ Route::prefix('v1')->group(function () {
         Route::prefix('bkash')->group(function () {
             Route::post('/create-payment', [BkashController::class, 'createPayment']);
             Route::get('/check-status', [BkashController::class, 'checkStatus']);
-            // Admin only
-            Route::post('/refund', [BkashController::class, 'refund']);
+            Route::middleware('admin_permission:returns.manage')->group(function () {
+                Route::post('/refund', [BkashController::class, 'refund']);
+            });
         });
 
         // Admin: Order Export (CSV) & Audit Logs
-        Route::prefix('admin')->group(function () {
+        Route::prefix('admin')->middleware('is_admin')->group(function () {
             Route::get('/orders/export', [OrderExportController::class, 'export']);
             Route::get('/orders/export/download/{filename}', [OrderExportController::class, 'download']);
             Route::get('/audit-logs', [AuditLogController::class, 'index']);
             Route::get('/audit-logs/{id}', [AuditLogController::class, 'show'])->where('id', '[0-9]+');
         });
+    });
+
     });
 });

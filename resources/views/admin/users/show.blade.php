@@ -30,10 +30,26 @@
                     <tr>
                         <th class="text-muted small text-uppercase">Role</th>
                         <td>
-                            @if($user->role === 'admin')
-                                <span class="badge bg-danger">Admin</span>
+                            @php
+                                $badgeMap = [
+                                    'admin' => 'bg-danger',
+                                    'shop_manager' => 'bg-primary',
+                                    'cashier' => 'bg-warning text-dark',
+                                    'sales' => 'bg-info text-dark',
+                                    'customer' => 'bg-secondary',
+                                ];
+                                $roleBadge = $badgeMap[$user->role] ?? 'bg-secondary';
+                            @endphp
+                            <span class="badge {{ $roleBadge }}">{{ $roleLabels[$user->role] ?? ucfirst(str_replace('_', ' ', $user->role)) }}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted small text-uppercase">Status</th>
+                        <td>
+                            @if($user->trashed())
+                                <span class="badge bg-danger">Inactive</span>
                             @else
-                                <span class="badge bg-secondary">Customer</span>
+                                <span class="badge bg-success">Active</span>
                             @endif
                         </td>
                     </tr>
