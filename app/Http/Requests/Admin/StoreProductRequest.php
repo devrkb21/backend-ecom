@@ -24,6 +24,10 @@ class StoreProductRequest extends FormRequest
             'buy_price' => ['nullable', 'numeric', 'min:0'],
             'sku' => ['nullable', 'string', 'max:100', 'unique:products,sku'],
             'stock_quantity' => ['required', 'integer', 'min:0'],
+            'free_delivery' => ['nullable', 'boolean'],
+            'dynamic_discount_tiers' => ['nullable', 'array'],
+            'dynamic_discount_tiers.*.min_quantity' => ['nullable', 'integer', 'min:1'],
+            'dynamic_discount_tiers.*.unit_price' => ['nullable', 'numeric', 'min:0.01'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,gif,webp', 'max:2048'],
             'additional_images.*' => ['nullable', 'image', 'mimes:jpg,jpeg,png,gif,webp', 'max:2048'],
             'is_active' => ['boolean'],
@@ -40,6 +44,7 @@ class StoreProductRequest extends FormRequest
             'is_featured' => $this->boolean('is_featured'),
             'is_new' => $this->boolean('is_new'),
             'is_bestseller' => $this->boolean('is_bestseller'),
+            'free_delivery' => $this->boolean('free_delivery'),
         ]);
     }
 

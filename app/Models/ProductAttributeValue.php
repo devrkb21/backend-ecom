@@ -11,11 +11,25 @@ class ProductAttributeValue extends Model
         'attribute_id',
         'value',
         'color_code',
+        'image',
         'sort_order',
+    ];
+
+    protected $appends = [
+        'image_url',
     ];
 
     public function attribute(): BelongsTo
     {
         return $this->belongsTo(ProductAttribute::class, 'attribute_id');
+    }
+
+    public function getImageUrlAttribute(): ?string
+    {
+        if (!$this->image) {
+            return null;
+        }
+
+        return asset('storage/' . ltrim($this->image, '/'));
     }
 }

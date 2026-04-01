@@ -98,6 +98,8 @@
                     @forelse($products as $product)
                         @php
                             $primaryImage = $product->images->firstWhere('is_primary', true) ?? $product->images->first();
+                            $frontendBaseUrl = rtrim(config('app.frontend_url', url('/')), '/');
+                            $frontendProductUrl = $frontendBaseUrl . '/products/' . rawurlencode($product->slug ?? (string) $product->id);
                         @endphp
                         <tr>
                             <td>{{ $product->id }}</td>
@@ -153,6 +155,9 @@
                             <td>
                                 <a href="{{ route('admin.products.show', $product) }}" class="btn btn-sm btn-outline-info">
                                     <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ $frontendProductUrl }}" class="btn btn-sm btn-outline-success" title="View on Frontend" target="_blank" rel="noopener noreferrer">
+                                    <i class="bi bi-box-arrow-up-right"></i>
                                 </a>
                                 <a href="{{ route('admin.products.edit', $product) }}" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-pencil"></i>

@@ -5,15 +5,21 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateOrderStatusRequest;
 use App\Models\Order;
+use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $orders = Order::with(['user', 'payment'])
+        $query = Order::with(['user', 'payment'])
             ->withCount('items')
-            ->orderByDesc('created_at')
-            ->paginate(15);
+            ->orderByDesc('created_at');
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+
+        $orders = $query->paginate(15)->withQueryString();
 
         return view('admin.orders.index', compact('orders'));
     }

@@ -13,6 +13,8 @@ class ProductAttributeValueResource extends JsonResource
             'id' => $this->id,
             'value' => $this->value,
             'color_code' => $this->color_code,
+            'image' => $this->image,
+            'image_url' => $this->image_url,
         ];
     }
 }

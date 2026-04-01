@@ -29,6 +29,8 @@ class ProductVariantResource extends JsonResource
                         'value_id' => $value->id,
                         'value' => $value->value,
                         'color_code' => $value->color_code,
+                        'image' => $value->image,
+                        'image_url' => $value->image_url,
                     ];
                 });
             }),

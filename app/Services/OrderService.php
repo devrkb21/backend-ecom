@@ -71,7 +71,7 @@ class OrderService
             // Get payment gateway
             $paymentMethod = $shippingData['payment_method'] ?? 'cod';
             $paymentGateway = PaymentGateway::findByCode($paymentMethod);
-            
+
             if (!$paymentGateway || !$paymentGateway->is_active) {
                 throw new \Exception('Selected payment method is not available.');
             }
@@ -79,7 +79,7 @@ class OrderService
             // Get shipping method
             $shippingMethodCode = $shippingData['shipping_method'] ?? 'standard';
             $shippingMethod = ShippingMethod::findByCode($shippingMethodCode);
-            
+
             if (!$shippingMethod || !$shippingMethod->is_active) {
                 throw new \Exception('Selected shipping method is not available.');
             }
@@ -87,33 +87,38 @@ class OrderService
             // Calculate totals
             $subtotal = $cart->subtotal;
             $tax = $subtotal * 0.1; // 10% tax
-            
+
             // Apply coupon discount
             $coupon = $cart->coupon;
             $discountAmount = 0;
-            
+
             if ($coupon && $coupon->isValid()) {
                 $discountAmount = $cart->discount_amount;
             }
-            
+
             // Calculate item count for shipping
             $itemCount = $cart->items->sum('quantity');
-            
+
             // Calculate shipping cost using selected method
             $baseShipping = $shippingMethod->calculateCost($subtotal, $itemCount, 0);
-            
-            // Check if coupon provides free shipping
-            $shipping = ($coupon && $coupon->free_shipping) ? 0 : $baseShipping;
-            
+
+            // Product-level free delivery offer (if any cart product enables it)
+            $hasProductFreeDelivery = $cart->items->contains(function ($item) {
+                return $item->product && $item->product->hasFreeDeliveryOffer();
+            });
+
+            // Free shipping can come from coupon or product-level offer
+            $shipping = (($coupon && $coupon->free_shipping) || $hasProductFreeDelivery) ? 0 : $baseShipping;
+
             // Check if shipping method is available for this order
             $countryCode = $this->getCountryCode($shippingData['shipping_country'] ?? '');
             if (!$shippingMethod->isAvailableFor($subtotal, null, $countryCode)) {
                 throw new \Exception('Selected shipping method is not available for your order.');
             }
-            
+
             // Calculate payment gateway extra charge (e.g., COD fee)
             $paymentCharge = $this->calculatePaymentCharge($paymentGateway, $subtotal + $tax + $shipping - $discountAmount);
-            
+
             $total = max(0, $subtotal + $tax + $shipping - $discountAmount + $paymentCharge);
 
             // Check if order amount is within gateway limits
@@ -232,10 +237,10 @@ class OrderService
 
         $oldStatus = $order->status;
         $updatedOrder = $this->orderRepository->updateStatus($orderId, $status);
-        
+
         // Send status update notification
-        $updatedOrder->user->notify(new OrderStatusUpdated($updatedOrder, $oldStatus, $status));
-        
+        $updatedOrder->user->notify(new OrderStatusUpdated($updatedOrder, $oldStatus));
+
         // Send shipped notification if status is shipped
         if ($status === 'shipped') {
             $updatedOrder->user->notify(new OrderShipped(
@@ -244,7 +249,7 @@ class OrderService
                 $updatedOrder->carrier
             ));
         }
-        
+
         return $updatedOrder;
     }
 
@@ -270,15 +275,15 @@ class OrderService
     {
         $extraCharge = $gateway->getSetting('extra_charge', 0);
         $chargeType = $gateway->getSetting('extra_charge_type', 'fixed');
-        
+
         if ($extraCharge <= 0) {
             return 0;
         }
-        
+
         if ($chargeType === 'percentage') {
             return round($orderAmount * ($extraCharge / 100), 2);
         }
-        
+
         return (float) $extraCharge;
     }
 
@@ -288,20 +293,20 @@ class OrderService
     public function updatePaymentStatus(int $orderId, string $status, ?string $transactionId = null): Order
     {
         $order = $this->getOrderById($orderId);
-        
+
         $validStatuses = ['pending', 'awaiting', 'paid', 'failed', 'refunded'];
         if (!in_array($status, $validStatuses)) {
             throw new \Exception('Invalid payment status.');
         }
-        
+
         $order->payment_status = $status;
-        
+
         if ($transactionId) {
             $order->transaction_id = $transactionId;
         }
-        
+
         $order->save();
-        
+
         return $order;
     }
 
@@ -349,7 +354,7 @@ class OrderService
         ];
 
         $lowerCountry = strtolower(trim($country));
-        
+
         if (isset($countryMap[$lowerCountry])) {
             return $countryMap[$lowerCountry];
         }

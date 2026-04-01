@@ -78,10 +78,11 @@ class AttributeController extends Controller
         $validated = $request->validate([
             'value' => ['required', 'string', 'max:255'],
             'color_code' => ['nullable', 'string', 'max:7'],
+            'image' => ['nullable', 'string', 'max:255'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $attribute->values()->create($validated);
+        $attribute->values()->create($this->normalizeAttributeValueData($validated));
 
         return redirect()
             ->route('admin.attributes.edit', $attribute)
@@ -93,10 +94,11 @@ class AttributeController extends Controller
         $validated = $request->validate([
             'value' => ['required', 'string', 'max:255'],
             'color_code' => ['nullable', 'string', 'max:7'],
+            'image' => ['nullable', 'string', 'max:255'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $value->update($validated);
+        $value->update($this->normalizeAttributeValueData($validated));
 
         return redirect()
             ->route('admin.attributes.edit', $value->attribute)
@@ -111,5 +113,22 @@ class AttributeController extends Controller
         return redirect()
             ->route('admin.attributes.edit', $attribute)
             ->with('success', 'Value deleted successfully.');
+    }
+
+    private function normalizeAttributeValueData(array $data): array
+    {
+        $data['value'] = trim((string) ($data['value'] ?? ''));
+
+        if (array_key_exists('color_code', $data)) {
+            $colorCode = trim((string) ($data['color_code'] ?? ''));
+            $data['color_code'] = $colorCode !== '' ? strtoupper($colorCode) : null;
+        }
+
+        if (array_key_exists('image', $data)) {
+            $image = trim((string) ($data['image'] ?? ''));
+            $data['image'] = $image !== '' ? $image : null;
+        }
+
+        return $data;
     }
 }

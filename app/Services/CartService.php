@@ -29,11 +29,15 @@ class CartService
                 throw new \Exception('Product is not available.');
             }
 
-            if (!$product->hasStock($quantity)) {
+            $existingItem = $cart->items->firstWhere('product_id', $productId);
+            $currentQuantity = (int) ($existingItem?->quantity ?? 0);
+            $newQuantity = $currentQuantity + $quantity;
+
+            if (!$product->hasStock($newQuantity)) {
                 throw new \Exception('Insufficient stock available.');
             }
 
-            $price = $product->sale_price ?? $product->regular_price;
+            $price = $product->getPriceForQuantity($newQuantity);
             $this->cartRepository->addItem($cart->id, $productId, $quantity, $price);
 
             // Recalculate coupon discount
@@ -62,7 +66,8 @@ class CartService
                     throw new \Exception('Insufficient stock available.');
                 }
 
-                $this->cartRepository->updateItemQuantity($cart->id, $productId, $quantity);
+                $price = $product->getPriceForQuantity($quantity);
+                $this->cartRepository->updateItemQuantity($cart->id, $productId, $quantity, $price);
             }
 
             // Recalculate coupon discount

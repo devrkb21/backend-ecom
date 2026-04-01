@@ -135,11 +135,11 @@
                     {{-- Gallery Images (non-primary) --}}
                     <div class="mb-3">
                         <label class="form-label fw-bold">Gallery Images</label>
-                        
+
                         @php
                             $galleryImages = $product->images->where('is_primary', false);
                         @endphp
-                        
+
                         @if($galleryImages->isNotEmpty())
                             <div class="row g-2 mb-3" id="gallery-images-container">
                                 @foreach($galleryImages as $image)
@@ -237,6 +237,74 @@
                                 Total from variants: {{ $product->total_stock }}
                             </div>
                         @endif
+                    </div>
+                </div>
+            </div>
+
+            @php
+                $dynamicTiers = old('dynamic_discount_tiers', $product->quantity_pricing_tiers);
+                if (empty($dynamicTiers)) {
+                    $dynamicTiers = [
+                        ['min_quantity' => 1, 'unit_price' => ''],
+                        ['min_quantity' => 3, 'unit_price' => ''],
+                        ['min_quantity' => 5, 'unit_price' => ''],
+                    ];
+                }
+            @endphp
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-lightning-charge"></i> Dynamic Discount
+                </div>
+                <div class="card-body">
+                    <div class="small text-muted mb-3">Set unit price by quantity. Example: 1 = 100, 3 = 90, 5 = 80.</div>
+
+                    @foreach($dynamicTiers as $index => $tier)
+                        <div class="row g-2 mb-2">
+                            <div class="col-5">
+                                <label class="form-label small text-muted mb-1">Min Qty</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    class="form-control form-control-sm @error("dynamic_discount_tiers.$index.min_quantity") is-invalid @enderror"
+                                    name="dynamic_discount_tiers[{{ $index }}][min_quantity]"
+                                    value="{{ $tier['min_quantity'] ?? '' }}"
+                                    placeholder="e.g. 3"
+                                >
+                                @error("dynamic_discount_tiers.$index.min_quantity")
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-7">
+                                <label class="form-label small text-muted mb-1">Unit Price</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">৳</span>
+                                    <input
+                                        type="number"
+                                        min="0.01"
+                                        step="0.01"
+                                        class="form-control @error("dynamic_discount_tiers.$index.unit_price") is-invalid @enderror"
+                                        name="dynamic_discount_tiers[{{ $index }}][unit_price]"
+                                        value="{{ $tier['unit_price'] ?? '' }}"
+                                        placeholder="e.g. 90"
+                                    >
+                                    @error("dynamic_discount_tiers.$index.unit_price")
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+
+                    <div class="form-check form-switch mt-3">
+                        <input
+                            type="checkbox"
+                            class="form-check-input"
+                            id="free_delivery"
+                            name="free_delivery"
+                            value="1"
+                            {{ old('free_delivery', $product->hasFreeDeliveryOffer()) ? 'checked' : '' }}
+                        >
+                        <label class="form-check-label" for="free_delivery">Enable free delivery for this product</label>
                     </div>
                 </div>
             </div>
@@ -413,7 +481,7 @@
                             </table>
                         </div>
                     </form>
-                    
+
                     {{-- Hidden delete form --}}
                     <form id="deleteVariantForm" method="POST" style="display: none;">
                         @csrf
@@ -454,7 +522,7 @@
                             @endforeach
                         </select>
                     </div>
-                    
+
                     <div class="mb-3" id="attributeValuesContainer" style="display: none;">
                         <label class="form-label fw-semibold">2. Select Value(s) <span class="text-danger">*</span></label>
                         <p class="text-muted small mb-2">Click to select multiple values. Each selected value will create one variant.</p>
@@ -466,29 +534,29 @@
                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearAllAttributeValues()">Clear All</button>
                         </div>
                     </div>
-                    
+
                     {{-- Hidden data for JavaScript --}}
                     <div id="attributeData" style="display: none;">
                         @foreach($attributes as $attribute)
                             <div data-attribute-id="{{ $attribute->id }}">
                                 @foreach($attribute->values as $value)
-                                    <span data-value-id="{{ $value->id }}" 
-                                          data-value-name="{{ $value->value }}" 
+                                    <span data-value-id="{{ $value->id }}"
+                                          data-value-name="{{ $value->value }}"
                                           data-color-code="{{ $value->color_code }}"></span>
                                 @endforeach
                             </div>
                         @endforeach
                     </div>
-                    
+
                     <div id="selectedValuesContainer"></div>
-                    
+
                     <div class="alert alert-info py-2 mt-3" id="addVariantPreview">
                         <i class="bi bi-info-circle me-1"></i>
                         <span id="addVariantCount">Select attribute values to add variants</span>
                     </div>
-                    
+
                     <hr>
-                    
+
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Price Adjustment (for all)</label>
@@ -593,7 +661,7 @@
                 </div>
                 <div class="modal-body">
                     <p class="text-muted mb-4">Select attribute values to create variants. Each selected value will create one variant.</p>
-                    
+
                     <div class="row g-4">
                         @foreach($attributes as $attribute)
                             <div class="col-md-6">
@@ -609,9 +677,9 @@
                                             @foreach($attribute->values as $value)
                                                 <div class="col-auto">
                                                     <div class="form-check">
-                                                        <input class="form-check-input variant-value-checkbox" 
-                                                               type="checkbox" 
-                                                               name="attribute_values[]" 
+                                                        <input class="form-check-input variant-value-checkbox"
+                                                               type="checkbox"
+                                                               name="attribute_values[]"
                                                                value="{{ $value->id }}"
                                                                id="gen_val_{{ $value->id }}"
                                                                data-attribute="{{ $attribute->id }}"
@@ -684,9 +752,9 @@
                         <i class="bi bi-info-circle me-1"></i>
                         <span id="bulkEditCount">Select variants from the table first</span>
                     </div>
-                    
+
                     <p class="text-muted small">Leave fields empty to keep current values. Only filled fields will be updated.</p>
-                    
+
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Set Price Adjustment</label>
                         <div class="input-group">
@@ -694,17 +762,17 @@
                             <input type="number" step="0.01" class="form-control" name="bulk_price_adjustment" placeholder="Leave empty to keep current">
                         </div>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Set Stock Quantity</label>
                         <input type="number" min="0" class="form-control" name="bulk_stock_quantity" placeholder="Leave empty to keep current">
                     </div>
-                    
+
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Add Stock (increase by)</label>
                         <input type="number" min="0" class="form-control" name="bulk_add_stock" placeholder="e.g., 10 to add 10 to each">
                     </div>
-                    
+
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Set Status</label>
                         <select class="form-select" name="bulk_is_active">
@@ -713,9 +781,9 @@
                             <option value="0">Inactive</option>
                         </select>
                     </div>
-                    
+
                     <hr>
-                    
+
                     <div class="form-check text-danger">
                         <input class="form-check-input" type="checkbox" name="bulk_delete" value="1" id="bulkDeleteCheck" onchange="toggleBulkDeleteWarning()">
                         <label class="form-check-label" for="bulkDeleteCheck">
@@ -748,7 +816,7 @@
 function handlePrimaryImageSelect(media) {
     const preview = document.getElementById('primary-image-preview');
     const input = document.getElementById('primary-image-input');
-    
+
     input.value = media.path;
     preview.innerHTML = `<img src="${media.url}" alt="Primary" class="w-100 h-100" style="object-fit: cover;">`;
 }
@@ -756,7 +824,7 @@ function handlePrimaryImageSelect(media) {
 // Handle gallery images selection from media library
 function handleGalleryImagesSelect(mediaItems) {
     const container = document.getElementById('selected-gallery-images');
-    
+
     // Add hidden inputs for each selected image
     mediaItems.forEach((media, index) => {
         const input = document.createElement('input');
@@ -765,7 +833,7 @@ function handleGalleryImagesSelect(mediaItems) {
         input.value = media.path;
         container.appendChild(input);
     });
-    
+
     // Show visual feedback
     const feedback = document.createElement('div');
     feedback.className = 'alert alert-success alert-sm mt-2 py-2';
@@ -782,7 +850,7 @@ function editVariant(id, variant) {
     document.getElementById('edit_variant_active').checked = variant.is_active;
     document.getElementById('remove_variant_image').checked = false;
     document.getElementById('edit_variant_image_path').value = '';
-    
+
     // Show current image preview
     var preview = document.getElementById('edit_variant_image_preview');
     if (variant.image_url) {
@@ -790,7 +858,7 @@ function editVariant(id, variant) {
     } else {
         preview.innerHTML = '<i class="bi bi-image text-muted" style="font-size: 2rem;"></i>';
     }
-    
+
     new bootstrap.Modal(document.getElementById('editVariantModal')).show();
 }
 
@@ -811,30 +879,30 @@ function showAttributeValues() {
     var container = document.getElementById('attributeValuesContainer');
     var box = document.getElementById('attributeValuesBox');
     var addBtn = document.getElementById('addVariantBtn');
-    
+
     var attributeId = select.value;
-    
+
     // Clear previous selections
     document.getElementById('selectedValuesContainer').innerHTML = '';
     updateAddVariantCount();
-    
+
     if (!attributeId) {
         container.style.display = 'none';
         addBtn.disabled = true;
         return;
     }
-    
+
     // Get values for selected attribute
     var dataContainer = document.querySelector('#attributeData [data-attribute-id="' + attributeId + '"]');
     var values = dataContainer.querySelectorAll('[data-value-id]');
-    
+
     // Build the value buttons (multi-select)
     var html = '<div class="d-flex flex-wrap gap-2">';
     values.forEach(function(val) {
         var valueId = val.getAttribute('data-value-id');
         var valueName = val.getAttribute('data-value-name');
         var colorCode = val.getAttribute('data-color-code');
-        
+
         html += '<button type="button" class="btn btn-outline-secondary value-btn" data-value-id="' + valueId + '" data-value-name="' + valueName + '" onclick="toggleAttributeValue(this)">';
         if (colorCode) {
             html += '<span class="d-inline-block rounded-circle me-1" style="width: 16px; height: 16px; background-color: ' + colorCode + '; border: 1px solid #ccc; vertical-align: middle;"></span>';
@@ -842,7 +910,7 @@ function showAttributeValues() {
         html += valueName + '</button>';
     });
     html += '</div>';
-    
+
     box.innerHTML = html;
     container.style.display = 'block';
     addBtn.disabled = true;
@@ -853,7 +921,7 @@ function toggleAttributeValue(btn) {
     var valueId = btn.getAttribute('data-value-id');
     var container = document.getElementById('selectedValuesContainer');
     var existingInput = container.querySelector('input[value="' + valueId + '"]');
-    
+
     if (existingInput) {
         // Deselect
         existingInput.remove();
@@ -869,7 +937,7 @@ function toggleAttributeValue(btn) {
         btn.classList.remove('btn-outline-secondary');
         btn.classList.add('btn-primary');
     }
-    
+
     updateAddVariantCount();
 }
 
@@ -894,7 +962,7 @@ function updateAddVariantCount() {
     var count = document.querySelectorAll('#selectedValuesContainer input').length;
     var countEl = document.getElementById('addVariantCount');
     var addBtn = document.getElementById('addVariantBtn');
-    
+
     if (count > 0) {
         countEl.textContent = 'Will create ' + count + ' variant(s)';
         addBtn.disabled = false;
@@ -936,7 +1004,7 @@ function updateBulkEditCount() {
     var checkedCount = document.querySelectorAll('.variant-checkbox:checked').length;
     var countEl = document.getElementById('bulkEditCount');
     var submitBtn = document.getElementById('bulkEditSubmit');
-    
+
     if (checkedCount > 0) {
         countEl.textContent = checkedCount + ' variant(s) selected';
         submitBtn.disabled = false;
@@ -963,11 +1031,11 @@ document.getElementById('bulkEditModal').addEventListener('show.bs.modal', funct
     document.querySelectorAll('.variant-checkbox:checked').forEach(function(cb) {
         selectedIds.push(cb.value);
     });
-    
+
     // Remove old hidden inputs
     var oldInputs = document.querySelectorAll('#bulkEditModalForm input[name="variant_ids[]"]');
     oldInputs.forEach(function(input) { input.remove(); });
-    
+
     // Add new hidden inputs
     var form = document.getElementById('bulkEditModalForm');
     selectedIds.forEach(function(id) {
@@ -977,7 +1045,7 @@ document.getElementById('bulkEditModal').addEventListener('show.bs.modal', funct
         input.value = id;
         form.appendChild(input);
     });
-    
+
     updateBulkEditCount();
 });
 
@@ -990,26 +1058,26 @@ document.querySelectorAll('.variant-checkbox').forEach(function(cb) {
 function selectAllValues(attributeId) {
     var checkboxes = document.querySelectorAll('input[data-attribute="' + attributeId + '"]');
     var allChecked = true;
-    
+
     checkboxes.forEach(function(cb) {
         if (!cb.checked) allChecked = false;
     });
-    
+
     // If all are checked, uncheck all. Otherwise check all.
     checkboxes.forEach(function(cb) {
         cb.checked = !allChecked;
     });
-    
+
     updateVariantPreview();
 }
 
 // Update variant preview count - each selected value = 1 variant
 function updateVariantPreview() {
     var checkedCount = document.querySelectorAll('.variant-value-checkbox:checked').length;
-    
+
     var previewEl = document.getElementById('variant-count');
     var generateBtn = document.getElementById('generateBtn');
-    
+
     if (checkedCount > 0) {
         previewEl.textContent = 'This will generate ' + checkedCount + ' variant(s) - one for each selected value';
         generateBtn.disabled = false;

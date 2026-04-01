@@ -119,7 +119,7 @@
                     {{-- Gallery Images --}}
                     <div class="mb-3">
                         <label class="form-label fw-bold">Gallery Images</label>
-                        
+
                         <div class="mb-3">
                             <button type="button" class="btn btn-outline-secondary w-100" onclick="openMediaPicker('gallery-images-input', true, handleGalleryImagesSelect)">
                                 <i class="bi bi-images"></i> Add from Media Library
@@ -190,6 +190,71 @@
                 </div>
             </div>
 
+            @php
+                $dynamicTiers = old('dynamic_discount_tiers', [
+                    ['min_quantity' => 1, 'unit_price' => ''],
+                    ['min_quantity' => 3, 'unit_price' => ''],
+                    ['min_quantity' => 5, 'unit_price' => ''],
+                ]);
+            @endphp
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-lightning-charge"></i> Dynamic Discount
+                </div>
+                <div class="card-body">
+                    <div class="small text-muted mb-3">Set unit price by quantity. Example: 1 = 100, 3 = 90, 5 = 80.</div>
+
+                    @foreach($dynamicTiers as $index => $tier)
+                        <div class="row g-2 mb-2">
+                            <div class="col-5">
+                                <label class="form-label small text-muted mb-1">Min Qty</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    class="form-control form-control-sm @error("dynamic_discount_tiers.$index.min_quantity") is-invalid @enderror"
+                                    name="dynamic_discount_tiers[{{ $index }}][min_quantity]"
+                                    value="{{ $tier['min_quantity'] ?? '' }}"
+                                    placeholder="e.g. 3"
+                                >
+                                @error("dynamic_discount_tiers.$index.min_quantity")
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-7">
+                                <label class="form-label small text-muted mb-1">Unit Price</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">৳</span>
+                                    <input
+                                        type="number"
+                                        min="0.01"
+                                        step="0.01"
+                                        class="form-control @error("dynamic_discount_tiers.$index.unit_price") is-invalid @enderror"
+                                        name="dynamic_discount_tiers[{{ $index }}][unit_price]"
+                                        value="{{ $tier['unit_price'] ?? '' }}"
+                                        placeholder="e.g. 90"
+                                    >
+                                    @error("dynamic_discount_tiers.$index.unit_price")
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+
+                    <div class="form-check form-switch mt-3">
+                        <input
+                            type="checkbox"
+                            class="form-check-input"
+                            id="free_delivery"
+                            name="free_delivery"
+                            value="1"
+                            {{ old('free_delivery') ? 'checked' : '' }}
+                        >
+                        <label class="form-check-label" for="free_delivery">Enable free delivery for this product</label>
+                    </div>
+                </div>
+            </div>
+
             <div class="card mb-4">
                 <div class="card-header">
                     <i class="bi bi-tags"></i> Flags & Status
@@ -250,7 +315,7 @@
 function handlePrimaryImageSelect(media) {
     const preview = document.getElementById('primary-image-preview');
     const input = document.getElementById('primary-image-input');
-    
+
     input.value = media.path;
     preview.innerHTML = `<img src="${media.url}" alt="Primary" class="w-100 h-100" style="object-fit: cover;">`;
 }
@@ -258,7 +323,7 @@ function handlePrimaryImageSelect(media) {
 // Handle gallery images selection from media library
 function handleGalleryImagesSelect(mediaItems) {
     const container = document.getElementById('selected-gallery-images');
-    
+
     // Add hidden inputs for each selected image
     mediaItems.forEach((media, index) => {
         const input = document.createElement('input');
@@ -267,7 +332,7 @@ function handleGalleryImagesSelect(mediaItems) {
         input.value = media.path;
         container.appendChild(input);
     });
-    
+
     // Show visual feedback
     const feedback = document.createElement('div');
     feedback.className = 'alert alert-success alert-sm mt-2 py-2';
