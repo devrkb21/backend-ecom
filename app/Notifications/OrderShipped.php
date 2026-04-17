@@ -79,7 +79,7 @@ class OrderShipped extends Notification implements ShouldQueue
 
         $carriers = [
             'pathao' => 'https://merchant.pathao.com/tracking?consignment_id=' . $this->trackingNumber,
-            'steadfast' => 'https://steadfast.com.bd/track/' . $this->trackingNumber,
+            'steadfast' => 'https://steadfast.com.bd/tl/' . $this->trackingNumber,
             'redx' => 'https://redx.com.bd/track/' . $this->trackingNumber,
             'paperfly' => 'https://paperfly.com.bd/tracking/' . $this->trackingNumber,
             'sundarban' => 'https://sundarbancourier.com/track/' . $this->trackingNumber,

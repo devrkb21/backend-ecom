@@ -16,27 +16,27 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
 
     public function getActive(): Collection
     {
-        return $this->model->active()->with(['category', 'images'])->get();
+        return $this->model->active()->with(['category', 'images'])->withCount('variants')->get();
     }
 
     public function getActivePaginated(int $perPage = 15): LengthAwarePaginator
     {
-        return $this->model->active()->with(['category', 'images'])->paginate($perPage);
+        return $this->model->active()->with(['category', 'images'])->withCount('variants')->paginate($perPage);
     }
 
     public function getFeatured(): Collection
     {
-        return $this->model->active()->featured()->with(['category', 'images'])->get();
+        return $this->model->active()->featured()->with(['category', 'images'])->withCount('variants')->get();
     }
 
     public function getNew(): Collection
     {
-        return $this->model->active()->where('is_new', true)->with(['category', 'images'])->limit(12)->get();
+        return $this->model->active()->where('is_new', true)->with(['category', 'images'])->withCount('variants')->limit(12)->get();
     }
 
     public function getBestsellers(): Collection
     {
-        return $this->model->active()->where('is_bestseller', true)->with(['category', 'images'])->limit(12)->get();
+        return $this->model->active()->where('is_bestseller', true)->with(['category', 'images'])->withCount('variants')->limit(12)->get();
     }
 
     public function findBySlug(string $slug): ?Product
@@ -56,7 +56,7 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
 
     public function getByCategory(int $categoryId): Collection
     {
-        return $this->model->active()->where('category_id', $categoryId)->with(['category', 'images'])->get();
+        return $this->model->active()->where('category_id', $categoryId)->with(['category', 'images'])->withCount('variants')->get();
     }
 
     public function getByCategoryPaginated(int $categoryId, int $perPage = 15): LengthAwarePaginator
@@ -65,6 +65,7 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
             ->active()
             ->where('category_id', $categoryId)
             ->with(['category', 'images'])
+            ->withCount('variants')
             ->paginate($perPage);
     }
 
@@ -78,6 +79,7 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
                     ->orWhere('sku', 'like', "%{$query}%");
             })
             ->with(['category', 'images'])
+            ->withCount('variants')
             ->get();
     }
 }

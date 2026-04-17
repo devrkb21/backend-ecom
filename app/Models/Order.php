@@ -34,6 +34,10 @@ class Order extends Model
         'shipping_email',
         'shipping_phone',
         'shipping_address',
+        'shipping_division_id',
+        'shipping_district_id',
+        'shipping_upazila_id',
+        'shipping_union_id',
         'shipping_city',
         'shipping_state',
         'shipping_zip',
@@ -54,6 +58,10 @@ class Order extends Model
             'subtotal' => 'decimal:2',
             'tax' => 'decimal:2',
             'shipping' => 'decimal:2',
+            'shipping_division_id' => 'integer',
+            'shipping_district_id' => 'integer',
+            'shipping_upazila_id' => 'integer',
+            'shipping_union_id' => 'integer',
             'discount_amount' => 'decimal:2',
             'total' => 'decimal:2',
             'shipped_at' => 'datetime',
@@ -100,6 +108,31 @@ class Order extends Model
     public function notes(): HasMany
     {
         return $this->hasMany(OrderNote::class);
+    }
+
+    public function statusConfig(): BelongsTo
+    {
+        return $this->belongsTo(OrderStatus::class, 'status', 'key');
+    }
+
+    public function shippingDivision(): BelongsTo
+    {
+        return $this->belongsTo(BdDivision::class, 'shipping_division_id');
+    }
+
+    public function shippingDistrict(): BelongsTo
+    {
+        return $this->belongsTo(BdDistrict::class, 'shipping_district_id');
+    }
+
+    public function shippingUpazila(): BelongsTo
+    {
+        return $this->belongsTo(BdUpazila::class, 'shipping_upazila_id');
+    }
+
+    public function shippingUnion(): BelongsTo
+    {
+        return $this->belongsTo(BdUnion::class, 'shipping_union_id');
     }
 
     // ==================== STATUS HELPERS ====================
@@ -211,7 +244,7 @@ class Order extends Model
     {
         $carriers = [
             'pathao' => 'https://merchant.pathao.com/tracking?consignment_id=' . $trackingNumber,
-            'steadfast' => 'https://steadfast.com.bd/track/' . $trackingNumber,
+            'steadfast' => 'https://steadfast.com.bd/tl/' . $trackingNumber,
             'redx' => 'https://redx.com.bd/track/' . $trackingNumber,
             'paperfly' => 'https://paperfly.com.bd/tracking/' . $trackingNumber,
             'sundarban' => 'https://sundarbancourier.com/track/' . $trackingNumber,

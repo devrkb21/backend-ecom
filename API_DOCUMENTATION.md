@@ -1,38 +1,82 @@
 # E-Commerce API Documentation
 
 ## Metadata
-- Version: 1.2
+- Version: 2.1
+- Last updated: April 11, 2026
 - Base URL (production): https://api.innercollection.com.bd/api/v1
 - Base URL (local): http://localhost:8000/api/v1
-- Public health check: /api/health
-- Last updated: April 1, 2026
-- Total `/api/v1` routes: 154
-- Authenticated `/api/v1` routes: 147
-- Public `/api/v1` routes: 7 (strict whitelist)
+- Health check: GET /api/health
+- Total API routes (including /api/health): 164
+- Total /api/v1 routes: 163
+- Authenticated /api/v1 routes: 99
+- Internal-secret /api/v1 routes: 51
+- Public /api/v1 routes: 13
 
 ## Table of Contents
-- API Conventions
-- Security Model (Strict)
-- Authentication and Access Control
-- Rate Limiting
-- Data Contracts and Important Fields
-- Endpoint Catalog (Complete)
-- Core Request Examples
-- Validation Cheat Sheet (Key Endpoints)
-- Status Codes and Error Handling
-- Notes for Integrators
+1. API Conventions
+2. Authentication and Authorization
+3. Rate Limits
+4. Response Formats
+5. Pagination
+6. Error Handling
+7. Resource Field Reference
+8. Public Endpoint Whitelist
+9. Complete Route Inventory (A-Z)
+10. Detailed Request and Response Contracts (A-Z)
 
-## API Conventions
+## 1) API Conventions
 
-### Required headers
+### Required Headers
 For JSON requests:
-- `Accept: application/json`
-- `Content-Type: application/json`
+- Accept: application/json
+- Content-Type: application/json
 
-For protected routes:
-- `Authorization: Bearer <sanctum_token>`
+For auth-protected routes:
+- Authorization: Bearer <sanctum_token>
 
-### Standard success response
+For internal frontend-data routes (middleware: internal.api):
+- X-Internal-Secret: <INTERNAL_API_SECRET>
+
+### API Versioning
+- All business APIs are under /api/v1.
+- /api/health is outside /api/v1.
+
+## 2) Authentication and Authorization
+
+### Authentication
+API access is split into 3 models:
+- `Auth` routes: require Sanctum bearer token.
+- `Internal Secret` routes: require `X-Internal-Secret` header and are intended for server-to-server/frontend proxy usage.
+- `Public` routes: no Sanctum token and no internal secret required.
+
+Current route distribution under `/api/v1`:
+- Auth routes: 99
+- Internal-secret routes: 51
+- Public routes: 13
+
+### Authorization Model
+- User ownership checks are done in controller/service for user-scoped resources (orders, payments, profile, returns, addresses, wishlist, reviews).
+- Admin-only access is enforced by middleware and/or explicit controller checks.
+
+### Key Middleware Used
+- is_admin
+- admin_permission:catalog.manage
+- admin_permission:orders.manage
+- admin_permission:returns.manage
+- admin_permission:users.manage
+- internal.api (InternalApiOnly)
+
+## 3) Rate Limits
+
+- Global API: configured via Laravel API throttle.
+- Auth routes (register/login/forgot/reset): throttle:auth middleware.
+- Order creation (`POST /api/v1/orders`): throttle:10,1.
+
+## 4) Response Formats
+
+This codebase currently uses 3 response styles.
+
+### Style A: Standard success wrapper (most endpoints)
 ```json
 {
   "success": true,
@@ -41,524 +85,59 @@ For protected routes:
 }
 ```
 
-### Standard error response
-```json
-{
-  "success": false,
-  "message": "Error message",
-  "errors": {
-    "field": ["validation message"]
-  }
-}
-```
-
-### Pagination
-Many list endpoints return Laravel paginator structures (`data`, `links`, `meta`) when applicable.
-
-## Security Model (Strict)
-
-### Default-deny policy
-- All `/api/v1` routes are protected by `auth:sanctum` by default.
-- Only explicitly whitelisted routes are publicly accessible.
-- This is enforced both in routing and by dedicated feature tests.
-
-### Public `/api/v1` whitelist (only 7)
-- `POST /auth/register`
-- `POST /auth/login`
-- `POST /auth/forgot-password`
-- `POST /auth/reset-password`
-- `GET /auth/email/verify/{id}/{hash}`
-- `POST /stripe/webhook`
-- `GET /bkash/callback`
-
-### Admin route hardening
-Admin-sensitive API endpoints use one or more of:
-- `admin_permission:*` middleware
-- `is_admin` middleware
-- Controller/service-level strict admin checks (`role = admin`) on specific actions
-
-### Guardrail tests
-Security behavior is enforced by tests in `tests/Feature/ApiSecurityTest.php`:
-- Unexpected public `/api/v1` routes fail tests
-- Missing admin middleware for `/api/v1/admin/*` fails tests
-
-## Authentication and Access Control
-
-### Public authentication routes
-- `POST /auth/register`
-- `POST /auth/login`
-- `POST /auth/forgot-password`
-- `POST /auth/reset-password`
-- `GET /auth/email/verify/{id}/{hash}`
-
-### Authenticated authentication routes
-- `POST /auth/logout`
-- `GET /auth/me`
-- `POST /auth/email/resend`
-- `POST /auth/change-password`
-
-### Password reset modes
-`POST /auth/reset-password` supports either:
-- reset token flow (`token`)
-- OTP flow (`otp`, 4 digits)
-
-Validation summary:
-- `token`: required when `otp` is absent
-- `otp`: required when `token` is absent, must be 4 digits
-- `email`: required
-- `password` + `password_confirmation`: required
-
-### Ownership and authorization notes
-- Several authenticated endpoints apply owner-scoped checks (orders, payments, returns, profile)
-- Some admin-capable endpoints still require strict admin role inside controller logic
-
-## Rate Limiting
-- General API limiter (`api`):
-  - Authenticated: 120 requests/minute per user
-  - Guests: 60 requests/minute per IP
-- Auth limiter (`auth`) for register/login/forgot/reset:
-  - 5 requests/minute per IP
-
-## Data Contracts and Important Fields
-
-### Product payload highlights
-Product responses include dynamic pricing fields:
-- `dynamic_price_for_quantity_1`
-- `has_dynamic_discount`
-- `dynamic_discount_tiers` (from `meta_data.quantity_pricing`)
-- `free_delivery`
-
-### Variant attribute payload highlights
-Variant attributes may include:
-- `color_code`
-- `image`
-- `image_url`
-
-### Integrations and SMS behavior
-OTP message format:
-- `Your <Brand> OTP is XXXX`
-
-`forgot-password` triggers reset email and SMS OTP when phone/config are available.
-
-## Endpoint Catalog (Complete)
-
-All endpoints below are under `/api/v1` unless explicitly noted.
-
----
-
-## 1) System (outside `/api/v1`)
-Public:
-- `GET /api/health` - Health status
-
----
-
-## 2) Public Whitelist Endpoints (`/api/v1`)
-
-### Authentication
-- `POST /auth/register` - Register account
-- `POST /auth/login` - Login and issue token
-- `POST /auth/forgot-password` - Send reset email + SMS OTP trigger
-- `POST /auth/reset-password` - Reset by token or OTP
-- `GET /auth/email/verify/{id}/{hash}` - Signed email verification
-
-### Payment provider callbacks
-- `POST /stripe/webhook` - Stripe webhook callback
-- `GET /bkash/callback` - bKash callback redirect target
-
----
-
-## 3) Authenticated Endpoints (Bearer token required)
-
-### Auth session/profile
-- `POST /auth/logout`
-- `GET /auth/me`
-- `POST /auth/email/resend`
-- `POST /auth/change-password`
-- `GET /profile`
-- `PUT /profile`
-
-### Categories
-- `GET /categories`
-- `GET /categories/menu`
-- `GET /categories/slug/{slug}`
-- `GET /categories/{id}`
-- `GET /categories/{id}/children`
-
-Admin write operations (middleware + admin checks):
-- `POST /categories`
-- `PUT /categories/{id}`
-- `DELETE /categories/{id}`
-
-### Products
-- `GET /products`
-- `GET /products/featured`
-- `GET /products/new`
-- `GET /products/bestsellers`
-- `GET /products/search`
-- `GET /products/slug/{slug}`
-- `GET /products/category/{categoryId}`
-- `GET /products/{id}`
-- `GET /products/{id}/variants`
-
-Admin write operations (middleware + admin checks):
-- `POST /products`
-- `PUT /products/{id}`
-- `DELETE /products/{id}`
-- `POST /products/bulk-action`
-
-### Product Reviews
-Product page review reads (authenticated in current strict model):
-- `GET /products/{productId}/reviews`
-- `GET /products/{productId}/reviews/summary`
-- `GET /products/{productId}/reviews/featured`
-
-Authenticated user review operations:
-- `GET /reviews/my`
-- `POST /reviews`
-- `PUT /reviews/{review}`
-- `DELETE /reviews/{review}`
-- `POST /reviews/{review}/vote`
-- `DELETE /reviews/{review}/vote`
-- `GET /reviews/can-review/{productId}`
-
-### Attributes
-- `GET /attributes`
-- `GET /attributes/{id}`
-
-### Payment/Shipping discovery (authenticated in strict mode)
-- `GET /payment-methods`
-- `GET /payment-methods/{code}`
-- `GET /shipping-methods`
-- `GET /shipping-methods/{code}`
-- `POST /shipping-methods/calculate`
-
-### Frontend Settings (authenticated in strict mode)
-- `GET /settings`
-- `GET /settings/hero`
-- `GET /settings/general`
-- `GET /settings/social`
-- `GET /settings/seo`
-- `GET /settings/footer`
-- `GET /settings/banner`
-- `GET /settings/{group}`
-
-### Stripe and bKash operations (authenticated)
-- `GET /stripe/config`
-- `POST /stripe/create-payment-intent`
-- `POST /stripe/confirm-payment`
-- `GET /bkash/config`
-- `POST /bkash/create-payment`
-- `GET /bkash/check-status`
-
-Admin refund operation:
-- `POST /bkash/refund`
-
-### Order Tracking and Recommendations
-- `GET /track/order/{orderNumber}`
-- `GET /track/tracking/{trackingNumber}`
-- `GET /products/{product}/related`
-- `GET /products/{product}/frequently-bought-together`
-- `GET /products/{product}/upsell`
-- `GET /products/{product}/cross-sell`
-- `POST /cart/recommendations`
-
-### Flash Sales
-- `GET /flash-sales`
-- `GET /flash-sales/featured`
-- `GET /flash-sales/upcoming`
-- `GET /flash-sales/{slug}`
-- `GET /flash-sales/product/{productId}`
-- `POST /flash-sales/validate-purchase`
-
-### Loyalty
-- `GET /loyalty/tiers`
-- `GET /loyalty/summary`
-- `GET /loyalty/transactions`
-- `GET /loyalty/rewards`
-- `POST /loyalty/redeem`
-- `GET /loyalty/redemptions`
-- `GET /loyalty/redemptions/active`
-- `POST /loyalty/redemptions/{redemption}/cancel`
-- `POST /loyalty/validate-coupon`
-- `GET /loyalty/leaderboard`
-
-### Users
-- `GET /users/{id}` (self or admin)
-- `PUT /users/{id}` (self or admin)
-
-Admin user-management operations:
-- `GET /users`
-- `POST /users`
-- `DELETE /users/{id}`
-- `POST /users/{id}/toggle-status`
-
-### Cart and Coupons
-- `GET /cart`
-- `POST /cart/items`
-- `PUT /cart/items/{productId}`
-- `DELETE /cart/items/{productId}`
-- `DELETE /cart`
-- `POST /cart/coupon`
-- `DELETE /cart/coupon`
-- `GET /coupons/validate`
-- `GET /coupons/available`
-
-### Wishlist
-- `GET /wishlist`
-- `POST /wishlist`
-- `POST /wishlist/toggle`
-- `GET /wishlist/check`
-- `GET /wishlist/count`
-- `DELETE /wishlist/clear`
-- `DELETE /wishlist/{wishlist}`
-- `DELETE /wishlist/product`
-- `POST /wishlist/{wishlist}/move-to-cart`
-
-### Addresses
-- `GET /addresses`
-- `POST /addresses`
-- `GET /addresses/default/shipping`
-- `GET /addresses/default/billing`
-- `GET /addresses/{address}`
-- `PUT /addresses/{address}`
-- `DELETE /addresses/{address}`
-- `POST /addresses/{address}/set-default`
-
-### Checkout Tracking (Abandoned Cart)
-- `POST /checkout/track`
-- `POST /checkout/recovered`
-
-### Notifications
-- `GET /notifications`
-- `GET /notifications/unread-count`
-- `POST /notifications/{id}/read`
-- `POST /notifications/read-all`
-- `DELETE /notifications/{id}`
-
-### Orders and Notes
-- `GET /orders`
-- `POST /orders`
-- `GET /orders/{id}`
-- `GET /orders/number/{orderNumber}`
-- `POST /orders/{id}/cancel`
-- `GET /orders/{id}/tracking`
-- `GET /orders/{id}/invoice`
-- `GET /orders/{id}/notes`
-
-Admin order operations:
-- `POST /orders/{id}/notes`
-- `DELETE /orders/{id}/notes/{noteId}`
-- `PUT /orders/{id}/status`
-- `GET /orders/status/{status}`
-
-### Payments
-- `GET /payments/order/{orderId}`
-- `POST /payments`
-- `POST /payments/{paymentId}/process`
-
-Admin payment operation:
-- `POST /payments/{paymentId}/refund`
-
-### Returns and Refunds
-- `GET /returns`
-- `POST /returns`
-- `GET /returns/check-eligibility`
-- `GET /returns/{return}`
-- `POST /returns/{return}/cancel`
-- `POST /returns/{return}/upload-images`
-
-### Admin API Utilities
-- `GET /admin/orders/export`
-- `GET /admin/orders/export/download/{filename}`
-- `GET /admin/audit-logs`
-- `GET /admin/audit-logs/{id}`
-
----
-
-## Core Request Examples
-
-## 1) Register
-`POST /auth/register`
-
-```json
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "password": "password123",
-  "password_confirmation": "password123",
-  "phone": "8801712345678"
-}
-```
-
-## 2) Login
-`POST /auth/login`
-
-```json
-{
-  "email": "john@example.com",
-  "password": "password123"
-}
-```
-
-## 3) Authenticated request headers
-```http
-Authorization: Bearer <sanctum_token>
-Accept: application/json
-Content-Type: application/json
-```
-
-## 4) Forgot Password
-`POST /auth/forgot-password`
-
-```json
-{
-  "email": "john@example.com"
-}
-```
-
-## 5) Reset Password (OTP mode)
-`POST /auth/reset-password`
-
-```json
-{
-  "email": "john@example.com",
-  "otp": "1234",
-  "password": "newPassword123",
-  "password_confirmation": "newPassword123"
-}
-```
-
-## 6) Add Item to Cart
-`POST /cart/items`
-
-```json
-{
-  "product_id": 10,
-  "quantity": 2
-}
-```
-
-## 7) Create Order
-`POST /orders`
-
-```json
-{
-  "shipping_name": "John Doe",
-  "shipping_email": "john@example.com",
-  "shipping_phone": "8801712345678",
-  "shipping_address": "House 10, Road 5",
-  "shipping_city": "Dhaka",
-  "shipping_state": "Dhaka",
-  "shipping_zip": "1207",
-  "shipping_country": "Bangladesh",
-  "notes": "Leave at front desk",
-  "shipping_method": "inside_dhaka",
-  "payment_method": "stripe"
-}
-```
-
-## 8) Product Response Example (important fields)
-`GET /products/{id}`
-
+### Style B: Raw JSON with explicit keys (some controllers)
 ```json
 {
   "success": true,
-  "data": {
-    "id": 10,
-    "name": "Example Product",
-    "regular_price": 1200,
-    "sale_price": 1000,
-    "current_price": 1000,
-    "dynamic_price_for_quantity_1": 1000,
-    "has_dynamic_discount": true,
-    "dynamic_discount_tiers": [
-      {"min_quantity": 1, "unit_price": 1000},
-      {"min_quantity": 3, "unit_price": 950},
-      {"min_quantity": 5, "unit_price": 900}
-    ],
-    "free_delivery": true,
-    "variants": [
-      {
-        "id": 501,
-        "attributes": [
-          {
-            "attribute_name": "Color",
-            "value": "Black",
-            "color_code": "#000000",
-            "image": "attributes/colors/black.png",
-            "image_url": "https://api.innercollection.com.bd/storage/attributes/colors/black.png"
-          }
-        ]
-      }
-    ]
-  }
+  "data": {},
+  "message": "Optional"
 }
 ```
 
-## Validation Cheat Sheet (Key Endpoints)
+### Style C: Laravel Resource Collection direct (without success/message wrapper)
+Used by:
+- GET /api/v1/wishlist
+- GET /api/v1/products/{productId}/reviews
+- GET /api/v1/products/{productId}/reviews/featured
+- GET /api/v1/reviews/my
 
-## Auth
-- `POST /auth/register`
-  - Required: `name`, `email`, `password`, `password_confirmation`
-  - Optional: `phone`
-- `POST /auth/login`
-  - Required: `email`, `password`
-- `POST /auth/forgot-password`
-  - Required: `email`
-- `POST /auth/reset-password`
-  - Required: `email`, `password`, `password_confirmation`
-  - Required either: `token` or `otp` (4 digits)
-
-## Cart
-- `POST /cart/items`
-  - Required: `product_id` (exists), `quantity` (1..100)
-- `PUT /cart/items/{productId}`
-  - Required: `quantity` (0..100)
-
-## Orders
-- `POST /orders`
-  - Required shipping fields:
-    - `shipping_name`
-    - `shipping_email`
-    - `shipping_address`
-    - `shipping_city`
-    - `shipping_zip`
-    - `shipping_country`
-    - `shipping_method` (active shipping method code)
-    - `payment_method` (active payment gateway code)
-  - Optional:
-    - `shipping_phone`
-    - `shipping_state`
-    - `notes`
-
-## Payments
-- `POST /payments`
-  - Required: `order_id`, `payment_method`
-  - Allowed `payment_method` values:
-    - `credit_card`
-    - `paypal`
-    - `bank_transfer`
-    - `cash_on_delivery`
-  - Optional: `payment_details` object
-
-## Status Codes and Error Handling
-
-Common status codes:
-- `200` OK
-- `201` Created
-- `204` No Content
-- `400` Bad Request
-- `401` Unauthorized
-- `403` Forbidden
-- `404` Not Found
-- `422` Validation Error
-- `429` Too Many Requests
-- `500` Server Error
-
-Validation errors usually return:
+Typical shape:
 ```json
 {
-  "success": false,
+  "data": [],
+  "links": {},
+  "meta": {}
+}
+```
+
+## 5) Pagination
+
+Pagination is used on many list endpoints.
+
+Common query param:
+- per_page (default usually 15, max typically 100)
+
+Common paginated response fields:
+- data
+- links
+- meta
+
+## 6) Error Handling
+
+### Common Status Codes
+- 200 OK
+- 201 Created
+- 400 Bad Request
+- 401 Unauthorized
+- 403 Forbidden
+- 404 Not Found
+- 409 Conflict
+- 422 Validation Error
+- 500 Server Error
+
+### Validation Error Shape (Laravel)
+```json
+{
   "message": "The given data was invalid.",
   "errors": {
     "field": ["Error message"]
@@ -566,13 +145,1100 @@ Validation errors usually return:
 }
 ```
 
-## Notes for Integrators
-- Treat `/api/v1` as private API by default; authenticate first.
-- Do not assume catalog/settings/track endpoints are public in this strict mode.
-- Keep webhook/callback endpoints reachable from Stripe/bKash.
-- Always trust server-calculated totals over client-side totals.
-- Use retry/idempotency patterns for payment and checkout flows.
-- Recheck live routes after deployment changes:
-  - `php artisan route:list --path=api/v1`
-- Run security guardrail tests before release:
-  - `php artisan test --filter=ApiSecurityTest`
+### App-level Error Wrapper
+```json
+{
+  "success": false,
+  "message": "Error message"
+}
+```
+
+## 7) Resource Field Reference
+
+### ProductResource (key fields)
+- id, category_id, name, slug, description
+- regular_price, sale_price, current_price
+- dynamic_price_for_quantity_1
+- has_dynamic_discount, dynamic_discount_tiers
+- free_delivery
+- sku, stock_quantity, total_stock, in_stock
+- image, image_url
+- is_active, is_featured, is_new, is_bestseller
+- category, images, variants
+
+### OrderResource (key fields)
+- id, order_number, status
+- payment_method, payment_status, transaction_id
+- shipping_method
+- subtotal, tax, shipping, total
+- shipping_name, shipping_phone, shipping_address, shipping_* ids and names
+- items, payment, user, tracking_history
+- tracking_number, carrier, tracking_progress
+
+### CartResource (key fields)
+- id, user_id
+- items
+- item_count
+- subtotal, discount, total
+- coupon_code, coupon
+
+### UserResource
+- id, name, email, phone, address, role, email_verified_at
+
+### AddressResource
+- id, label, type, is_default
+- name, phone, email
+- address_line_1, address_line_2, area
+- division_id, district_id, upazila_id, union_id
+- city, state, postal_code, country
+- instructions, latitude, longitude
+- full_address, formatted_address
+
+### ReviewResource
+- id, rating, title, comment
+- pros, cons, images, image_urls
+- is_verified_purchase, is_approved, is_featured
+- helpful_count, unhelpful_count, helpfulness_percentage
+- user
+- user_vote, is_own_review
+
+### WishlistResource
+- id, product_id, product_variant_id
+- product
+- variant
+- added_at
+
+## 8) Public Endpoint Whitelist
+
+These `/api/v1` endpoints are fully public (no Sanctum, no internal secret):
+- POST /api/v1/auth/register
+- POST /api/v1/auth/login
+- POST /api/v1/auth/forgot-password
+- POST /api/v1/auth/reset-password
+- GET /api/v1/auth/email/verify/{id}/{hash}
+- GET /api/v1/bkash/config
+- POST /api/v1/stripe/webhook
+- GET /api/v1/stripe/config
+- GET /api/v1/bkash/callback
+- POST /api/v1/orders
+- GET /api/v1/orders/number/{orderNumber}
+- GET /api/v1/track/order/{orderNumber}
+- GET /api/v1/track/tracking/{trackingNumber}
+
+Internal-secret storefront endpoints (no Sanctum, but require `X-Internal-Secret`) include:
+- Product/catalog read APIs
+- Payment-method and shipping-method discovery APIs
+- Bangladesh location datasets
+- Frontend settings APIscd 
+- Product-page reviews (read)
+- Flash sales read/validation APIs
+
+All remaining `/api/v1` endpoints require `auth:sanctum`.
+
+## 9) Complete Route Inventory (A-Z)
+
+The following table is generated from current route:list output.
+
+| Method | Path | Access | Action |
+|---|---|---|---|
+| GET|HEAD | /api/health | Public | Closure |
+| GET|HEAD | /api/v1/addresses | Auth | AddressController@index |
+| POST | /api/v1/addresses | Auth | AddressController@store |
+| GET|HEAD | /api/v1/addresses/default/billing | Auth | AddressController@defaultBilling |
+| GET|HEAD | /api/v1/addresses/default/shipping | Auth | AddressController@defaultShipping |
+| DELETE | /api/v1/addresses/{address} | Auth | AddressController@destroy |
+| GET|HEAD | /api/v1/addresses/{address} | Auth | AddressController@show |
+| PUT | /api/v1/addresses/{address} | Auth | AddressController@update |
+| POST | /api/v1/addresses/{address}/set-default | Auth | AddressController@setDefault |
+| GET|HEAD | /api/v1/admin/audit-logs | Auth + is_admin | AuditLogController@index |
+| GET|HEAD | /api/v1/admin/audit-logs/{id} | Auth + is_admin | AuditLogController@show |
+| GET|HEAD | /api/v1/admin/orders/export | Auth + is_admin | OrderExportController@export |
+| GET|HEAD | /api/v1/admin/orders/export/download/{filename} | Auth + is_admin | OrderExportController@download |
+| GET|HEAD | /api/v1/attributes | Internal Secret | AttributeController@index |
+| GET|HEAD | /api/v1/attributes/{id} | Internal Secret | AttributeController@show |
+| POST | /api/v1/auth/change-password | Auth | AuthController@changePassword |
+| POST | /api/v1/auth/email/resend | Auth | AuthController@resendVerification |
+| GET|HEAD | /api/v1/auth/email/verify/{id}/{hash} | Public + signed | AuthController@verifyEmail |
+| POST | /api/v1/auth/forgot-password | Public + throttle:auth | AuthController@forgotPassword |
+| POST | /api/v1/auth/login | Public + throttle:auth | AuthController@login |
+| POST | /api/v1/auth/logout | Auth | AuthController@logout |
+| GET|HEAD | /api/v1/auth/me | Auth | AuthController@me |
+| POST | /api/v1/auth/register | Public + throttle:auth | AuthController@register |
+| POST | /api/v1/auth/reset-password | Public + throttle:auth | AuthController@resetPassword |
+| GET|HEAD | /api/v1/bkash/callback | Public | BkashController@callback |
+| GET|HEAD | /api/v1/bkash/check-status | Auth | BkashController@checkStatus |
+| GET|HEAD | /api/v1/bkash/config | Public | BkashController@config |
+| POST | /api/v1/bkash/create-payment | Auth | BkashController@createPayment |
+| POST | /api/v1/bkash/refund | Auth + perm:returns.manage | BkashController@refund |
+| DELETE | /api/v1/cart | Auth | CartController@clear |
+| GET|HEAD | /api/v1/cart | Auth | CartController@index |
+| DELETE | /api/v1/cart/coupon | Auth | CouponController@remove |
+| POST | /api/v1/cart/coupon | Auth | CouponController@apply |
+| POST | /api/v1/cart/items | Auth | CartController@addItem |
+| DELETE | /api/v1/cart/items/{productId} | Auth | CartController@removeItem |
+| PUT | /api/v1/cart/items/{productId} | Auth | CartController@updateItem |
+| POST | /api/v1/cart/recommendations | Auth | RelatedProductController@cartRecommendations |
+| GET|HEAD | /api/v1/categories | Internal Secret | CategoryController@index |
+| POST | /api/v1/categories | Auth + perm:catalog.manage | CategoryController@store |
+| GET|HEAD | /api/v1/categories/menu | Internal Secret | CategoryController@menu |
+| GET|HEAD | /api/v1/categories/slug/{slug} | Internal Secret | CategoryController@showBySlug |
+| DELETE | /api/v1/categories/{id} | Auth + perm:catalog.manage | CategoryController@destroy |
+| GET|HEAD | /api/v1/categories/{id} | Internal Secret | CategoryController@show |
+| PUT | /api/v1/categories/{id} | Auth + perm:catalog.manage | CategoryController@update |
+| GET|HEAD | /api/v1/categories/{id}/children | Internal Secret | CategoryController@children |
+| POST | /api/v1/checkout/recovered | Auth | AbandonedCartController@markRecovered |
+| POST | /api/v1/checkout/track | Auth | AbandonedCartController@track |
+| GET|HEAD | /api/v1/coupons/available | Auth | CouponController@available |
+| GET|HEAD | /api/v1/coupons/validate | Auth | CouponController@validate |
+| GET|HEAD | /api/v1/flash-sales | Internal Secret | FlashSaleController@index |
+| GET|HEAD | /api/v1/flash-sales/featured | Internal Secret | FlashSaleController@featured |
+| GET|HEAD | /api/v1/flash-sales/product/{productId} | Internal Secret | FlashSaleController@checkProduct |
+| GET|HEAD | /api/v1/flash-sales/upcoming | Internal Secret | FlashSaleController@upcoming |
+| POST | /api/v1/flash-sales/validate-purchase | Internal Secret | FlashSaleController@validatePurchase |
+| GET|HEAD | /api/v1/flash-sales/{slug} | Internal Secret | FlashSaleController@show |
+| GET|HEAD | /api/v1/locations/bd/districts | Internal Secret | BangladeshLocationController@districts |
+| GET|HEAD | /api/v1/locations/bd/divisions | Internal Secret | BangladeshLocationController@divisions |
+| GET|HEAD | /api/v1/locations/bd/unions | Internal Secret | BangladeshLocationController@unions |
+| GET|HEAD | /api/v1/locations/bd/upazilas | Internal Secret | BangladeshLocationController@upazilas |
+| GET|HEAD | /api/v1/locations/districts | Internal Secret | BangladeshLocationController@districts |
+| GET|HEAD | /api/v1/locations/divisions | Internal Secret | BangladeshLocationController@divisions |
+| GET|HEAD | /api/v1/locations/unions | Internal Secret | BangladeshLocationController@unions |
+| GET|HEAD | /api/v1/locations/upazilas | Internal Secret | BangladeshLocationController@upazilas |
+| GET|HEAD | /api/v1/loyalty/leaderboard | Auth | LoyaltyController@leaderboard |
+| POST | /api/v1/loyalty/redeem | Auth | LoyaltyController@redeem |
+| GET|HEAD | /api/v1/loyalty/redemptions | Auth | LoyaltyController@redemptions |
+| GET|HEAD | /api/v1/loyalty/redemptions/active | Auth | LoyaltyController@activeRedemptions |
+| POST | /api/v1/loyalty/redemptions/{redemption}/cancel | Auth | LoyaltyController@cancelRedemption |
+| GET|HEAD | /api/v1/loyalty/rewards | Auth | LoyaltyController@rewards |
+| GET|HEAD | /api/v1/loyalty/summary | Auth | LoyaltyController@summary |
+| GET|HEAD | /api/v1/loyalty/tiers | Auth | LoyaltyController@tiers |
+| GET|HEAD | /api/v1/loyalty/transactions | Auth | LoyaltyController@transactions |
+| POST | /api/v1/loyalty/validate-coupon | Auth | LoyaltyController@validateCoupon |
+| GET|HEAD | /api/v1/notifications | Auth | NotificationController@index |
+| POST | /api/v1/notifications/read-all | Auth | NotificationController@markAllAsRead |
+| GET|HEAD | /api/v1/notifications/unread-count | Auth | NotificationController@unreadCount |
+| DELETE | /api/v1/notifications/{id} | Auth | NotificationController@destroy |
+| POST | /api/v1/notifications/{id}/read | Auth | NotificationController@markAsRead |
+| GET|HEAD | /api/v1/orders | Auth | OrderController@index |
+| POST | /api/v1/orders | Public | OrderController@store |
+| GET|HEAD | /api/v1/orders/number/{orderNumber} | Public | OrderController@showByNumber |
+| GET|HEAD | /api/v1/orders/status/{status} | Auth + perm:orders.manage | OrderController@byStatus |
+| GET|HEAD | /api/v1/orders/{id} | Auth | OrderController@show |
+| POST | /api/v1/orders/{id}/cancel | Auth | OrderController@cancel |
+| GET|HEAD | /api/v1/orders/{id}/invoice | Auth | InvoiceController@show |
+| GET|HEAD | /api/v1/orders/{id}/notes | Auth | OrderNoteController@index |
+| POST | /api/v1/orders/{id}/notes | Auth + perm:orders.manage | OrderNoteController@store |
+| DELETE | /api/v1/orders/{id}/notes/{noteId} | Auth + perm:orders.manage | OrderNoteController@destroy |
+| PUT | /api/v1/orders/{id}/status | Auth + perm:orders.manage | OrderController@updateStatus |
+| GET|HEAD | /api/v1/orders/{id}/tracking | Auth | OrderTrackingController@show |
+| GET|HEAD | /api/v1/payment-methods | Internal Secret | PaymentGatewayController@index |
+| GET|HEAD | /api/v1/payment-methods/{code} | Internal Secret | PaymentGatewayController@show |
+| POST | /api/v1/payments | Auth | PaymentController@store |
+| GET|HEAD | /api/v1/payments/order/{orderId} | Auth | PaymentController@show |
+| POST | /api/v1/payments/{paymentId}/process | Auth | PaymentController@process |
+| POST | /api/v1/payments/{paymentId}/refund | Auth + perm:returns.manage | PaymentController@refund |
+| GET|HEAD | /api/v1/products | Internal Secret | ProductController@index |
+| POST | /api/v1/products | Auth + perm:catalog.manage | ProductController@store |
+| GET|HEAD | /api/v1/products/bestsellers | Internal Secret | ProductController@bestsellers |
+| POST | /api/v1/products/bulk-action | Auth + perm:catalog.manage | ProductController@bulkAction |
+| GET|HEAD | /api/v1/products/category/{categoryId} | Internal Secret | ProductController@byCategory |
+| GET|HEAD | /api/v1/products/featured | Internal Secret | ProductController@featured |
+| GET|HEAD | /api/v1/products/new | Internal Secret | ProductController@newProducts |
+| GET|HEAD | /api/v1/products/search | Internal Secret | ProductController@search |
+| GET|HEAD | /api/v1/products/slug/{slug} | Internal Secret | ProductController@showBySlug |
+| DELETE | /api/v1/products/{id} | Auth + perm:catalog.manage | ProductController@destroy |
+| GET|HEAD | /api/v1/products/{id} | Internal Secret | ProductController@show |
+| PUT | /api/v1/products/{id} | Auth + perm:catalog.manage | ProductController@update |
+| GET|HEAD | /api/v1/products/{id}/variants | Internal Secret | ProductController@variants |
+| GET|HEAD | /api/v1/products/{productId}/reviews | Internal Secret | ReviewController@index |
+| GET|HEAD | /api/v1/products/{productId}/reviews/featured | Internal Secret | ReviewController@featured |
+| GET|HEAD | /api/v1/products/{productId}/reviews/summary | Internal Secret | ReviewController@summary |
+| GET|HEAD | /api/v1/products/{product}/cross-sell | Internal Secret | RelatedProductController@crossSell |
+| GET|HEAD | /api/v1/products/{product}/frequently-bought-together | Internal Secret | RelatedProductController@frequentlyBoughtTogether |
+| GET|HEAD | /api/v1/products/{product}/related | Internal Secret | RelatedProductController@index |
+| GET|HEAD | /api/v1/products/{product}/upsell | Internal Secret | RelatedProductController@upsell |
+| GET|HEAD | /api/v1/profile | Auth | UserController@profile |
+| PUT | /api/v1/profile | Auth | UserController@updateProfile |
+| GET|HEAD | /api/v1/returns | Auth | ReturnController@index |
+| POST | /api/v1/returns | Auth | ReturnController@store |
+| GET|HEAD | /api/v1/returns/check-eligibility | Auth | ReturnController@checkEligibility |
+| GET|HEAD | /api/v1/returns/{return} | Auth | ReturnController@show |
+| POST | /api/v1/returns/{return}/cancel | Auth | ReturnController@cancel |
+| POST | /api/v1/returns/{return}/upload-images | Auth | ReturnController@uploadImages |
+| POST | /api/v1/reviews | Auth | ReviewController@store |
+| GET|HEAD | /api/v1/reviews/can-review/{productId} | Auth | ReviewController@canReview |
+| GET|HEAD | /api/v1/reviews/my | Auth | ReviewController@myReviews |
+| DELETE | /api/v1/reviews/{review} | Auth | ReviewController@destroy |
+| PUT | /api/v1/reviews/{review} | Auth | ReviewController@update |
+| DELETE | /api/v1/reviews/{review}/vote | Auth | ReviewController@removeVote |
+| POST | /api/v1/reviews/{review}/vote | Auth | ReviewController@vote |
+| GET|HEAD | /api/v1/settings | Internal Secret | FrontendSettingController@index |
+| GET|HEAD | /api/v1/settings/banner | Internal Secret | FrontendSettingController@banner |
+| GET|HEAD | /api/v1/settings/checkout | Internal Secret | FrontendSettingController@checkout |
+| GET|HEAD | /api/v1/settings/footer | Internal Secret | FrontendSettingController@footer |
+| GET|HEAD | /api/v1/settings/general | Internal Secret | FrontendSettingController@general |
+| GET|HEAD | /api/v1/settings/hero | Internal Secret | FrontendSettingController@hero |
+| GET|HEAD | /api/v1/settings/seo | Internal Secret | FrontendSettingController@seo |
+| GET|HEAD | /api/v1/settings/social | Internal Secret | FrontendSettingController@social |
+| GET|HEAD | /api/v1/settings/{group} | Internal Secret | FrontendSettingController@showGroup |
+| GET|HEAD | /api/v1/shipping-methods | Internal Secret | ShippingMethodController@index |
+| POST | /api/v1/shipping-methods/calculate | Internal Secret | ShippingMethodController@calculate |
+| GET|HEAD | /api/v1/shipping-methods/{code} | Internal Secret | ShippingMethodController@show |
+| GET|HEAD | /api/v1/stripe/config | Public | StripeController@config |
+| POST | /api/v1/stripe/confirm-payment | Auth | StripeController@confirmPayment |
+| POST | /api/v1/stripe/create-payment-intent | Auth | StripeController@createPaymentIntent |
+| POST | /api/v1/stripe/webhook | Public | StripeController@webhook |
+| GET|HEAD | /api/v1/track/order/{orderNumber} | Public | OrderTrackingController@trackByOrderNumber |
+| GET|HEAD | /api/v1/track/tracking/{trackingNumber} | Public | OrderTrackingController@trackByTrackingNumber |
+| GET|HEAD | /api/v1/users | Auth + perm:users.manage | UserController@index |
+| POST | /api/v1/users | Auth + perm:users.manage | UserController@store |
+| DELETE | /api/v1/users/{id} | Auth + perm:users.manage | UserController@destroy |
+| GET|HEAD | /api/v1/users/{id} | Auth | UserController@show |
+| PUT | /api/v1/users/{id} | Auth | UserController@update |
+| POST | /api/v1/users/{id}/toggle-status | Auth + perm:users.manage | UserController@toggleStatus |
+| GET|HEAD | /api/v1/wishlist | Auth | WishlistController@index |
+| POST | /api/v1/wishlist | Auth | WishlistController@store |
+| GET|HEAD | /api/v1/wishlist/check | Auth | WishlistController@check |
+| DELETE | /api/v1/wishlist/clear | Auth | WishlistController@clear |
+| GET|HEAD | /api/v1/wishlist/count | Auth | WishlistController@count |
+| DELETE | /api/v1/wishlist/product | Auth | WishlistController@removeByProduct |
+| POST | /api/v1/wishlist/toggle | Auth | WishlistController@toggle |
+| DELETE | /api/v1/wishlist/{wishlist} | Auth | WishlistController@destroy |
+| POST | /api/v1/wishlist/{wishlist}/move-to-cart | Auth | WishlistController@moveToCart |
+
+## 10) Detailed Request and Response Contracts (A-Z)
+
+All paths below are absolute API paths.
+
+### 10.1 Health
+
+#### GET /api/health
+- Auth: Public
+- Request: none
+- Success:
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-04-10T10:00:00.000000Z"
+}
+```
+
+### 10.2 Addresses
+
+#### GET /api/v1/addresses
+- Query:
+  - type: optional, shipping|billing
+- Success: AddressResource[]
+
+#### POST /api/v1/addresses
+- Body:
+  - name, phone, address_line_1, division_id, district_id, upazila_id: required
+  - label, type(shipping|billing|both), is_default, email, address_line_2, union_id, area, city, state, postal_code, instructions, latitude, longitude: optional
+  - country: optional, Bangladesh|BD
+- Success 201:
+  - success, message, data (AddressResource)
+
+#### GET /api/v1/addresses/{address}
+#### PUT /api/v1/addresses/{address}
+#### DELETE /api/v1/addresses/{address}
+#### POST /api/v1/addresses/{address}/set-default
+- Path param: address (Address model binding)
+- Update body: partial address fields (same family as create)
+- Success:
+  - show/update/set-default: success + AddressResource
+  - delete: success + message
+- Errors:
+  - 403 unauthorized (ownership)
+
+#### GET /api/v1/addresses/default/shipping
+#### GET /api/v1/addresses/default/billing
+- Success: AddressResource
+- Error 404: no default found
+
+### 10.3 Admin Utilities
+
+#### GET /api/v1/admin/audit-logs
+- Access: is_admin
+- Query:
+  - action, user_id, model_type, model_id, from, to, per_page
+- Success: success + paginated audit logs
+
+#### GET /api/v1/admin/audit-logs/{id}
+- Access: is_admin
+- Success: success + audit log detail
+
+#### GET /api/v1/admin/orders/export
+- Access: is_admin
+- Query:
+  - status: pending|processing|shipped|delivered|cancelled
+  - from: date
+  - to: date
+- Success:
+  - success + { filename, total_orders, download_url }
+- Errors:
+  - 404 no orders
+
+#### GET /api/v1/admin/orders/export/download/{filename}
+- Access: is_admin
+- Success: CSV file stream
+- Error 404: file not found
+
+### 10.4 Attributes
+
+#### GET /api/v1/attributes
+#### GET /api/v1/attributes/{id}
+- Success:
+  - success + ProductAttributeResource
+  - values include id, value, color_code, image, image_url
+
+### 10.5 Authentication
+
+#### POST /api/v1/auth/register
+- Public + throttle:auth
+- Body:
+  - name, email, password, password_confirmation: required
+  - phone, address: optional
+- Success 201:
+  - success, message
+  - data.user (UserResource)
+  - data.token
+
+#### POST /api/v1/auth/login
+- Public + throttle:auth
+- Body: email, password required
+- Success:
+  - success + { user, token }
+- Error 401: Invalid credentials
+
+#### POST /api/v1/auth/forgot-password
+- Public + throttle:auth
+- Body: email required and must exist
+- Success: generic message (email + SMS OTP flow)
+
+#### POST /api/v1/auth/reset-password
+- Public + throttle:auth
+- Body:
+  - email required
+  - password + password_confirmation required
+  - token required_without otp OR otp(4 digits) required_without token
+- Success: password reset confirmation
+- Error 400: invalid/expired reset token or otp
+
+#### GET /api/v1/auth/email/verify/{id}/{hash}
+- Public + signed URL
+- Path: id, hash
+- Success: verified or already verified
+- Error 400: invalid verification link
+
+#### POST /api/v1/auth/logout
+#### GET /api/v1/auth/me
+#### POST /api/v1/auth/email/resend
+#### POST /api/v1/auth/change-password
+- Auth required
+- change-password body:
+  - current_password required
+  - password required, confirmed, min complexity
+- Success: success wrapper
+
+### 10.6 bKash
+
+#### GET /api/v1/bkash/config
+- Success: { available, sandbox_mode, currency }
+- Errors:
+  - 404 gateway unavailable
+  - 503 not configured
+
+#### POST /api/v1/bkash/create-payment
+- Body: order_id required
+- Checks:
+  - order ownership
+  - payment_method == bkash
+  - payment_status != paid
+- Success:
+  - payment_id, bkash_url, order_id, amount
+- Errors: 400/403
+
+#### GET /api/v1/bkash/check-status
+- Query/body: order_id required
+- Success:
+  - paid status payload OR current status + bkash status
+- Errors: 400/403
+
+#### POST /api/v1/bkash/refund
+- Access: admin_permission returns.manage + admin check
+- Body:
+  - order_id required
+  - amount optional numeric >=1
+  - reason optional string
+- Success:
+  - success + refund result
+- Errors:
+  - unauthorized, wrong payment method, non-paid order, missing payment refs
+
+#### GET /api/v1/bkash/callback
+- Public redirect callback endpoint
+- Query from bKash: paymentID, status
+- Response: HTTP redirect to frontend success/failed/cancelled URLs
+
+### 10.7 Cart and Coupons
+
+#### GET /api/v1/cart
+- Success: success + CartResource
+
+#### POST /api/v1/cart/items
+- Body:
+  - product_id required exists
+  - quantity required integer 1..100
+- Success: updated CartResource
+
+#### PUT /api/v1/cart/items/{productId}
+- Body: quantity required integer 0..100
+- Success: updated CartResource
+
+#### DELETE /api/v1/cart/items/{productId}
+#### DELETE /api/v1/cart
+- Success: cart updated/cleared
+
+#### POST /api/v1/cart/coupon
+- Body: code required
+- Success:
+  - success + { coupon, discount, cart }
+- Errors:
+  - 400 cart empty or invalid coupon
+
+#### DELETE /api/v1/cart/coupon
+- Success:
+  - success + { cart }
+
+#### GET /api/v1/coupons/validate
+- Query/body:
+  - code required
+  - order_total optional
+- Success:
+  - { valid: true, data: { coupon, discount } }
+- Error 400:
+  - { valid: false, message }
+
+#### GET /api/v1/coupons/available
+- Success:
+  - success + { coupons, cart_total }
+
+### 10.8 Categories
+
+#### GET /api/v1/categories
+#### GET /api/v1/categories/menu
+#### GET /api/v1/categories/{id}
+#### GET /api/v1/categories/slug/{slug}
+#### GET /api/v1/categories/{id}/children
+- Success: success + CategoryResource or CategoryResource[]
+- Error 404: category not found (slug)
+
+#### POST /api/v1/categories
+- Access: admin_permission catalog.manage
+- Body:
+  - name required
+  - slug, description, parent_id, is_active, sort_order optional
+- Success 201: created category
+
+#### PUT /api/v1/categories/{id}
+- Access: admin_permission catalog.manage
+- Body: partial category fields
+- Success: updated category
+
+#### DELETE /api/v1/categories/{id}
+- Access: admin_permission catalog.manage + admin check
+- Success: delete message
+
+### 10.9 Checkout Tracking (Abandoned Cart)
+
+#### POST /api/v1/checkout/track
+- Body:
+  - checkout_step required: cart|shipping|payment
+  - email, phone, name, shipping_*, payment_method, shipping_method optional
+- Header:
+  - X-Session-ID optional (fallback: session id)
+- Success:
+  - success + data.abandoned_cart_id
+
+#### POST /api/v1/checkout/recovered
+- Body: order_id required
+- Success: confirmation message
+
+### 10.10 Flash Sales
+
+#### GET /api/v1/flash-sales
+#### GET /api/v1/flash-sales/featured
+#### GET /api/v1/flash-sales/upcoming
+#### GET /api/v1/flash-sales/{slug}
+#### GET /api/v1/flash-sales/product/{productId}
+- Success:
+  - success + flash sale data
+- show slug error 404 if not found
+
+#### POST /api/v1/flash-sales/validate-purchase
+- Body: product_id, quantity required
+- Success:
+  - success boolean derived from service validation
+  - data validation payload
+
+### 10.11 Bangladesh Locations
+
+#### GET /api/v1/locations/bd/divisions
+- Success: list of {id,name,bn_name}
+
+#### GET /api/v1/locations/bd/districts
+- Query: division_id optional
+- Success: list of districts
+
+#### GET /api/v1/locations/bd/upazilas
+- Query: district_id optional
+- Success: list of upazilas
+
+#### GET /api/v1/locations/bd/unions
+- Query: upazila_id optional
+- Success: list of unions
+
+#### Backward-compatible aliases
+- GET /api/v1/locations/divisions
+- GET /api/v1/locations/districts
+- GET /api/v1/locations/upazilas
+- GET /api/v1/locations/unions
+
+Access for all Bangladesh location dataset routes:
+- Internal Secret (`X-Internal-Secret` required)
+
+### 10.12 Loyalty
+
+#### GET /api/v1/loyalty/tiers
+- Success: tier list {name,slug,min_points,points_multiplier,benefits,badge_image}
+
+#### GET /api/v1/loyalty/summary
+#### GET /api/v1/loyalty/transactions
+#### GET /api/v1/loyalty/rewards
+#### GET /api/v1/loyalty/redemptions
+#### GET /api/v1/loyalty/redemptions/active
+#### GET /api/v1/loyalty/leaderboard
+- Success: success + data payload
+- transactions uses pagination
+
+#### POST /api/v1/loyalty/redeem
+- Body: reward_id required
+- Success:
+  - redemption_id, coupon_code, expires_at, points_remaining
+- Error 400 when reward cannot be redeemed
+
+#### POST /api/v1/loyalty/redemptions/{redemption}/cancel
+- Path: redemption
+- Success: points_refunded, current_points
+- Errors: 403 unauthorized, 400 non-pending
+
+#### POST /api/v1/loyalty/validate-coupon
+- Body: coupon_code required
+- Success:
+  - valid true + redemption details
+- Invalid code response:
+  - success false, valid false, message
+
+### 10.13 Notifications
+
+#### GET /api/v1/notifications
+- Success: paginated notifications
+
+#### GET /api/v1/notifications/unread-count
+- Success: { unread_count }
+
+#### POST /api/v1/notifications/{id}/read
+#### POST /api/v1/notifications/read-all
+#### DELETE /api/v1/notifications/{id}
+- Success: confirmation messages
+
+### 10.14 Orders, Tracking, Invoice, Notes
+
+#### GET /api/v1/orders
+- Success: paginated OrderResource list
+- Behavior:
+  - admin gets all orders
+  - user gets own orders
+
+#### POST /api/v1/orders
+- Access: Public (guest and authenticated users)
+- Body (dynamic by checkout config):
+  - required core: shipping_name, shipping_address, shipping_method, payment_method
+  - conditionally required: shipping_email, shipping_phone, shipping_area, shipping_zip, notes
+  - location inputs:
+    - shipping_location_text (normalized from shipping_address when omitted)
+    - shipping_division_id, shipping_district_id, shipping_upazila_id, shipping_union_id
+  - shipping_city, shipping_state, shipping_country optional
+  - guest checkout requires items[] with product_id and quantity
+- Location validation behavior:
+  - when `enable_dropdown_location` is disabled, `shipping_division_id`, `shipping_district_id`, `shipping_upazila_id`, `shipping_union_id` are excluded by backend validation
+  - legacy plain keys `division_id`, `district_id`, `upazila_id` are always excluded
+- Success 201:
+  - success + message + data { id, order_number, status, payment_status, payment_method, total }
+- Errors:
+  - 400 service/business errors
+  - 422 validation and checkout config constraints
+
+#### GET /api/v1/orders/{id}
+#### GET /api/v1/orders/number/{orderNumber}
+- GET /api/v1/orders/{id}: Auth required, success OrderResource
+- GET /api/v1/orders/number/{orderNumber}: Public, returns summary { id, order_number, status, payment_status, payment_method, total }
+- Errors: 403 unauthorized (id route), 404 not found
+
+#### POST /api/v1/orders/{id}/cancel
+- Success: OrderResource with cancelled status
+
+#### PUT /api/v1/orders/{id}/status
+- Access: admin_permission orders.manage + admin
+- Body: status required in [pending,processing,shipped,delivered,cancelled]
+- Success: updated OrderResource
+
+#### GET /api/v1/orders/status/{status}
+- Access: admin_permission orders.manage + admin
+- Success: OrderResource[]
+
+#### GET /api/v1/orders/{id}/tracking
+- Auth user-scoped tracking endpoint
+- Success:
+  - success + data { order_number, status, progress, tracking_number, carrier, timeline, history }
+
+#### GET /api/v1/track/order/{orderNumber}
+#### GET /api/v1/track/tracking/{trackingNumber}
+- Same tracking payload style
+- Current route security: public (no auth)
+
+#### GET /api/v1/orders/{id}/invoice
+- Success:
+  - success + invoice payload {
+    - invoice_number, invoice_date
+    - company
+    - customer
+    - order
+    - items
+    - totals
+    - notes, currency
+  }
+
+#### GET /api/v1/orders/{id}/notes
+- Success:
+  - success + notes[]
+  - non-admin sees only customer-visible notes on own order
+
+#### POST /api/v1/orders/{id}/notes
+- Access: admin_permission orders.manage + admin
+- Body:
+  - note required
+  - type optional: internal|customer|system
+  - is_customer_visible optional boolean
+- Success 201: created note
+
+#### DELETE /api/v1/orders/{id}/notes/{noteId}
+- Access: admin_permission orders.manage + admin
+- Success: delete message
+
+### 10.15 Payment Methods and Payments
+
+#### GET /api/v1/payment-methods
+- Access: Internal Secret (`X-Internal-Secret` required)
+- Query:
+  - amount optional
+  - currency optional (default BDT)
+- Success:
+  - success + active gateway list
+  - includes code, name, description, instructions, icon, requires_redirect, min/max_amount, extra_charge
+
+#### GET /api/v1/payment-methods/{code}
+- Access: Internal Secret (`X-Internal-Secret` required)
+- Success:
+  - success + gateway details
+- Error 404: inactive or not found
+
+#### GET /api/v1/payments/order/{orderId}
+- Success: PaymentResource
+- Errors: 403 unauthorized, 404 payment not found
+
+#### POST /api/v1/payments
+- Body:
+  - order_id required
+  - payment_method required in [credit_card,paypal,bank_transfer,cash_on_delivery]
+  - payment_details optional object
+  - if credit_card: card_number, expiry_date, cvv required
+- Success 201: PaymentResource
+- Errors: 403 unauthorized, 400 service error
+
+#### POST /api/v1/payments/{paymentId}/process
+- Success: processed PaymentResource
+- Errors: 403 unauthorized, 404 payment not found, 400 service error
+
+#### POST /api/v1/payments/{paymentId}/refund
+- Access: admin_permission returns.manage + admin
+- Success: refunded PaymentResource
+
+### 10.16 Products and Related Products
+
+#### GET /api/v1/products
+- Query:
+  - per_page optional
+- Success: paginated ProductResource collection payload
+
+#### GET /api/v1/products/{id}
+#### GET /api/v1/products/slug/{slug}
+#### GET /api/v1/products/featured
+#### GET /api/v1/products/new
+#### GET /api/v1/products/bestsellers
+#### GET /api/v1/products/category/{categoryId}
+#### GET /api/v1/products/{id}/variants
+- Success: product/product list/variant list via ProductResource or ProductVariantResource
+- Errors: 404 product not found for slug/id variants where applicable
+
+#### GET /api/v1/products/search
+- Query: q required, min length 2
+- Success: ProductResource[]
+
+#### POST /api/v1/products
+- Access: admin_permission catalog.manage
+- Body required:
+  - category_id, name, regular_price, sku, stock_quantity
+- Optional:
+  - slug, description, sale_price(lt regular_price), buy_price, image, is_active, is_featured
+- Success 201: ProductResource
+
+#### PUT /api/v1/products/{id}
+- Access: admin_permission catalog.manage
+- Body: partial product fields
+- Success: ProductResource
+
+#### DELETE /api/v1/products/{id}
+- Access: admin_permission catalog.manage + admin check
+- Success: delete message
+
+#### POST /api/v1/products/bulk-action
+- Access: admin_permission catalog.manage + admin check
+- Body:
+  - product_ids required array of valid ids
+  - action required in [activate,deactivate,delete,update_price]
+  - value required only for update_price
+    - value.type: fixed|percentage
+    - value.amount: numeric
+- Success: success + message
+- Error 400: invalid action
+
+#### GET /api/v1/products/{product}/related
+#### GET /api/v1/products/{product}/frequently-bought-together
+#### GET /api/v1/products/{product}/upsell
+#### GET /api/v1/products/{product}/cross-sell
+- Query:
+  - limit optional
+- Success:
+  - success + product recommendation arrays
+
+#### POST /api/v1/cart/recommendations
+- Body/query:
+  - product_ids optional array
+  - limit optional
+- Success:
+  - success + recommendation list
+
+### 10.17 Profile and Users
+
+#### GET /api/v1/profile
+#### PUT /api/v1/profile
+- PUT body: any UpdateUserRequest fields
+  - name, email, password(+confirmation), phone, address
+- Success: UserResource
+
+#### GET /api/v1/users
+- Access: admin_permission users.manage + admin check
+- Success: paginated UserResource
+
+#### POST /api/v1/users
+- Access: admin_permission users.manage + admin check
+- Body:
+  - name, email, password required
+  - phone optional
+  - role optional, must be in allowed role options
+- Success 201: UserResource
+
+#### GET /api/v1/users/{id}
+#### PUT /api/v1/users/{id}
+- Access: self or admin
+- PUT body: UpdateUserRequest fields
+- Success: UserResource
+- Error 403 unauthorized
+
+#### DELETE /api/v1/users/{id}
+- Access: admin_permission users.manage + admin
+- Success: delete message
+
+#### POST /api/v1/users/{id}/toggle-status
+- Access: admin_permission users.manage + admin
+- Success: UserResource + activation/deactivation message
+- Error 400: cannot toggle own account
+
+### 10.18 Returns and Refund Workflow
+
+#### GET /api/v1/returns
+- Success:
+  - success + paginated return requests
+
+#### POST /api/v1/returns
+- Body:
+  - order_id required, must belong to user and be delivered/completed
+  - type required: return|refund
+  - reason required in:
+    - defective, wrong_item, not_as_described, changed_mind, damaged_shipping,
+      missing_parts, damaged, size_issue, quality_issue, late_delivery, other
+  - description required
+  - refund_method optional: original|store_credit|bank_transfer
+  - images optional array max 5 (jpeg/png/jpg, max 5MB each)
+  - items required array min 1
+    - items.*.order_item_id required
+    - items.*.quantity required
+    - items.*.reason optional
+- Success 201:
+  - return_number, status, estimated_review_time
+- Errors:
+  - 422 for period expiry, duplicate active return, invalid quantities/items
+  - 500 on internal failure
+
+#### GET /api/v1/returns/{return}
+- Success:
+  - detailed return payload including timeline and item breakdown
+- Error 404 when not owned
+
+#### POST /api/v1/returns/{return}/cancel
+- Success: cancellation message
+- Error 422 if not pending
+
+#### GET /api/v1/returns/check-eligibility
+- Query/body: order_id required
+- Success:
+  - success
+  - eligible (boolean)
+  - reason when ineligible
+  - days_remaining
+  - returnable_items
+  - return_reasons dictionary
+
+#### POST /api/v1/returns/{return}/upload-images
+- Body:
+  - images required array 1..5
+  - images.* image file jpeg/png/jpg max 5MB
+- Success:
+  - success, message, images
+- Errors: 404 ownership, 422 processed or over-limit
+
+### 10.19 Reviews
+
+#### GET /api/v1/products/{productId}/reviews
+- Query optional:
+  - rating
+  - verified_only (boolean)
+  - with_images (boolean)
+  - sort: recent|helpful|rating_high|rating_low
+- Success:
+  - Resource collection (no success/message wrapper)
+
+#### GET /api/v1/products/{productId}/reviews/summary
+- Success:
+  - success + {
+    - total_reviews,
+    - average_rating,
+    - rating_distribution,
+    - verified_count,
+    - with_images_count
+  }
+
+#### GET /api/v1/products/{productId}/reviews/featured
+- Success:
+  - Resource collection (no success/message wrapper)
+
+#### GET /api/v1/reviews/my
+- Success:
+  - Resource collection (no success/message wrapper)
+
+#### POST /api/v1/reviews
+- Body:
+  - product_id required
+  - order_id optional
+  - rating required 1..5
+  - title, comment optional
+  - pros/cons optional arrays
+  - images optional array max 5
+- Success 201:
+  - success, message, data (ReviewResource)
+- Error 409 if already reviewed
+
+#### PUT /api/v1/reviews/{review}
+- Body: partial review fields
+- Success: updated ReviewResource
+- Error 403 ownership
+
+#### DELETE /api/v1/reviews/{review}
+- Success: delete message
+- Error 403 ownership
+
+#### POST /api/v1/reviews/{review}/vote
+- Body: is_helpful required boolean
+- Success: helpful_count, unhelpful_count
+- Error 400 if voting own review
+
+#### DELETE /api/v1/reviews/{review}/vote
+- Success: helpful_count, unhelpful_count
+
+#### GET /api/v1/reviews/can-review/{productId}
+- Success:
+  - success
+  - can_review
+  - reason when blocked
+  - is_verified_purchase
+
+### 10.20 Settings
+
+#### GET /api/v1/settings
+#### GET /api/v1/settings/hero
+#### GET /api/v1/settings/general
+#### GET /api/v1/settings/social
+#### GET /api/v1/settings/seo
+#### GET /api/v1/settings/footer
+#### GET /api/v1/settings/banner
+#### GET /api/v1/settings/checkout
+#### GET /api/v1/settings/{group}
+- Access for all settings endpoints above: Internal Secret (`X-Internal-Secret` required)
+- Success: success + grouped key/value public settings
+
+### 10.21 Shipping Methods
+
+#### GET /api/v1/shipping-methods
+- Access: Internal Secret (`X-Internal-Secret` required)
+- Query optional:
+  - amount, weight, item_count
+  - division_id, district_id, upazila_id
+  - location_text
+- Notes:
+  - Text-first checkout may send only `amount` + `location_text`.
+  - If a method has location rules and location cannot be resolved, it may be filtered out from index results.
+- Success:
+  - success + method list with calculated cost and delivery estimate
+
+#### GET /api/v1/shipping-methods/{code}
+- Access: Internal Secret (`X-Internal-Secret` required)
+- Success:
+  - success + method detail including pricing rules and location rule ids
+- Errors: 404 not found/inactive
+
+#### POST /api/v1/shipping-methods/calculate
+- Access: Internal Secret (`X-Internal-Secret` required)
+- Body required:
+  - shipping_method
+  - amount
+- Optional:
+  - item_count, weight
+  - division_id, district_id, upazila_id, location_text
+- Success:
+  - success + cost calculation payload
+- Errors:
+  - 404 method unavailable
+  - 422 location not resolved where required (for methods with location rules)
+  - 400 not available for order
+
+### 10.22 Stripe
+
+#### GET /api/v1/stripe/config
+- Access: Public
+- Success:
+  - success + { public_key, test_mode }
+- Errors:
+  - 404 unavailable
+  - 503 not configured
+
+#### POST /api/v1/stripe/create-payment-intent
+- Body: order_id required
+- Success:
+  - success + payment intent payload from service
+- Errors:
+  - 403 ownership
+  - 400 wrong method/already paid/service issues
+
+#### POST /api/v1/stripe/confirm-payment
+- Body:
+  - order_id required
+  - payment_intent_id required
+- Success:
+  - success + { status, order_id/order_number }
+- Errors:
+  - 403 ownership
+  - 400 mismatch or payment error
+
+#### POST /api/v1/stripe/webhook
+- Public endpoint for Stripe callbacks
+- Body/headers:
+  - raw Stripe event payload
+  - Stripe-Signature header
+- Success:
+  - { "status": "success" }
+- Errors:
+  - 400 invalid payload/signature
+
+### 10.23 Wishlist
+
+#### GET /api/v1/wishlist
+- Success:
+  - Resource collection (no success/message wrapper)
+
+#### POST /api/v1/wishlist
+- Body:
+  - product_id required
+  - product_variant_id optional
+- Success 201:
+  - success + WishlistResource
+- Error 409 if duplicate
+
+#### POST /api/v1/wishlist/toggle
+- Body:
+  - product_id required
+  - product_variant_id optional
+- Success:
+  - success, added, message
+
+#### DELETE /api/v1/wishlist/{wishlist}
+- Success: removal message
+- Error 403 ownership
+
+#### DELETE /api/v1/wishlist/product
+- Body/query:
+  - product_id required
+  - product_variant_id optional
+- Success: removal message
+- Error 404 if not found in wishlist
+
+#### GET /api/v1/wishlist/check
+- Query/body:
+  - product_id required
+  - product_variant_id optional
+- Success:
+  - success, in_wishlist
+
+#### GET /api/v1/wishlist/count
+- Success:
+  - success, count
+
+#### DELETE /api/v1/wishlist/clear
+- Success: wishlist cleared message
+
+#### POST /api/v1/wishlist/{wishlist}/move-to-cart
+- Success: moved message
+- Errors:
+  - 403 ownership
+  - 400 unavailable product/cart add failure
+
+## Frontend Integration Notes
+
+1. Do not assume a single response envelope for all endpoints. Handle both success wrapper and pure resource collection responses.
+2. For product, order, and cart totals, trust server-calculated values only.
+3. Many storefront read endpoints use `internal.api`; call them via server-side proxy and include `X-Internal-Secret` (do not expose secret in browser client bundles).
+4. For checkout and order creation, use `/api/v1/settings/checkout` to drive field visibility/required state.
+5. Text-first checkout contract: shipping-method discovery can be called with `amount` + `location_text`, and order payload should use `shipping_location_text` (backend falls back to `shipping_address` if omitted).
+6. For payments, treat create/confirm APIs as state machine steps and re-query order/payment status after completion.
+7. For bKash callback flows, frontend must handle redirected query params from backend callback URLs.
+8. For returns image uploads, use multipart/form-data. For reviews, send image path strings (media library URLs/paths) in the images array.

@@ -13,7 +13,9 @@ class ProductResource extends JsonResource
         // Determine if product has active variants
         $hasVariants = $this->relationLoaded('variants')
             ? $this->variants->isNotEmpty()
-            : ($this->variants_count ?? 0) > 0;
+            : (($this->variants_count ?? null) !== null
+                ? $this->variants_count > 0
+                : $this->variants()->exists());
 
         // Calculate effective stock - use variant stock sum if variants exist, otherwise base stock
         $effectiveStock = $hasVariants && $this->relationLoaded('variants') && $this->variants->isNotEmpty()

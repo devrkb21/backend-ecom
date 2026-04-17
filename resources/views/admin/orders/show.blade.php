@@ -14,16 +14,24 @@
                     </a>
                     <h6 class="mb-0 fw-semibold"><i class="bi bi-receipt me-2"></i>Order #{{ $order->id }}</h6>
                 </div>
-                <span class="badge badge-status-{{ $order->status }} fs-6">
-                    {{ ucfirst($order->status) }}
+                @php
+                    $headerStatusLabel = $order->statusConfig?->label ?? ucfirst(str_replace('_', ' ', $order->status));
+                    $headerStatusColor = $order->statusConfig?->color ?? '#6C757D';
+                @endphp
+                <span class="badge fs-6 text-white" style="background-color: {{ $headerStatusColor }};">
+                    {{ $headerStatusLabel }}
                 </span>
             </div>
             <div class="card-body">
                 <div class="row mb-4">
                     <div class="col-md-6">
                         <h6 class="text-muted small text-uppercase mb-2">Customer Information</h6>
-                        <p class="mb-1"><strong>{{ $order->user->name }}</strong></p>
-                        <p class="mb-1">{{ $order->user->email }}</p>
+                        @php
+                            $customerName = $order->user?->name ?? $order->shipping_name ?? 'Guest Checkout';
+                            $customerEmail = $order->user?->email ?? $order->shipping_email ?? 'Not provided';
+                        @endphp
+                        <p class="mb-1"><strong>{{ $customerName }}</strong></p>
+                        <p class="mb-1">{{ $customerEmail }}</p>
                     </div>
                     <div class="col-md-6">
                         <h6 class="text-muted small text-uppercase mb-2">Shipping Address</h6>
@@ -164,11 +172,21 @@
                     <div class="mb-3">
                         <label for="status" class="form-label">Order Status</label>
                         <select class="form-select @error('status') is-invalid @enderror" id="status" name="status">
-                            <option value="pending" {{ $order->status == 'pending' ? 'selected' : '' }}>Pending</option>
-                            <option value="processing" {{ $order->status == 'processing' ? 'selected' : '' }}>Processing</option>
-                            <option value="shipped" {{ $order->status == 'shipped' ? 'selected' : '' }}>Shipped</option>
-                            <option value="delivered" {{ $order->status == 'delivered' ? 'selected' : '' }}>Delivered</option>
-                            <option value="cancelled" {{ $order->status == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                            @php
+                                $statusOptions = $availableStatuses->keyBy('key');
+                            @endphp
+
+                            @if(!$statusOptions->has($order->status))
+                                <option value="{{ $order->status }}" selected>
+                                    {{ ucfirst(str_replace('_', ' ', $order->status)) }} (Inactive)
+                                </option>
+                            @endif
+
+                            @foreach($availableStatuses as $statusOption)
+                                <option value="{{ $statusOption->key }}" {{ $order->status === $statusOption->key ? 'selected' : '' }}>
+                                    {{ $statusOption->label }}
+                                </option>
+                            @endforeach
                         </select>
                         @error('status')
                             <div class="invalid-feedback">{{ $message }}</div>

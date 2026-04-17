@@ -56,6 +56,10 @@
                         @enderror
                     </div>
 
+                    @php
+                        $canAccessAdminPanel = filter_var((string) old('can_access_admin_panel', $role->can_access_admin_panel ? '1' : '0'), FILTER_VALIDATE_BOOLEAN);
+                    @endphp
+
                     <div class="row g-2 mb-3">
                         <div class="col-md-6">
                             <div class="form-check form-switch border rounded p-2 ps-5">
@@ -64,6 +68,7 @@
                                     type="checkbox"
                                     id="can_access_admin_panel"
                                     name="can_access_admin_panel"
+                                    data-ui-toggle="can_access_admin_panel"
                                     value="1"
                                     {{ old('can_access_admin_panel', $role->can_access_admin_panel) ? 'checked' : '' }}
                                     {{ $role->key === 'admin' ? 'disabled' : '' }}
@@ -93,7 +98,7 @@
                         </div>
                     </div>
 
-                    <div class="mb-3">
+                    <div class="mb-3 {{ $role->key !== 'admin' && !$canAccessAdminPanel ? 'd-none' : '' }}" @if($role->key !== 'admin') data-ui-toggle-form="can_access_admin_panel" @endif>
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <label class="form-label mb-0">Permissions</label>
                             @if($role->key !== 'admin')
@@ -144,6 +149,12 @@
                             <div class="text-danger small mt-1">{{ $message }}</div>
                         @enderror
                     </div>
+
+                    @if($role->key !== 'admin')
+                        <div class="small text-muted mb-3 {{ $canAccessAdminPanel ? 'd-none' : '' }}" data-ui-toggle-note="can_access_admin_panel">
+                            Permissions form is hidden while admin panel access is disabled.
+                        </div>
+                    @endif
 
                     <div class="d-flex justify-content-end gap-2 mt-4">
                         <a href="{{ route('admin.roles.index') }}" class="btn btn-outline-secondary">Cancel</a>

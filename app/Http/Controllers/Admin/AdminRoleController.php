@@ -55,6 +55,10 @@ class AdminRoleController extends Controller
             $permissions = $this->ensureDashboardPermission($permissions);
         }
 
+        if (!$canAccessAdminPanel && $permissions !== ['*']) {
+            $permissions = [];
+        }
+
         AdminRole::create([
             'name' => trim($validated['name']),
             'key' => $roleKey,

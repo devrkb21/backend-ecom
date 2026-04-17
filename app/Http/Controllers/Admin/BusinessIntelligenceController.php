@@ -236,6 +236,7 @@ class BusinessIntelligenceController extends Controller
             fputcsv($file, ['Retail Value', $valuation['total_retail_value']]);
             fputcsv($file, ['Cost Value', $valuation['total_cost_value']]);
             fputcsv($file, ['Potential Profit', $valuation['potential_profit']]);
+            fputcsv($file, ['Potential Profit %', $valuation['potential_profit_percentage'] . '%']);
             fputcsv($file, []);
 
             // Low Stock

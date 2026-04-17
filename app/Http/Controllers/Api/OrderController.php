@@ -41,29 +41,44 @@ class OrderController extends Controller
 
     public function showByNumber(Request $request, string $orderNumber): JsonResponse
     {
+        if (!preg_match('/^ORD-[0-9]{14}-[A-Z0-9]{4}$/', $orderNumber)) {
+            return $this->errorResponse('Order not found', 404);
+        }
+
         $order = $this->orderService->getOrderByNumber($orderNumber);
 
         if (!$order) {
             return $this->errorResponse('Order not found', 404);
         }
 
-        // Users can only view their own orders unless admin
-        if (!$request->user()->isAdmin() && $order->user_id !== $request->user()->id) {
-            return $this->errorResponse('Unauthorized', 403);
-        }
-
-        return $this->successResponse(new OrderResource($order));
+        return $this->successResponse([
+            'id' => $order->id,
+            'order_number' => $order->order_number,
+            'status' => $order->status,
+            'payment_status' => $order->payment_status,
+            'payment_method' => $order->payment_method,
+            'total' => (float) $order->total,
+        ]);
     }
 
     public function store(StoreOrderRequest $request): JsonResponse
     {
         try {
+            $user = $request->user('sanctum') ?? auth()->user();
+
             $order = $this->orderService->createOrderFromCart(
-                $request->user()->id,
+                $user?->id,
                 $request->validated()
             );
 
-            return $this->createdResponse(new OrderResource($order), 'Order created successfully');
+            return $this->createdResponse([
+                'id' => $order->id,
+                'order_number' => $order->order_number,
+                'status' => $order->status,
+                'payment_status' => $order->payment_status,
+                'payment_method' => $order->payment_method,
+                'total' => (float) $order->total,
+            ], 'Order created successfully');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }

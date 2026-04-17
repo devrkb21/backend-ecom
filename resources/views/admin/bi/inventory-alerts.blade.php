@@ -58,7 +58,10 @@
             <div class="card border-left-warning shadow h-100 py-2">
                 <div class="card-body">
                     <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Potential Profit</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">৳{{ number_format($valuation['potential_profit'], 0) }}</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                        ৳{{ number_format($valuation['potential_profit'], 0) }}
+                        <small class="text-muted ms-1">({{ number_format($valuation['potential_profit_percentage'], 1) }}%)</small>
+                    </div>
                 </div>
             </div>
         </div>

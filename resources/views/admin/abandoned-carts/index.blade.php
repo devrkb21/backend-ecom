@@ -22,8 +22,9 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="text-warning mb-1">Pending</h6>
-                            <h3 class="mb-0">{{ number_format($stats['pending']) }}</h3>
+                            <h6 class="text-warning mb-1">Open Carts</h6>
+                            <h3 class="mb-0">{{ number_format($stats['open']) }}</h3>
+                            <small class="text-muted">Pending + Follow Up</small>
                         </div>
                         <div class="text-warning opacity-50">
                             <i class="fas fa-clock fa-2x"></i>
@@ -37,8 +38,9 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="text-info mb-1">Follow Up</h6>
-                            <h3 class="mb-0">{{ number_format($stats['follow_up']) }}</h3>
+                            <h6 class="text-info mb-1">Overdue Follow Up</h6>
+                            <h3 class="mb-0">{{ number_format($stats['overdue_follow_up']) }}</h3>
+                            <small class="text-muted">Need immediate action</small>
                         </div>
                         <div class="text-info opacity-50">
                             <i class="fas fa-phone fa-2x"></i>
@@ -52,8 +54,9 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="text-success mb-1">Recovered</h6>
-                            <h3 class="mb-0">{{ number_format($stats['recovered']) }}</h3>
+                            <h6 class="text-success mb-1">Recovered (30d)</h6>
+                            <h3 class="mb-0">৳{{ number_format($stats['recovered_revenue_30d'], 0) }}</h3>
+                            <small class="text-muted">Revenue won back</small>
                         </div>
                         <div class="text-success opacity-50">
                             <i class="fas fa-check-circle fa-2x"></i>
@@ -69,6 +72,7 @@
                         <div>
                             <h6 class="text-primary mb-1">Potential Revenue</h6>
                             <h3 class="mb-0">৳{{ number_format($stats['potential_revenue'], 0) }}</h3>
+                            <small class="text-muted">Avg ৳{{ number_format($stats['avg_open_value'], 0) }}/cart</small>
                         </div>
                         <div class="text-primary opacity-50">
                             <i class="fas fa-coins fa-2x"></i>
@@ -81,7 +85,7 @@
 
     <!-- Additional Stats -->
     <div class="row g-3 mb-4">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card">
                 <div class="card-body text-center">
                     <h6 class="text-muted mb-2">Recovery Rate (30 days)</h6>
@@ -91,20 +95,30 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card">
                 <div class="card-body text-center">
                     <h6 class="text-muted mb-2">With Contact Info</h6>
                     <h2 class="mb-0 text-info">{{ number_format($stats['with_contact']) }}</h2>
-                    <small class="text-muted">actionable leads</small>
+                    <small class="text-muted">{{ $stats['contactable_rate'] }}% of open leads</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card">
                 <div class="card-body text-center">
-                    <h6 class="text-muted mb-2">Total Abandoned</h6>
-                    <h2 class="mb-0">{{ number_format($stats['total']) }}</h2>
+                    <h6 class="text-muted mb-2">High Value Open</h6>
+                    <h2 class="mb-0 text-danger">{{ number_format($stats['high_value_open']) }}</h2>
+                    <small class="text-muted">Over ৳5,000 carts</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Reminder Queue</h6>
+                    <h2 class="mb-0 text-primary">{{ number_format($stats['reminder_due']) }}</h2>
+                    <small class="text-muted">Ready for reminder send</small>
                 </div>
             </div>
         </div>
@@ -148,6 +162,26 @@
                 <div class="col-md-2">
                     <label class="form-label">Search</label>
                     <input type="text" name="search" class="form-control" placeholder="Email, Phone, Name" value="{{ request('search') }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Priority</label>
+                    <select name="priority" class="form-select">
+                        <option value="">All</option>
+                        <option value="high_value" {{ request('priority') == 'high_value' ? 'selected' : '' }}>High Value</option>
+                        <option value="overdue_follow_up" {{ request('priority') == 'overdue_follow_up' ? 'selected' : '' }}>Overdue Follow Up</option>
+                        <option value="reminder_due" {{ request('priority') == 'reminder_due' ? 'selected' : '' }}>Reminder Due</option>
+                        <option value="actionable" {{ request('priority') == 'actionable' ? 'selected' : '' }}>Actionable Leads</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Sort</label>
+                    <select name="sort_by" class="form-select">
+                        <option value="">Latest</option>
+                        <option value="oldest" {{ request('sort_by') == 'oldest' ? 'selected' : '' }}>Oldest First</option>
+                        <option value="highest_value" {{ request('sort_by') == 'highest_value' ? 'selected' : '' }}>Highest Value</option>
+                        <option value="oldest_activity" {{ request('sort_by') == 'oldest_activity' ? 'selected' : '' }}>Oldest Activity</option>
+                        <option value="latest_activity" {{ request('sort_by') == 'latest_activity' ? 'selected' : '' }}>Latest Activity</option>
+                    </select>
                 </div>
                 <div class="col-md-2 d-flex align-items-end gap-2">
                     <button type="submit" class="btn btn-primary">
@@ -201,6 +235,7 @@
                             <th>Total</th>
                             <th>Status</th>
                             <th>Time</th>
+                            <th>Priority</th>
                             <th width="100">Actions</th>
                         </tr>
                     </thead>
@@ -280,6 +315,14 @@
                                 </small>
                             </td>
                             <td>
+                                <span class="badge bg-{{ $cart->priority_color }}">
+                                    {{ ucfirst($cart->priority_level) }}
+                                </span>
+                                @if($cart->reminder_count > 0)
+                                    <br><small class="text-muted">{{ $cart->reminder_count }} reminder(s)</small>
+                                @endif
+                            </td>
+                            <td>
                                 <div class="btn-group btn-group-sm">
                                     <a href="{{ route('admin.abandoned-carts.show', $cart) }}" class="btn btn-outline-primary" title="View Details">
                                         <i class="fas fa-eye"></i>
@@ -297,7 +340,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="8" class="text-center py-5">
+                            <td colspan="9" class="text-center py-5">
                                 <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
                                 <p class="text-muted mb-0">No abandoned carts found</p>
                             </td>

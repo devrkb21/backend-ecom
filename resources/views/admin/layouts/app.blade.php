@@ -26,6 +26,7 @@
             z-index: 1000;
             overflow-y: auto;
             overflow-x: hidden;
+            transition: transform 0.25s ease;
         }
         .sidebar::-webkit-scrollbar {
             width: 6px;
@@ -138,6 +139,7 @@
         .main-content {
             margin-left: var(--sidebar-width);
             min-height: 100vh;
+            transition: margin-left 0.25s ease;
         }
         .top-navbar {
             background: #fff;
@@ -153,6 +155,14 @@
             inset: 0;
             background: rgba(0, 0, 0, 0.35);
             z-index: 999;
+        }
+        @media (min-width: 769px) {
+            body.sidebar-collapsed .sidebar {
+                transform: translateX(-100%);
+            }
+            body.sidebar-collapsed .main-content {
+                margin-left: 0;
+            }
         }
         .content-wrapper {
             padding: 1.5rem;
@@ -520,6 +530,11 @@
                             <i class="bi bi-truck"></i> Shipping Methods
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.order-statuses*') ? 'active' : '' }}" href="{{ route('admin.settings.order-statuses') }}">
+                            <i class="bi bi-tags"></i> Order Statuses
+                        </a>
+                    </li>
                 </ul>
             </li>
 
@@ -535,6 +550,10 @@
             <div class="d-flex align-items-center">
                 <button type="button" class="btn btn-outline-secondary btn-sm d-md-none me-2" id="sidebarToggle" aria-label="Toggle sidebar">
                     <i class="bi bi-list"></i>
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm d-none d-md-inline-flex me-2" id="sidebarCollapseToggle" aria-label="Collapse sidebar" aria-expanded="true">
+                    <i class="bi bi-layout-sidebar me-1" data-sidebar-collapse-icon></i>
+                    <span data-sidebar-collapse-label>Collapse</span>
                 </button>
                 <h5 class="mb-0">@yield('page-title', 'Dashboard')</h5>
             </div>
@@ -586,9 +605,11 @@
             const sidebar = document.querySelector('.sidebar');
             const sidebarBackdrop = document.getElementById('sidebarBackdrop');
             const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebarCollapseToggle = document.getElementById('sidebarCollapseToggle');
             const sidebarBulkToggle = document.getElementById('sidebarBulkToggle');
             const menuGroups = Array.from(document.querySelectorAll('[data-menu-group]'));
             const storageKey = 'admin.sidebar.menuState.v1';
+            const sidebarCollapsedKey = 'admin.sidebar.collapsed.v1';
 
             const readMenuState = () => {
                 try {
@@ -607,7 +628,63 @@
                 }
             };
 
+            const readSidebarCollapsedState = () => {
+                try {
+                    return localStorage.getItem(sidebarCollapsedKey) === '1';
+                } catch (e) {
+                    return false;
+                }
+            };
+
+            const persistSidebarCollapsedState = (isCollapsed) => {
+                try {
+                    localStorage.setItem(sidebarCollapsedKey, isCollapsed ? '1' : '0');
+                } catch (e) {
+                    // Ignore localStorage failures (private mode or blocked storage)
+                }
+            };
+
             const menuState = readMenuState();
+
+            const updateSidebarCollapseToggle = (isCollapsed) => {
+                if (!sidebarCollapseToggle) {
+                    return;
+                }
+
+                const icon = sidebarCollapseToggle.querySelector('[data-sidebar-collapse-icon]');
+                const label = sidebarCollapseToggle.querySelector('[data-sidebar-collapse-label]');
+
+                sidebarCollapseToggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+                sidebarCollapseToggle.setAttribute('aria-label', isCollapsed ? 'Expand sidebar' : 'Collapse sidebar');
+
+                if (icon) {
+                    icon.classList.remove('bi-layout-sidebar', 'bi-layout-sidebar-inset');
+                    icon.classList.add(isCollapsed ? 'bi-layout-sidebar-inset' : 'bi-layout-sidebar');
+                }
+
+                if (label) {
+                    label.textContent = isCollapsed ? 'Expand' : 'Collapse';
+                }
+            };
+
+            const setSidebarCollapsed = (isCollapsed, shouldPersist = true) => {
+                if (window.innerWidth <= 768) {
+                    updateSidebarCollapseToggle(isCollapsed);
+                    return;
+                }
+
+                document.body.classList.toggle('sidebar-collapsed', isCollapsed);
+                updateSidebarCollapseToggle(isCollapsed);
+
+                if (shouldPersist) {
+                    persistSidebarCollapsedState(isCollapsed);
+                }
+
+                if (isCollapsed) {
+                    sidebar?.classList.remove('show');
+                    sidebarBackdrop?.classList.remove('show');
+                }
+            };
 
             const setGroupOpen = (groupItem, isOpen, shouldPersist = true) => {
                 groupItem.classList.toggle('is-open', isOpen);
@@ -667,6 +744,13 @@
 
             updateBulkToggleButton();
 
+            setSidebarCollapsed(readSidebarCollapsedState(), false);
+
+            sidebarCollapseToggle?.addEventListener('click', function () {
+                const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+                setSidebarCollapsed(!isCollapsed, true);
+            });
+
             sidebarBulkToggle?.addEventListener('click', function () {
                 const shouldExpandAll = !areAllGroupsOpen();
 
@@ -706,7 +790,65 @@
                 if (window.innerWidth > 768) {
                     sidebar?.classList.remove('show');
                     sidebarBackdrop?.classList.remove('show');
+                    setSidebarCollapsed(readSidebarCollapsedState(), false);
+                } else {
+                    document.body.classList.remove('sidebar-collapsed');
                 }
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggleNodes = document.querySelectorAll('[data-ui-toggle], [data-toggle-control], [data-integration-toggle]');
+
+            const resolveToggleKey = (toggle) => {
+                return toggle.dataset.uiToggle
+                    || toggle.dataset.toggleControl
+                    || toggle.dataset.integrationToggle
+                    || null;
+            };
+
+            const findSection = (key) => {
+                return document.querySelector(
+                    `[data-ui-toggle-form="${key}"], [data-toggle-section="${key}"], [data-integration-form="${key}"]`
+                );
+            };
+
+            const findDisabledNote = (key) => {
+                return document.querySelector(
+                    `[data-ui-toggle-note="${key}"], [data-toggle-disabled-note="${key}"], [data-integration-disabled-note="${key}"]`
+                );
+            };
+
+            const syncToggleSection = (toggle) => {
+                const key = resolveToggleKey(toggle);
+                if (!key) {
+                    return;
+                }
+
+                const section = findSection(key);
+                const note = findDisabledNote(key);
+
+                if (!section && !note) {
+                    return;
+                }
+
+                const isEnabled = toggle.checked;
+
+                section?.classList.toggle('d-none', !isEnabled);
+                note?.classList.toggle('d-none', isEnabled);
+
+                const controls = section?.querySelectorAll('input, select, textarea, button') ?? [];
+                controls.forEach((control) => {
+                    if ('disabled' in control) {
+                        control.disabled = !isEnabled;
+                    }
+                });
+            };
+
+            toggleNodes.forEach((toggle) => {
+                syncToggleSection(toggle);
+                toggle.addEventListener('change', () => syncToggleSection(toggle));
             });
         });
     </script>

@@ -50,13 +50,28 @@ class IntegrationSettingController extends Controller
             'sms_balance_url' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $currentValues = Setting::where('group', self::GROUP)
+            ->pluck('value', 'key')
+            ->all();
+
+        $fieldToggleMap = $this->fieldToggleMap();
+
         foreach ($this->definitions() as $index => $definition) {
             $key = $definition['key'];
 
             if ($definition['type'] === 'boolean') {
                 $value = $request->boolean($key) ? '1' : '0';
             } else {
-                $value = trim((string) ($validated[$key] ?? ''));
+                $toggleKey = $fieldToggleMap[$key] ?? null;
+
+                if ($toggleKey && !$request->boolean($toggleKey)) {
+                    // Preserve existing value when the integration is disabled.
+                    $value = (string) ($currentValues[$key] ?? ($definition['default'] ?? ''));
+                } elseif (array_key_exists($key, $validated)) {
+                    $value = trim((string) ($validated[$key] ?? ''));
+                } else {
+                    $value = (string) ($currentValues[$key] ?? ($definition['default'] ?? ''));
+                }
             }
 
             Setting::setValue(self::GROUP, $key, $value, [
@@ -230,6 +245,21 @@ class IntegrationSettingController extends Controller
                 'description' => 'BulkSMSBD balance endpoint.',
                 'is_public' => false,
             ],
+        ];
+    }
+
+    private function fieldToggleMap(): array
+    {
+        return [
+            'gtm_container_id' => 'gtm_enabled',
+            'facebook_pixel_id' => 'facebook_pixel_enabled',
+            'tiktok_pixel_id' => 'tiktok_pixel_enabled',
+            'google_analytics_measurement_id' => 'google_analytics_enabled',
+            'sms_provider' => 'sms_enabled',
+            'sms_api_base_url' => 'sms_enabled',
+            'sms_api_key' => 'sms_enabled',
+            'sms_sender_id' => 'sms_enabled',
+            'sms_balance_url' => 'sms_enabled',
         ];
     }
 }

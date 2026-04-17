@@ -3,27 +3,38 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\Coupon;
 use App\Models\CouponUsage;
+use App\Models\BdDistrict;
+use App\Models\BdDivision;
+use App\Models\BdUnion;
+use App\Models\BdUpazila;
 use App\Models\PaymentGateway;
 use App\Models\ShippingMethod;
 use App\Models\AbandonedCart;
+use App\Models\User;
 use App\Notifications\OrderConfirmation;
 use App\Notifications\OrderStatusUpdated;
 use App\Notifications\OrderShipped;
+use App\Services\BangladeshLocationResolver;
 use App\Repositories\Interfaces\OrderRepositoryInterface;
 use App\Repositories\Interfaces\CartRepositoryInterface;
 use App\Repositories\Interfaces\ProductRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class OrderService
 {
     public function __construct(
         protected OrderRepositoryInterface $orderRepository,
         protected CartRepositoryInterface $cartRepository,
-        protected ProductRepositoryInterface $productRepository
+        protected ProductRepositoryInterface $productRepository,
+        protected BangladeshLocationResolver $locationResolver
     ) {}
 
     public function getUserOrders(int $userId, int $perPage = 15): LengthAwarePaginator
@@ -51,19 +62,58 @@ class OrderService
         return $this->orderRepository->getByStatus($status);
     }
 
-    public function createOrderFromCart(int $userId, array $shippingData): Order
+    public function createOrderFromCart(?int $userId, array $shippingData): Order
     {
         return DB::transaction(function () use ($userId, $shippingData) {
-            $cart = $this->cartRepository->getByUserId($userId);
+            $isGuestCheckout = $userId === null;
+            $guestUser = null;
+            $cart = null;
+            $coupon = null;
+            $discountAmount = 0;
 
-            if (!$cart || $cart->items->isEmpty()) {
-                throw new \Exception('Cart is empty.');
+            if ($isGuestCheckout) {
+                $guestUser = $this->resolveGuestCheckoutUser();
+            }
+
+            $orderOwnerId = $userId ?? $guestUser?->id;
+
+            if ($isGuestCheckout) {
+                $checkoutItems = $this->buildGuestCheckoutItems($shippingData['items'] ?? []);
+            } else {
+                $cart = $this->cartRepository->getByUserId($userId);
+
+                if (!$cart || $cart->items->isEmpty()) {
+                    throw new \Exception('Cart is empty.');
+                }
+
+                $checkoutItems = $cart->items->map(function ($item) {
+                    if (!$item->product) {
+                        throw new \Exception('One or more cart items are no longer available.');
+                    }
+
+                    return [
+                        'product' => $item->product,
+                        'product_id' => (int) $item->product_id,
+                        'product_name' => $item->product->name,
+                        'product_sku' => $item->product->sku,
+                        'quantity' => (int) $item->quantity,
+                        'price' => (float) $item->price,
+                    ];
+                });
+
+                $coupon = $cart->coupon;
+                if ($coupon && $coupon->isValid()) {
+                    $discountAmount = (float) $cart->discount_amount;
+                }
             }
 
             // Validate stock for all items
-            foreach ($cart->items as $item) {
-                $product = $item->product;
-                if (!$product->hasStock($item->quantity)) {
+            foreach ($checkoutItems as $item) {
+                /** @var Product $product */
+                $product = $item['product'];
+                $quantity = (int) $item['quantity'];
+
+                if (!$product->hasStock($quantity)) {
                     throw new \Exception("Insufficient stock for product: {$product->name}");
                 }
             }
@@ -85,36 +135,135 @@ class OrderService
             }
 
             // Calculate totals
-            $subtotal = $cart->subtotal;
+            $subtotal = $checkoutItems->sum(function (array $item) {
+                return ((float) $item['price']) * ((int) $item['quantity']);
+            });
             $tax = $subtotal * 0.1; // 10% tax
 
-            // Apply coupon discount
-            $coupon = $cart->coupon;
-            $discountAmount = 0;
+            // Calculate item count for shipping
+            $itemCount = (int) $checkoutItems->sum('quantity');
 
-            if ($coupon && $coupon->isValid()) {
-                $discountAmount = $cart->discount_amount;
+            $shippingLocationText = trim((string) ($shippingData['shipping_location_text'] ?? ''));
+            if ($shippingLocationText === '') {
+                $shippingLocationText = trim((string) ($shippingData['shipping_address'] ?? ''));
             }
 
-            // Calculate item count for shipping
-            $itemCount = $cart->items->sum('quantity');
+            $divisionId = !empty($shippingData['shipping_division_id']) ? (int) $shippingData['shipping_division_id'] : null;
+            $districtId = !empty($shippingData['shipping_district_id']) ? (int) $shippingData['shipping_district_id'] : null;
+            $upazilaId = !empty($shippingData['shipping_upazila_id']) ? (int) $shippingData['shipping_upazila_id'] : null;
+            $unionId = !empty($shippingData['shipping_union_id']) ? (int) $shippingData['shipping_union_id'] : null;
+
+            if ($shippingLocationText !== '') {
+                $resolved = $this->locationResolver->resolve(
+                    $shippingLocationText,
+                    $divisionId,
+                    $districtId,
+                    $upazilaId,
+                    $unionId
+                );
+
+                $divisionId = $divisionId ?? (!empty($resolved['division_id']) ? (int) $resolved['division_id'] : null);
+                $districtId = $districtId ?? (!empty($resolved['district_id']) ? (int) $resolved['district_id'] : null);
+                $upazilaId = $upazilaId ?? (!empty($resolved['upazila_id']) ? (int) $resolved['upazila_id'] : null);
+                $unionId = $unionId ?? (!empty($resolved['union_id']) ? (int) $resolved['union_id'] : null);
+            }
+
+            // Resolve Bangladesh hierarchy when ids are available; keep text-only checkout functional if partial resolution.
+            $division = null;
+            if ($divisionId) {
+                $division = BdDivision::query()->find($divisionId);
+                if (!$division) {
+                    throw new \Exception('Unable to resolve shipping location from address.');
+                }
+            }
+
+            $district = null;
+            if ($districtId) {
+                $district = BdDistrict::query()
+                    ->where('id', $districtId)
+                    ->when($division?->id, function ($query, int $resolvedDivisionId) {
+                        $query->where('division_id', $resolvedDivisionId);
+                    })
+                    ->first();
+
+                if (!$district) {
+                    throw new \Exception('Unable to resolve shipping location from address.');
+                }
+            }
+
+            $upazila = null;
+            if ($upazilaId) {
+                $upazila = BdUpazila::query()
+                    ->where('id', $upazilaId)
+                    ->when($district?->id, function ($query, int $resolvedDistrictId) {
+                        $query->where('district_id', $resolvedDistrictId);
+                    })
+                    ->first();
+
+                if (!$upazila) {
+                    throw new \Exception('Unable to resolve shipping location from address.');
+                }
+            }
+
+            $union = null;
+            if ($unionId) {
+                $union = BdUnion::query()
+                    ->where('id', $unionId)
+                    ->when($upazila?->id, function ($query, int $resolvedUpazilaId) {
+                        $query->where('upazila_id', $resolvedUpazilaId);
+                    })
+                    ->first();
+
+                if (!$union) {
+                    throw new \Exception('Unable to resolve shipping location from address.');
+                }
+            }
 
             // Calculate shipping cost using selected method
             $baseShipping = $shippingMethod->calculateCost($subtotal, $itemCount, 0);
 
             // Product-level free delivery offer (if any cart product enables it)
-            $hasProductFreeDelivery = $cart->items->contains(function ($item) {
-                return $item->product && $item->product->hasFreeDeliveryOffer();
+            $hasProductFreeDelivery = $checkoutItems->contains(function (array $item) {
+                /** @var Product $product */
+                $product = $item['product'];
+
+                return $product->hasFreeDeliveryOffer();
             });
 
             // Free shipping can come from coupon or product-level offer
             $shipping = (($coupon && $coupon->free_shipping) || $hasProductFreeDelivery) ? 0 : $baseShipping;
 
             // Check if shipping method is available for this order
-            $countryCode = $this->getCountryCode($shippingData['shipping_country'] ?? '');
-            if (!$shippingMethod->isAvailableFor($subtotal, null, $countryCode)) {
+            $hasResolvedLocationContext = $division?->id || $district?->id || $upazila?->id;
+            if (!$hasResolvedLocationContext && $shippingMethod->locationRules()->exists()) {
+                throw new \Exception('Unable to determine your shipping area from address. Please provide a more specific address.');
+            }
+
+            if (!$shippingMethod->isAvailableFor(
+                $subtotal,
+                null,
+                'BD',
+                $division?->id,
+                $district?->id,
+                $upazila?->id
+            )) {
                 throw new \Exception('Selected shipping method is not available for your order.');
             }
+
+            $shippingArea = $shippingData['shipping_area'] ?? null;
+            if (empty($shippingArea) && $shippingLocationText !== '') {
+                $shippingArea = $shippingLocationText;
+            }
+
+            $shippingAddressParts = array_filter([
+                $shippingData['shipping_address'] ?? null,
+                $shippingArea,
+                $union?->name,
+                $upazila?->name,
+                $district?->name,
+            ]);
+
+            $normalizedShippingAddress = implode(', ', $shippingAddressParts);
 
             // Calculate payment gateway extra charge (e.g., COD fee)
             $paymentCharge = $this->calculatePaymentCharge($paymentGateway, $subtotal + $tax + $shipping - $discountAmount);
@@ -131,7 +280,7 @@ class OrderService
 
             // Prepare order data
             $orderData = [
-                'user_id' => $userId,
+                'user_id' => $orderOwnerId,
                 'coupon_id' => $coupon?->id,
                 'coupon_code' => $coupon?->code,
                 'discount_amount' => $discountAmount,
@@ -145,36 +294,46 @@ class OrderService
                 'shipping_method' => $shippingMethodCode,
                 'total' => $total,
                 'shipping_name' => $shippingData['shipping_name'],
-                'shipping_email' => $shippingData['shipping_email'],
+                'shipping_email' => $shippingData['shipping_email'] ?? ($cart?->user?->email ?? $guestUser?->email ?? 'customer@local.invalid'),
                 'shipping_phone' => $shippingData['shipping_phone'] ?? null,
-                'shipping_address' => $shippingData['shipping_address'],
-                'shipping_city' => $shippingData['shipping_city'],
-                'shipping_state' => $shippingData['shipping_state'] ?? null,
-                'shipping_zip' => $shippingData['shipping_zip'],
-                'shipping_country' => $shippingData['shipping_country'],
+                'shipping_address' => $normalizedShippingAddress,
+                'shipping_division_id' => $division?->id,
+                'shipping_district_id' => $district?->id,
+                'shipping_upazila_id' => $upazila?->id,
+                'shipping_union_id' => $union?->id,
+                'shipping_city' => $shippingData['shipping_city']
+                    ?? $district?->name
+                    ?? $upazila?->name
+                    ?? ($shippingLocationText !== '' ? $shippingLocationText : 'N/A'),
+                'shipping_state' => $shippingData['shipping_state'] ?? $division?->name,
+                'shipping_zip' => $shippingData['shipping_zip'] ?? '0000',
+                'shipping_country' => 'Bangladesh',
                 'notes' => $shippingData['notes'] ?? null,
             ];
 
             // Prepare order items
             $items = [];
-            foreach ($cart->items as $item) {
+            foreach ($checkoutItems as $item) {
+                /** @var Product $product */
+                $product = $item['product'];
+
                 $items[] = [
-                    'product_id' => $item->product_id,
-                    'product_name' => $item->product->name,
-                    'product_sku' => $item->product->sku,
-                    'quantity' => $item->quantity,
-                    'price' => $item->price,
+                    'product_id' => (int) $item['product_id'],
+                    'product_name' => $item['product_name'],
+                    'product_sku' => $item['product_sku'],
+                    'quantity' => (int) $item['quantity'],
+                    'price' => (float) $item['price'],
                 ];
 
                 // Decrement stock
-                $item->product->decrementStock($item->quantity);
+                $product->decrementStock((int) $item['quantity']);
             }
 
             // Create order with items
             $order = $this->orderRepository->createWithItems($orderData, $items);
 
             // Record coupon usage
-            if ($coupon && $discountAmount > 0) {
+            if ($coupon && $discountAmount > 0 && $userId !== null) {
                 CouponUsage::create([
                     'coupon_id' => $coupon->id,
                     'user_id' => $userId,
@@ -185,23 +344,133 @@ class OrderService
             }
 
             // Clear the cart
-            $this->cartRepository->clearCart($cart->id);
+            if ($cart) {
+                $this->cartRepository->clearCart($cart->id);
+            }
 
             // Mark any abandoned cart as recovered
             $this->markAbandonedCartRecovered($userId, $order->id);
 
             // Send order confirmation notification
-            $order->user->notify(new OrderConfirmation($order));
+            if ($order->user) {
+                $order->user->notify(new OrderConfirmation($order));
+            }
 
             return $order;
+        });
+    }
+
+    protected function resolveGuestCheckoutUser(): User
+    {
+        $email = trim((string) config('shop.guest_checkout_user_email', 'guest.checkout@innercollection.local'));
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $email = 'guest.checkout@innercollection.local';
+        }
+
+        $name = trim((string) config('shop.guest_checkout_user_name', 'Guest Checkout'));
+        if ($name === '') {
+            $name = 'Guest Checkout';
+        }
+
+        $phone = config('shop.guest_checkout_user_phone');
+
+        $user = User::withTrashed()->where('email', $email)->first();
+        if ($user) {
+            if ($user->trashed()) {
+                $user->restore();
+            }
+
+            $updates = [];
+            if ($user->role !== User::ROLE_CUSTOMER) {
+                $updates['role'] = User::ROLE_CUSTOMER;
+            }
+
+            if ($user->email_verified_at === null) {
+                $updates['email_verified_at'] = now();
+            }
+
+            if (!empty($updates)) {
+                $user->forceFill($updates)->save();
+            }
+
+            return $user;
+        }
+
+        $user = User::query()->create([
+            'name' => $name,
+            'email' => $email,
+            'password' => Hash::make(Str::random(48)),
+            'phone' => is_string($phone) && trim($phone) !== '' ? trim($phone) : null,
+            'role' => User::ROLE_CUSTOMER,
+        ]);
+
+        if ($user->email_verified_at === null) {
+            $user->forceFill(['email_verified_at' => now()])->save();
+        }
+
+        return $user;
+    }
+
+    protected function buildGuestCheckoutItems(array $rawItems): SupportCollection
+    {
+        if (empty($rawItems)) {
+            throw new \Exception('Guest checkout requires at least one item.');
+        }
+
+        $groupedItems = collect($rawItems)
+            ->groupBy(function (array $item) {
+                return (int) ($item['product_id'] ?? 0);
+            })
+            ->map(function (SupportCollection $group, int $productId) {
+                return [
+                    'product_id' => $productId,
+                    'quantity' => (int) $group->sum(function (array $item) {
+                        return (int) ($item['quantity'] ?? 0);
+                    }),
+                ];
+            })
+            ->values();
+
+        return $groupedItems->map(function (array $item) {
+            $productId = (int) ($item['product_id'] ?? 0);
+            $quantity = (int) ($item['quantity'] ?? 0);
+
+            if ($productId <= 0) {
+                throw new \Exception('Invalid product selected for guest checkout.');
+            }
+
+            if ($quantity <= 0) {
+                throw new \Exception('Invalid quantity provided for guest checkout item.');
+            }
+
+            /** @var Product|null $product */
+            $product = $this->productRepository->find($productId);
+
+            if (!$product || !$product->is_active) {
+                throw new \Exception("Selected product is unavailable: {$productId}");
+            }
+
+            return [
+                'product' => $product,
+                'product_id' => $product->id,
+                'product_name' => $product->name,
+                'product_sku' => $product->sku,
+                'quantity' => $quantity,
+                // Always use server-side pricing to prevent tampering.
+                'price' => (float) $product->current_price,
+            ];
         });
     }
 
     /**
      * Mark abandoned cart as recovered when order is placed
      */
-    protected function markAbandonedCartRecovered(int $userId, int $orderId): void
+    protected function markAbandonedCartRecovered(?int $userId, int $orderId): void
     {
+        if ($userId === null) {
+            return;
+        }
+
         $abandonedCart = AbandonedCart::where('user_id', $userId)
             ->whereIn('status', ['pending', 'follow_up'])
             ->orderBy('created_at', 'desc')
@@ -238,16 +507,18 @@ class OrderService
         $oldStatus = $order->status;
         $updatedOrder = $this->orderRepository->updateStatus($orderId, $status);
 
-        // Send status update notification
-        $updatedOrder->user->notify(new OrderStatusUpdated($updatedOrder, $oldStatus));
+        // Send status update notifications only when order belongs to a user account.
+        if ($updatedOrder->user) {
+            $updatedOrder->user->notify(new OrderStatusUpdated($updatedOrder, $oldStatus));
 
-        // Send shipped notification if status is shipped
-        if ($status === 'shipped') {
-            $updatedOrder->user->notify(new OrderShipped(
-                $updatedOrder,
-                $updatedOrder->tracking_number,
-                $updatedOrder->carrier
-            ));
+            // Send shipped notification if status is shipped
+            if ($status === 'shipped') {
+                $updatedOrder->user->notify(new OrderShipped(
+                    $updatedOrder,
+                    $updatedOrder->tracking_number,
+                    $updatedOrder->carrier
+                ));
+            }
         }
 
         return $updatedOrder;
@@ -310,60 +581,4 @@ class OrderService
         return $order;
     }
 
-    /**
-     * Get country code from country name or code
-     */
-    protected function getCountryCode(?string $country): ?string
-    {
-        if (!$country) {
-            return null;
-        }
-
-        // Common country name to code mapping
-        $countryMap = [
-            'united states' => 'US',
-            'usa' => 'US',
-            'u.s.a.' => 'US',
-            'canada' => 'CA',
-            'united kingdom' => 'GB',
-            'uk' => 'GB',
-            'australia' => 'AU',
-            'germany' => 'DE',
-            'france' => 'FR',
-            'japan' => 'JP',
-            'china' => 'CN',
-            'india' => 'IN',
-            'brazil' => 'BR',
-            'mexico' => 'MX',
-            'spain' => 'ES',
-            'italy' => 'IT',
-            'netherlands' => 'NL',
-            'belgium' => 'BE',
-            'sweden' => 'SE',
-            'norway' => 'NO',
-            'denmark' => 'DK',
-            'finland' => 'FI',
-            'switzerland' => 'CH',
-            'austria' => 'AT',
-            'ireland' => 'IE',
-            'new zealand' => 'NZ',
-            'singapore' => 'SG',
-            'hong kong' => 'HK',
-            'south korea' => 'KR',
-            'bangladesh' => 'BD',
-        ];
-
-        $lowerCountry = strtolower(trim($country));
-
-        if (isset($countryMap[$lowerCountry])) {
-            return $countryMap[$lowerCountry];
-        }
-
-        // If already a 2-letter code, return uppercase
-        if (strlen($country) === 2) {
-            return strtoupper($country);
-        }
-
-        return null;
-    }
 }

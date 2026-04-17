@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AbandonedCartController;
 use App\Http\Controllers\Api\ReturnController;
 use App\Http\Controllers\Api\RelatedProductController;
+use App\Http\Controllers\Api\BangladeshLocationController;
 use App\Http\Controllers\Api\FlashSaleController;
 use App\Http\Controllers\Api\LoyaltyController;
 use App\Http\Controllers\Api\NotificationController;
@@ -55,94 +56,107 @@ Route::prefix('v1')->group(function () {
         ->middleware('signed')
         ->name('verification.verify');
 
-    // Secure all remaining API routes by default.
-    Route::middleware('auth:sanctum')->group(function () {
-    // Product and category endpoints
-    Route::get('/categories', [CategoryController::class, 'index']);
-    Route::get('/categories/menu', [CategoryController::class, 'menu']);
-    Route::get('/categories/{id}', [CategoryController::class, 'show'])->where('id', '[0-9]+');
-    Route::get('/categories/slug/{slug}', [CategoryController::class, 'showBySlug']);
-    Route::get('/categories/{id}/children', [CategoryController::class, 'children'])->where('id', '[0-9]+');
-
-    Route::get('/products', [ProductController::class, 'index']);
-    Route::get('/products/featured', [ProductController::class, 'featured']);
-    Route::get('/products/new', [ProductController::class, 'newProducts']);
-    Route::get('/products/bestsellers', [ProductController::class, 'bestsellers']);
-    Route::get('/products/search', [ProductController::class, 'search']);
-    Route::get('/products/{id}', [ProductController::class, 'show'])->where('id', '[0-9]+');
-    Route::get('/products/slug/{slug}', [ProductController::class, 'showBySlug']);
-    Route::get('/products/category/{categoryId}', [ProductController::class, 'byCategory'])->where('categoryId', '[0-9]+');
-    Route::get('/products/{id}/variants', [ProductController::class, 'variants'])->where('id', '[0-9]+');
-
-    // Public Reviews (for product pages)
-    Route::get('/products/{productId}/reviews', [ReviewController::class, 'index'])->where('productId', '[0-9]+');
-    Route::get('/products/{productId}/reviews/summary', [ReviewController::class, 'summary'])->where('productId', '[0-9]+');
-    Route::get('/products/{productId}/reviews/featured', [ReviewController::class, 'featured'])->where('productId', '[0-9]+');
-
-    // Product Attributes (public - for frontend filters)
-    Route::get('/attributes', [AttributeController::class, 'index']);
-    Route::get('/attributes/{id}', [AttributeController::class, 'show'])->where('id', '[0-9]+');
-
-    // Payment Gateways (public - for checkout)
-    Route::get('/payment-methods', [PaymentGatewayController::class, 'index']);
-    Route::get('/payment-methods/{code}', [PaymentGatewayController::class, 'show']);
-
-    // Shipping Methods (public - for checkout)
-    Route::get('/shipping-methods', [ShippingMethodController::class, 'index']);
-    Route::get('/shipping-methods/{code}', [ShippingMethodController::class, 'show']);
-    Route::post('/shipping-methods/calculate', [ShippingMethodController::class, 'calculate']);
-
-    // Frontend Settings (public - for CMS)
-    Route::prefix('settings')->group(function () {
-        Route::get('/', [FrontendSettingController::class, 'index']);
-        Route::get('/hero', [FrontendSettingController::class, 'hero']);
-        Route::get('/general', [FrontendSettingController::class, 'general']);
-        Route::get('/social', [FrontendSettingController::class, 'social']);
-        Route::get('/seo', [FrontendSettingController::class, 'seo']);
-        Route::get('/footer', [FrontendSettingController::class, 'footer']);
-        Route::get('/banner', [FrontendSettingController::class, 'banner']);
-        Route::get('/{group}', [FrontendSettingController::class, 'showGroup']);
-    });
-
-    // Stripe (public config)
+    // Fully public routes (no internal secret)
+    // Stripe config and webhook
     Route::get('/stripe/config', [StripeController::class, 'config']);
-
-    // Stripe webhook (must stay public for Stripe callback)
     Route::post('/stripe/webhook', [StripeController::class, 'webhook'])->withoutMiddleware('auth:sanctum');
 
-    // bKash (public config)
+    // bKash config and callback
     Route::get('/bkash/config', [BkashController::class, 'config']);
-
-    // bKash callback (must stay public for bKash redirect)
     Route::get('/bkash/callback', [BkashController::class, 'callback'])->withoutMiddleware('auth:sanctum');
 
-    // Order Tracking (public - by order number or tracking number)
+    // Public order tracking
     Route::prefix('track')->group(function () {
         Route::get('/order/{orderNumber}', [OrderTrackingController::class, 'trackByOrderNumber']);
         Route::get('/tracking/{trackingNumber}', [OrderTrackingController::class, 'trackByTrackingNumber']);
     });
 
-    // Related Products (public)
-    Route::prefix('products/{product}')->where(['product' => '[0-9]+'])->group(function () {
-        Route::get('/related', [RelatedProductController::class, 'index']);
-        Route::get('/frequently-bought-together', [RelatedProductController::class, 'frequentlyBoughtTogether']);
-        Route::get('/upsell', [RelatedProductController::class, 'upsell']);
-        Route::get('/cross-sell', [RelatedProductController::class, 'crossSell']);
-    });
-    Route::post('/cart/recommendations', [RelatedProductController::class, 'cartRecommendations']);
+    // Public frontend data routes protected by internal secret
+    Route::middleware('internal.api')->group(function () {
+        // Categories
+        Route::get('/categories', [CategoryController::class, 'index']);
+        Route::get('/categories/menu', [CategoryController::class, 'menu']);
+        Route::get('/categories/{id}', [CategoryController::class, 'show'])->where('id', '[0-9]+');
+        Route::get('/categories/slug/{slug}', [CategoryController::class, 'showBySlug']);
+        Route::get('/categories/{id}/children', [CategoryController::class, 'children'])->where('id', '[0-9]+');
 
-    // Flash Sales (public)
-    Route::prefix('flash-sales')->group(function () {
-        Route::get('/', [FlashSaleController::class, 'index']);
-        Route::get('/featured', [FlashSaleController::class, 'featured']);
-        Route::get('/upcoming', [FlashSaleController::class, 'upcoming']);
-        Route::get('/{slug}', [FlashSaleController::class, 'show']);
-        Route::get('/product/{productId}', [FlashSaleController::class, 'checkProduct'])->where('productId', '[0-9]+');
-        Route::post('/validate-purchase', [FlashSaleController::class, 'validatePurchase']);
+        // Products (read endpoints)
+        Route::get('/products', [ProductController::class, 'index']);
+        Route::get('/products/featured', [ProductController::class, 'featured']);
+        Route::get('/products/new', [ProductController::class, 'newProducts']);
+        Route::get('/products/bestsellers', [ProductController::class, 'bestsellers']);
+        Route::get('/products/search', [ProductController::class, 'search']);
+        Route::get('/products/{id}', [ProductController::class, 'show'])->where('id', '[0-9]+');
+        Route::get('/products/slug/{slug}', [ProductController::class, 'showBySlug']);
+        Route::get('/products/category/{categoryId}', [ProductController::class, 'byCategory'])->where('categoryId', '[0-9]+');
+        Route::get('/products/{id}/variants', [ProductController::class, 'variants'])->where('id', '[0-9]+');
+        Route::prefix('products/{product}')->where(['product' => '[0-9]+'])->group(function () {
+            Route::get('/related', [RelatedProductController::class, 'index']);
+            Route::get('/frequently-bought-together', [RelatedProductController::class, 'frequentlyBoughtTogether']);
+            Route::get('/upsell', [RelatedProductController::class, 'upsell']);
+            Route::get('/cross-sell', [RelatedProductController::class, 'crossSell']);
+        });
+
+        // Product page reviews (public read)
+        Route::get('/products/{productId}/reviews', [ReviewController::class, 'index'])->where('productId', '[0-9]+');
+        Route::get('/products/{productId}/reviews/summary', [ReviewController::class, 'summary'])->where('productId', '[0-9]+');
+        Route::get('/products/{productId}/reviews/featured', [ReviewController::class, 'featured'])->where('productId', '[0-9]+');
+
+        // Attributes
+        Route::get('/attributes', [AttributeController::class, 'index']);
+        Route::get('/attributes/{id}', [AttributeController::class, 'show'])->where('id', '[0-9]+');
+
+        // Payment and shipping methods
+        Route::get('/payment-methods', [PaymentGatewayController::class, 'index']);
+        Route::get('/payment-methods/{code}', [PaymentGatewayController::class, 'show']);
+        Route::get('/shipping-methods', [ShippingMethodController::class, 'index']);
+        Route::get('/shipping-methods/{code}', [ShippingMethodController::class, 'show']);
+        Route::post('/shipping-methods/calculate', [ShippingMethodController::class, 'calculate']);
+
+        // Bangladesh location dataset
+        Route::prefix('locations/bd')->group(function () {
+            Route::get('/divisions', [BangladeshLocationController::class, 'divisions']);
+            Route::get('/districts', [BangladeshLocationController::class, 'districts']);
+            Route::get('/upazilas', [BangladeshLocationController::class, 'upazilas']);
+            Route::get('/unions', [BangladeshLocationController::class, 'unions']);
+        });
+
+        // Backward-compatible Bangladesh location aliases
+        Route::prefix('locations')->group(function () {
+            Route::get('/divisions', [BangladeshLocationController::class, 'divisions']);
+            Route::get('/districts', [BangladeshLocationController::class, 'districts']);
+            Route::get('/upazilas', [BangladeshLocationController::class, 'upazilas']);
+            Route::get('/unions', [BangladeshLocationController::class, 'unions']);
+        });
+
+        // Frontend settings
+        Route::prefix('settings')->group(function () {
+            Route::get('/', [FrontendSettingController::class, 'index']);
+            Route::get('/hero', [FrontendSettingController::class, 'hero']);
+            Route::get('/general', [FrontendSettingController::class, 'general']);
+            Route::get('/social', [FrontendSettingController::class, 'social']);
+            Route::get('/seo', [FrontendSettingController::class, 'seo']);
+            Route::get('/footer', [FrontendSettingController::class, 'footer']);
+            Route::get('/banner', [FrontendSettingController::class, 'banner']);
+            Route::get('/checkout', [FrontendSettingController::class, 'checkout']);
+            Route::get('/{group}', [FrontendSettingController::class, 'showGroup']);
+        });
+
+        // Flash sales
+        Route::prefix('flash-sales')->group(function () {
+            Route::get('/', [FlashSaleController::class, 'index']);
+            Route::get('/featured', [FlashSaleController::class, 'featured']);
+            Route::get('/upcoming', [FlashSaleController::class, 'upcoming']);
+            Route::get('/{slug}', [FlashSaleController::class, 'show']);
+            Route::get('/product/{productId}', [FlashSaleController::class, 'checkProduct'])->where('productId', '[0-9]+');
+            Route::post('/validate-purchase', [FlashSaleController::class, 'validatePurchase']);
+        });
     });
 
-    // Loyalty Tiers (public)
-    Route::get('/loyalty/tiers', [LoyaltyController::class, 'tiers']);
+    // Checkout order placement (supports guests and authenticated users)
+    Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:10,1');
+    Route::get('/orders/number/{orderNumber}', [OrderController::class, 'showByNumber'])
+        ->where('orderNumber', 'ORD-[0-9]{14}-[A-Z0-9]{4}');
 
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
@@ -198,6 +212,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/validate', [ApiCouponController::class, 'validate']);
             Route::get('/available', [ApiCouponController::class, 'available']);
         });
+
+        // Related products recommendations (requires authenticated cart context)
+        Route::post('/cart/recommendations', [RelatedProductController::class, 'cartRecommendations']);
 
         // Wishlist
         Route::prefix('wishlist')->group(function () {
@@ -262,6 +279,7 @@ Route::prefix('v1')->group(function () {
 
         // Loyalty Points
         Route::prefix('loyalty')->group(function () {
+            Route::get('/tiers', [LoyaltyController::class, 'tiers']);
             Route::get('/summary', [LoyaltyController::class, 'summary']);
             Route::get('/transactions', [LoyaltyController::class, 'transactions']);
             Route::get('/rewards', [LoyaltyController::class, 'rewards']);
@@ -276,9 +294,7 @@ Route::prefix('v1')->group(function () {
         // Orders
         Route::prefix('orders')->group(function () {
             Route::get('/', [OrderController::class, 'index']);
-            Route::post('/', [OrderController::class, 'store']);
             Route::get('/{id}', [OrderController::class, 'show'])->where('id', '[0-9]+');
-            Route::get('/number/{orderNumber}', [OrderController::class, 'showByNumber']);
             Route::post('/{id}/cancel', [OrderController::class, 'cancel'])->where('id', '[0-9]+');
             Route::get('/{id}/tracking', [OrderTrackingController::class, 'show'])->where('id', '[0-9]+');
             Route::get('/{id}/invoice', [\App\Http\Controllers\Api\InvoiceController::class, 'show'])->where('id', '[0-9]+');
@@ -324,7 +340,5 @@ Route::prefix('v1')->group(function () {
             Route::get('/audit-logs', [AuditLogController::class, 'index']);
             Route::get('/audit-logs/{id}', [AuditLogController::class, 'show'])->where('id', '[0-9]+');
         });
-    });
-
     });
 });

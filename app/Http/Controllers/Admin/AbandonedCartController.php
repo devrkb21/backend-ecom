@@ -16,7 +16,7 @@ class AbandonedCartController extends Controller
     public function index(Request $request): View
     {
         $query = AbandonedCart::with(['user', 'recoveredOrder', 'followedUpBy'])
-            ->orderBy('created_at', 'desc');
+            ->latest('created_at');
 
         // Filter by status
         if ($request->filled('status')) {
@@ -60,19 +60,39 @@ class AbandonedCartController extends Controller
             $query->where('total', '>=', $request->min_value);
         }
 
+        // Priority filters for quick triage
+        if ($request->filled('priority')) {
+            $priority = (string) $request->priority;
+
+            if ($priority === 'high_value') {
+                $query->open()->highValue(5000);
+            } elseif ($priority === 'overdue_follow_up') {
+                $query->open()->overdueFollowUp(24);
+            } elseif ($priority === 'reminder_due') {
+                $query->reminderDue(24, 3);
+            } elseif ($priority === 'actionable') {
+                $query->open()->withContactInfo();
+            }
+        }
+
+        // Sorting options
+        if ($request->filled('sort_by')) {
+            $sortBy = (string) $request->sort_by;
+
+            if ($sortBy === 'oldest') {
+                $query->reorder()->orderBy('created_at');
+            } elseif ($sortBy === 'highest_value') {
+                $query->reorder()->orderByDesc('total');
+            } elseif ($sortBy === 'oldest_activity') {
+                $query->reorder()->orderBy('last_activity_at');
+            } elseif ($sortBy === 'latest_activity') {
+                $query->reorder()->orderByDesc('last_activity_at');
+            }
+        }
+
         $abandonedCarts = $query->paginate(20)->withQueryString();
 
-        // Stats
-        $stats = [
-            'total' => AbandonedCart::count(),
-            'pending' => AbandonedCart::pending()->count(),
-            'follow_up' => AbandonedCart::followUp()->count(),
-            'recovered' => AbandonedCart::recovered()->count(),
-            'cancelled' => AbandonedCart::cancelled()->count(),
-            'potential_revenue' => AbandonedCart::getPotentialRevenue(),
-            'recovery_rate' => AbandonedCart::getRecoveryRate(),
-            'with_contact' => AbandonedCart::withContactInfo()->whereIn('status', ['pending', 'follow_up'])->count(),
-        ];
+        $stats = AbandonedCart::getSummary();
 
         return view('admin.abandoned-carts.index', compact('abandonedCarts', 'stats'));
     }
@@ -167,9 +187,9 @@ class AbandonedCartController extends Controller
             'ids.*' => 'exists:abandoned_carts,id',
         ]);
 
-        $carts = AbandonedCart::whereIn('id', $validated['ids'])->get();
+        $carts = AbandonedCart::query()->whereIn('id', $validated['ids'])->get();
 
-        foreach ($carts as $cart) {
+        $carts->each(function (AbandonedCart $cart) use ($validated): void {
             switch ($validated['action']) {
                 case 'follow_up':
                     $cart->markAsFollowUp(auth()->id());
@@ -184,7 +204,7 @@ class AbandonedCartController extends Controller
                     $cart->delete();
                     break;
             }
-        }
+        });
 
         $actionLabel = match ($validated['action']) {
             'follow_up' => 'marked as follow up',

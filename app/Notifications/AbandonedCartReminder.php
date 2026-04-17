@@ -24,18 +24,22 @@ class AbandonedCartReminder extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $itemCount = $this->abandonedCart->item_count;
-        $total = number_format($this->abandonedCart->total, 2);
+        $totalAmount = (float) ($this->abandonedCart->total ?? 0);
+        $total = number_format($totalAmount, 2);
+        $recipientName = $this->abandonedCart->name
+            ?? data_get($notifiable, 'name')
+            ?? 'there';
 
         $message = (new MailMessage)
             ->subject('You left items in your cart!')
-            ->greeting('Hi ' . ($this->abandonedCart->name ?? $notifiable->name) . '!')
+            ->greeting('Hi ' . $recipientName . '!')
             ->line("We noticed you left {$itemCount} item(s) in your shopping cart worth ৳{$total}.")
             ->line('Your cart is waiting for you - complete your purchase before your items sell out!');
 
         if ($this->abandonedCart->cart_items) {
             $itemsList = collect($this->abandonedCart->cart_items)
                 ->take(3)
-                ->map(fn($item) => "- {$item['name']} x {$item['quantity']}")
+                ->map(fn($item) => '- ' . ($item['product_name'] ?? $item['name'] ?? 'Item') . ' x ' . ($item['quantity'] ?? 1))
                 ->join("\n");
             $message->line('**Your items:**')->line($itemsList);
         }
@@ -47,12 +51,14 @@ class AbandonedCartReminder extends Notification implements ShouldQueue
 
     public function toArray(object $notifiable): array
     {
+        $totalAmount = (float) ($this->abandonedCart->total ?? 0);
+
         return [
             'type' => 'abandoned_cart_reminder',
             'abandoned_cart_id' => $this->abandonedCart->id,
             'total' => $this->abandonedCart->total,
             'item_count' => $this->abandonedCart->item_count,
-            'message' => 'You have items worth ৳' . number_format($this->abandonedCart->total, 2) . ' in your cart.',
+            'message' => 'You have items worth ৳' . number_format($totalAmount, 2) . ' in your cart.',
         ];
     }
 }

@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'is_admin' => \App\Http\Middleware\IsAdmin::class,
             'admin_permission' => \App\Http\Middleware\EnsureAdminPermission::class,
+            'internal.api' => \App\Http\Middleware\InternalApiOnly::class,
         ]);
 
         // Append API request logging middleware

@@ -34,7 +34,7 @@
                                         name="settings[{{ $setting->key }}]" 
                                         class="form-control" 
                                         rows="3"
-                                        placeholder="Enter {{ strtolower($setting->label) }}"
+                                        placeholder="{{ $setting->key === 'whatsapp_order_message' ? 'Example: Assalamu Alaikum, I want to order: {product_name}. Product URL: {product_url}. Quantity: {quantity}.' : 'Enter ' . strtolower($setting->label) }}"
                                     >{{ old("settings.{$setting->key}", $setting->value) }}</textarea>
                                     @break
 
@@ -128,7 +128,7 @@
                                             name="settings[{{ $setting->key }}]" 
                                             class="form-control" 
                                             value="{{ old("settings.{$setting->key}", $setting->value) }}"
-                                            placeholder="Enter {{ strtolower($setting->label) }}"
+                                            placeholder="{{ in_array($setting->key, ['call_for_order_phone', 'whatsapp_order_phone']) ? '+8801XXXXXXXXX' : 'Enter ' . strtolower($setting->label) }}"
                                         >
                                     @endif
                             @endswitch
@@ -136,6 +136,24 @@
                             <small class="text-muted d-block mt-1">
                                 Key: <code>{{ $setting->key }}</code>
                             </small>
+
+                            @if(in_array($setting->key, ['call_for_order_phone', 'whatsapp_order_phone']))
+                                <small class="text-muted d-block mt-1">
+                                    Use international format (for example: +8801XXXXXXXXX).
+                                </small>
+                            @endif
+
+                            @if($setting->key === 'whatsapp_order_message')
+                                <small class="text-info d-block mt-1">
+                                    Placeholders: <code>{product_name}</code>, <code>{product_url}</code>, <code>{quantity}</code>, <code>{price}</code>, <code>{sku}</code>
+                                </small>
+                            @endif
+
+                            @if($setting->key === 'open_side_cart_on_add')
+                                <small class="text-muted d-block mt-1">
+                                    When enabled, the cart drawer will open automatically after adding a product.
+                                </small>
+                            @endif
                         </div>
                     @endforeach
                 </div>
@@ -167,7 +185,8 @@
                         @break
                     @case('general')
                         <p class="text-muted small mb-0">
-                            Basic site information including your brand name, logo, contact details, and currency settings.
+                            Basic site information including your brand name, logo, contact details, order hotline,
+                            WhatsApp order template, side-cart behavior, and currency settings.
                             These settings appear throughout your site.
                         </p>
                         @break

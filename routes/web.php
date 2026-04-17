@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\ShippingMethodController;
 use App\Http\Controllers\Admin\SiteSettingController;
 use App\Http\Controllers\Admin\IntegrationSettingController;
 use App\Http\Controllers\Admin\AdminRoleController;
+use App\Http\Controllers\Admin\OrderStatusController;
 use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\AbandonedCartController;
@@ -36,10 +37,8 @@ Route::get('login', fn() => redirect()->route('admin.login'))->name('login');
 
 // Admin Auth Routes (Guest)
 Route::prefix('admin')->name('admin.')->group(function () {
-    Route::middleware('guest:web')->group(function () {
-        Route::get('login', [AuthController::class, 'showLoginForm'])->name('login');
-        Route::post('login', [AuthController::class, 'login'])->name('login.submit');
-    });
+    Route::get('login', [AuthController::class, 'showLoginForm'])->name('login');
+    Route::post('login', [AuthController::class, 'login'])->name('login.submit');
 
     // Admin Protected Routes
     Route::middleware(['auth:web', 'is_admin', 'admin_permission'])->group(function () {
@@ -73,6 +72,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Orders (Read + Status Update)
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::post('orders/bulk-action', [OrderController::class, 'bulkAction'])->name('orders.bulk-action');
         Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
         Route::patch('orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
 
@@ -154,6 +154,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('integrations', [IntegrationSettingController::class, 'index'])->name('integrations');
             Route::put('integrations', [IntegrationSettingController::class, 'update'])->name('integrations.update');
             Route::get('integrations/sms-balance', [IntegrationSettingController::class, 'smsBalance'])->name('integrations.sms-balance');
+
+            // Order Statuses
+            Route::get('order-statuses', [OrderStatusController::class, 'index'])->name('order-statuses');
+            Route::post('order-statuses', [OrderStatusController::class, 'store'])->name('order-statuses.store');
+            Route::put('order-statuses/{orderStatus}', [OrderStatusController::class, 'update'])->name('order-statuses.update');
+            Route::delete('order-statuses/{orderStatus}', [OrderStatusController::class, 'destroy'])->name('order-statuses.destroy');
         });
 
         // Coupons

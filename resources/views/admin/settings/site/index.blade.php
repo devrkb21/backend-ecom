@@ -25,14 +25,16 @@
                             'seo' => 'bi-search',
                             'footer' => 'bi-layout-text-window-reverse',
                             'banner' => 'bi-megaphone',
+                            'checkout' => 'bi-cart-check',
                         ];
                         $groupDescriptions = [
                             'hero' => 'Homepage hero section with title, subtitle, and background image',
-                            'general' => 'Site name, logo, contact information, and currency settings',
+                            'general' => 'Site name, logo, contact information, order hotline/WhatsApp settings, side-cart behavior, and currency',
                             'social' => 'Social media profile links for Facebook, Instagram, etc.',
                             'seo' => 'Meta tags, descriptions, and Open Graph settings',
                             'footer' => 'Footer text, copyright, and newsletter settings',
                             'banner' => 'Promotional banner displayed at the top of the site',
+                            'checkout' => 'Control checkout fields, location input mode, and required options',
                         ];
                     @endphp
 

@@ -36,6 +36,10 @@ class AbandonedCart extends Model
         'admin_notes',
         'followed_up_by',
         'followed_up_at',
+        'reminder_count',
+        'first_reminder_sent_at',
+        'last_reminder_sent_at',
+        'last_reminder_channel',
         'last_activity_at',
         'user_agent',
         'ip_address',
@@ -50,6 +54,9 @@ class AbandonedCart extends Model
             'discount_amount' => 'decimal:2',
             'recovered_at' => 'datetime',
             'followed_up_at' => 'datetime',
+            'reminder_count' => 'integer',
+            'first_reminder_sent_at' => 'datetime',
+            'last_reminder_sent_at' => 'datetime',
             'last_activity_at' => 'datetime',
         ];
     }
@@ -98,6 +105,11 @@ class AbandonedCart extends Model
         return $query->where('status', 'cancelled');
     }
 
+    public function scopeOpen($query)
+    {
+        return $query->whereIn('status', ['pending', 'follow_up']);
+    }
+
     public function scopeWithContactInfo($query)
     {
         return $query->where(function ($q) {
@@ -114,6 +126,46 @@ class AbandonedCart extends Model
     public function scopeOlderThan($query, int $hours = 1)
     {
         return $query->where('last_activity_at', '<=', now()->subHours($hours));
+    }
+
+    public function scopeHighValue($query, float $threshold = 5000)
+    {
+        return $query->where('total', '>=', $threshold);
+    }
+
+    public function scopeReminderDue($query, int $cooldownHours = 24, int $maxReminders = 3)
+    {
+        $cooldownTime = now()->subHours($cooldownHours);
+
+        return $query
+            ->open()
+            ->whereNotNull('email')
+            ->where(function ($q) use ($cooldownTime) {
+                $q->whereNull('last_reminder_sent_at')
+                    ->orWhere('last_reminder_sent_at', '<=', $cooldownTime);
+            })
+            ->where(function ($q) use ($maxReminders) {
+                $q->whereNull('reminder_count')
+                    ->orWhere('reminder_count', '<', $maxReminders);
+            });
+    }
+
+    public function scopeOverdueFollowUp($query, int $hours = 24)
+    {
+        $cutoff = now()->subHours($hours);
+
+        return $query->where(function ($q) use ($cutoff) {
+            $q->where(function ($pendingQuery) use ($cutoff) {
+                $pendingQuery->where('status', 'pending')
+                    ->where('last_activity_at', '<=', $cutoff);
+            })->orWhere(function ($followUpQuery) use ($cutoff) {
+                $followUpQuery->where('status', 'follow_up')
+                    ->where(function ($next) use ($cutoff) {
+                        $next->whereNull('followed_up_at')
+                            ->orWhere('followed_up_at', '<=', $cutoff);
+                    });
+            });
+        });
     }
 
     // ==================== ACCESSORS ====================
@@ -189,6 +241,35 @@ class AbandonedCart extends Model
             : $this->created_at->diffForHumans();
     }
 
+    public function getPriorityLevelAttribute(): string
+    {
+        if (in_array($this->status, ['recovered', 'cancelled'], true)) {
+            return 'low';
+        }
+
+        $hasContact = !empty($this->email) || !empty($this->phone);
+        $total = (float) $this->total;
+
+        if ($total >= 10000 || ($this->checkout_step === 'payment' && $hasContact)) {
+            return 'high';
+        }
+
+        if ($total >= 3000 || $this->checkout_step === 'shipping') {
+            return 'medium';
+        }
+
+        return 'low';
+    }
+
+    public function getPriorityColorAttribute(): string
+    {
+        return match ($this->priority_level) {
+            'high' => 'danger',
+            'medium' => 'warning',
+            default => 'secondary',
+        };
+    }
+
     // ==================== METHODS ====================
 
     /**
@@ -234,6 +315,28 @@ class AbandonedCart extends Model
     }
 
     /**
+     * Mark reminder delivery metadata and transition pending carts to follow-up.
+     */
+    public function markReminderSent(string $channel = 'mail'): self
+    {
+        $updates = [
+            'reminder_count' => ((int) $this->reminder_count) + 1,
+            'first_reminder_sent_at' => $this->first_reminder_sent_at ?? now(),
+            'last_reminder_sent_at' => now(),
+            'last_reminder_channel' => $channel,
+        ];
+
+        if ($this->status === 'pending') {
+            $updates['status'] = 'follow_up';
+            $updates['followed_up_at'] = $this->followed_up_at ?? now();
+        }
+
+        $this->update($updates);
+
+        return $this;
+    }
+
+    /**
      * Create or update from checkout data
      */
     public static function trackCheckout(array $data, ?int $userId = null, ?string $sessionId = null): self
@@ -255,6 +358,7 @@ class AbandonedCart extends Model
         }
 
         $abandonedCart->fill([
+            'status' => 'pending',
             'user_id' => $userId ?? $abandonedCart->user_id,
             'session_id' => $sessionId ?? $abandonedCart->session_id,
             'checkout_step' => $data['checkout_step'] ?? $abandonedCart->checkout_step,
@@ -278,6 +382,12 @@ class AbandonedCart extends Model
             'ip_address' => $data['ip_address'] ?? $abandonedCart->ip_address,
             'last_activity_at' => now(),
         ]);
+
+        // If user resumed checkout after follow-up, reset follow-up owner/time.
+        if ($abandonedCart->exists && $abandonedCart->status === 'follow_up') {
+            $abandonedCart->followed_up_by = null;
+            $abandonedCart->followed_up_at = null;
+        }
 
         $abandonedCart->save();
 
@@ -311,10 +421,61 @@ class AbandonedCart extends Model
             return 0;
         }
 
-        $recovered = self::where('created_at', '>=', now()->subDays($days))
-            ->where('status', 'recovered')
+        $recovered = self::whereNotNull('recovered_at')
+            ->where('recovered_at', '>=', now()->subDays($days))
             ->count();
 
         return round(($recovered / $total) * 100, 1);
+    }
+
+    /**
+     * Aggregated summary for admin dashboard/report cards.
+     */
+    public static function getSummary(int $days = 30, float $highValueThreshold = 5000, int $overdueHours = 24): array
+    {
+        $openQuery = self::query()->open();
+        $openCount = (clone $openQuery)->count();
+        $potentialRevenue = (float) (clone $openQuery)->sum('total');
+
+        $withContactCount = (clone $openQuery)->withContactInfo()->count();
+        $highValueOpenCount = (clone $openQuery)->highValue($highValueThreshold)->count();
+        $overdueFollowUpCount = self::query()->open()->overdueFollowUp($overdueHours)->count();
+        $reminderDueCount = self::query()->reminderDue()->count();
+
+        $recoveredWithinWindow = self::query()
+            ->where('status', 'recovered')
+            ->whereNotNull('recovered_at')
+            ->where('recovered_at', '>=', now()->subDays($days));
+
+        $recoveredCountWithinWindow = (clone $recoveredWithinWindow)->count();
+        $recoveredRevenueWithinWindow = (float) (clone $recoveredWithinWindow)->sum('total');
+
+        $totalWithinWindow = self::query()
+            ->where('created_at', '>=', now()->subDays($days))
+            ->count();
+
+        $recoveryRate = $totalWithinWindow > 0
+            ? round(($recoveredCountWithinWindow / $totalWithinWindow) * 100, 1)
+            : 0.0;
+
+        return [
+            'total' => self::count(),
+            'open' => $openCount,
+            'pending' => self::pending()->count(),
+            'follow_up' => self::followUp()->count(),
+            'recovered' => self::recovered()->count(),
+            'cancelled' => self::cancelled()->count(),
+            'today_abandoned' => self::whereDate('created_at', today())->count(),
+            'potential_revenue' => $potentialRevenue,
+            'avg_open_value' => $openCount > 0 ? round($potentialRevenue / $openCount, 2) : 0.0,
+            'recovered_revenue_30d' => $recoveredRevenueWithinWindow,
+            'recovery_rate' => $recoveryRate,
+            'with_contact' => $withContactCount,
+            'contactable_rate' => $openCount > 0 ? round(($withContactCount / $openCount) * 100, 1) : 0.0,
+            'high_value_open' => $highValueOpenCount,
+            'overdue_follow_up' => $overdueFollowUpCount,
+            'reminder_due' => $reminderDueCount,
+            'reminders_sent' => (int) self::sum('reminder_count'),
+        ];
     }
 }

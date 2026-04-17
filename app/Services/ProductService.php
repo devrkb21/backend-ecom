@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Cache;
 
 class ProductService
 {
-    protected const CACHE_KEY = 'products';
+    protected const CACHE_KEY = 'products.v2';
     protected const CACHE_TTL = 3600; // 1 hour
 
     public function __construct(

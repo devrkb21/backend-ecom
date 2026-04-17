@@ -79,6 +79,89 @@
     </div>
 </div>
 
+<!-- Abandoned Cart Summary -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card stat-card h-100 border-start border-warning border-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
+                            <i class="bi bi-cart-x text-warning fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h4 class="mb-0">{{ number_format($abandonedSummary['open']) }}</h4>
+                        <span class="text-muted small">Open Abandoned Carts</span>
+                        <br>
+                        <small class="text-danger">{{ number_format($abandonedSummary['overdue_follow_up']) }} overdue follow-up</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card stat-card h-100 border-start border-danger border-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <div class="bg-danger bg-opacity-10 p-3 rounded-circle">
+                            <i class="bi bi-bell text-danger fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h4 class="mb-0">{{ number_format($abandonedSummary['reminder_due']) }}</h4>
+                        <span class="text-muted small">Reminder Queue</span>
+                        <br>
+                        <small class="text-muted">{{ number_format($abandonedSummary['high_value_open']) }} high-value carts</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card stat-card h-100 border-start border-primary border-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
+                            <i class="bi bi-cash-coin text-primary fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h4 class="mb-0">৳{{ number_format($abandonedSummary['potential_revenue'], 0) }}</h4>
+                        <span class="text-muted small">Potential Revenue</span>
+                        <br>
+                        <small class="text-muted">Avg ৳{{ number_format($abandonedSummary['avg_open_value'], 0) }}/cart</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card stat-card h-100 border-start border-success border-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <div class="bg-success bg-opacity-10 p-3 rounded-circle">
+                            <i class="bi bi-arrow-repeat text-success fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h4 class="mb-0">{{ $abandonedSummary['recovery_rate'] }}%</h4>
+                        <span class="text-muted small">Recovery Rate (30d)</span>
+                        <br>
+                        <small class="text-success">৳{{ number_format($abandonedSummary['recovered_revenue_30d'], 0) }} recovered</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Main Stats -->
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-lg-3">
@@ -249,6 +332,36 @@
             <div class="card-footer">
                 <a href="{{ route('admin.orders.index') }}" class="btn btn-sm btn-primary w-100">
                     <i class="bi bi-arrow-right me-1"></i> Manage Orders
+                </a>
+            </div>
+        </div>
+
+        <!-- Abandoned Carts -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0 fw-semibold">
+                    <i class="bi bi-cart-x me-2"></i>Abandoned Carts
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                        <span><i class="bi bi-hourglass text-warning me-2"></i> Open</span>
+                        <span class="badge bg-warning text-dark rounded-pill px-3">{{ number_format($abandonedSummary['open']) }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                        <span><i class="bi bi-bell text-danger me-2"></i> Reminder Due</span>
+                        <span class="badge bg-danger rounded-pill px-3">{{ number_format($abandonedSummary['reminder_due']) }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                        <span><i class="bi bi-cash text-primary me-2"></i> Potential Revenue</span>
+                        <span class="badge bg-primary rounded-pill px-3">৳{{ number_format($abandonedSummary['potential_revenue'], 0) }}</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-footer">
+                <a href="{{ route('admin.abandoned-carts.index') }}" class="btn btn-sm btn-outline-primary w-100">
+                    <i class="bi bi-arrow-right me-1"></i> Manage Abandoned Carts
                 </a>
             </div>
         </div>

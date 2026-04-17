@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BdDistrict;
+use App\Models\BdDivision;
+use App\Models\BdUpazila;
 use App\Models\ShippingMethod;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -12,7 +15,9 @@ class ShippingMethodController extends Controller
 {
     public function index(): View
     {
-        $methods = ShippingMethod::orderBy('sort_order')->get();
+        $methods = ShippingMethod::withCount('locationRules')
+            ->orderBy('sort_order')
+            ->get();
 
         return view('admin.settings.shipping-methods', compact('methods'));
     }
@@ -21,7 +26,12 @@ class ShippingMethodController extends Controller
     {
         return view('admin.settings.shipping-method-form', [
             'method' => null,
-            'countries' => $this->getCountryList(),
+            'divisions' => $this->getDivisions(),
+            'districts' => $this->getDistricts(),
+            'upazilas' => $this->getUpazilas(),
+            'selectedDivisionIds' => [],
+            'selectedDistrictIds' => [],
+            'selectedUpazilaIds' => [],
         ]);
     }
 
@@ -40,16 +50,31 @@ class ShippingMethodController extends Controller
             'max_weight' => ['nullable', 'numeric', 'min:0'],
             'min_delivery_days' => ['nullable', 'integer', 'min:0'],
             'max_delivery_days' => ['nullable', 'integer', 'min:0'],
-            'allowed_countries' => ['nullable', 'array'],
-            'excluded_countries' => ['nullable', 'array'],
+            'allowed_division_ids' => ['nullable', 'array'],
+            'allowed_division_ids.*' => ['integer', 'exists:bd_divisions,id'],
+            'allowed_district_ids' => ['nullable', 'array'],
+            'allowed_district_ids.*' => ['integer', 'exists:bd_districts,id'],
+            'allowed_upazila_ids' => ['nullable', 'array'],
+            'allowed_upazila_ids.*' => ['integer', 'exists:bd_upazilas,id'],
             'is_active' => ['nullable'],
         ]);
 
         $validated['is_active'] = $request->has('is_active');
         $validated['cost_per_item'] = $validated['cost_per_item'] ?? 0;
         $validated['cost_per_kg'] = $validated['cost_per_kg'] ?? 0;
+        $validated['allowed_countries'] = null;
+        $validated['excluded_countries'] = null;
 
-        ShippingMethod::create($validated);
+        $locationPayload = [
+            'division' => array_map('intval', (array) ($validated['allowed_division_ids'] ?? [])),
+            'district' => array_map('intval', (array) ($validated['allowed_district_ids'] ?? [])),
+            'upazila' => array_map('intval', (array) ($validated['allowed_upazila_ids'] ?? [])),
+        ];
+
+        unset($validated['allowed_division_ids'], $validated['allowed_district_ids'], $validated['allowed_upazila_ids']);
+
+        $method = ShippingMethod::create($validated);
+        $this->syncLocationRules($method, $locationPayload);
 
         return redirect()
             ->route('admin.settings.shipping-methods')
@@ -58,9 +83,16 @@ class ShippingMethodController extends Controller
 
     public function edit(ShippingMethod $method): View
     {
+        [$selectedDivisionIds, $selectedDistrictIds, $selectedUpazilaIds] = $this->getSelectedLocationIds($method);
+
         return view('admin.settings.shipping-method-form', [
             'method' => $method,
-            'countries' => $this->getCountryList(),
+            'divisions' => $this->getDivisions(),
+            'districts' => $this->getDistricts(),
+            'upazilas' => $this->getUpazilas(),
+            'selectedDivisionIds' => $selectedDivisionIds,
+            'selectedDistrictIds' => $selectedDistrictIds,
+            'selectedUpazilaIds' => $selectedUpazilaIds,
         ]);
     }
 
@@ -79,16 +111,31 @@ class ShippingMethodController extends Controller
             'max_weight' => ['nullable', 'numeric', 'min:0'],
             'min_delivery_days' => ['nullable', 'integer', 'min:0'],
             'max_delivery_days' => ['nullable', 'integer', 'min:0'],
-            'allowed_countries' => ['nullable', 'array'],
-            'excluded_countries' => ['nullable', 'array'],
+            'allowed_division_ids' => ['nullable', 'array'],
+            'allowed_division_ids.*' => ['integer', 'exists:bd_divisions,id'],
+            'allowed_district_ids' => ['nullable', 'array'],
+            'allowed_district_ids.*' => ['integer', 'exists:bd_districts,id'],
+            'allowed_upazila_ids' => ['nullable', 'array'],
+            'allowed_upazila_ids.*' => ['integer', 'exists:bd_upazilas,id'],
             'is_active' => ['nullable'],
         ]);
 
         $validated['is_active'] = $request->has('is_active');
         $validated['cost_per_item'] = $validated['cost_per_item'] ?? 0;
         $validated['cost_per_kg'] = $validated['cost_per_kg'] ?? 0;
+        $validated['allowed_countries'] = null;
+        $validated['excluded_countries'] = null;
+
+        $locationPayload = [
+            'division' => array_map('intval', (array) ($validated['allowed_division_ids'] ?? [])),
+            'district' => array_map('intval', (array) ($validated['allowed_district_ids'] ?? [])),
+            'upazila' => array_map('intval', (array) ($validated['allowed_upazila_ids'] ?? [])),
+        ];
+
+        unset($validated['allowed_division_ids'], $validated['allowed_district_ids'], $validated['allowed_upazila_ids']);
 
         $method->update($validated);
+        $this->syncLocationRules($method, $locationPayload);
 
         return redirect()
             ->route('admin.settings.shipping-methods')
@@ -131,57 +178,67 @@ class ShippingMethodController extends Controller
             ->with('success', 'Order updated successfully.');
     }
 
-    protected function getCountryList(): array
+    protected function getDivisions()
     {
+        return BdDivision::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'bn_name']);
+    }
+
+    protected function getDistricts()
+    {
+        return BdDistrict::query()
+            ->with('division:id,name')
+            ->orderBy('division_id')
+            ->orderBy('name')
+            ->get();
+    }
+
+    protected function getUpazilas()
+    {
+        return BdUpazila::query()
+            ->with('district:id,name,division_id')
+            ->orderBy('district_id')
+            ->orderBy('name')
+            ->get();
+    }
+
+    protected function getSelectedLocationIds(ShippingMethod $method): array
+    {
+        $rules = $method->locationRules()->get(['location_type', 'location_id']);
+
         return [
-            'US' => 'United States',
-            'CA' => 'Canada',
-            'GB' => 'United Kingdom',
-            'AU' => 'Australia',
-            'DE' => 'Germany',
-            'FR' => 'France',
-            'IT' => 'Italy',
-            'ES' => 'Spain',
-            'NL' => 'Netherlands',
-            'BE' => 'Belgium',
-            'AT' => 'Austria',
-            'CH' => 'Switzerland',
-            'SE' => 'Sweden',
-            'NO' => 'Norway',
-            'DK' => 'Denmark',
-            'FI' => 'Finland',
-            'IE' => 'Ireland',
-            'NZ' => 'New Zealand',
-            'JP' => 'Japan',
-            'KR' => 'South Korea',
-            'SG' => 'Singapore',
-            'HK' => 'Hong Kong',
-            'CN' => 'China',
-            'IN' => 'India',
-            'BD' => 'Bangladesh',
-            'PK' => 'Pakistan',
-            'BR' => 'Brazil',
-            'MX' => 'Mexico',
-            'AR' => 'Argentina',
-            'CL' => 'Chile',
-            'CO' => 'Colombia',
-            'ZA' => 'South Africa',
-            'AE' => 'United Arab Emirates',
-            'SA' => 'Saudi Arabia',
-            'IL' => 'Israel',
-            'TR' => 'Turkey',
-            'RU' => 'Russia',
-            'PL' => 'Poland',
-            'CZ' => 'Czech Republic',
-            'HU' => 'Hungary',
-            'RO' => 'Romania',
-            'GR' => 'Greece',
-            'PT' => 'Portugal',
-            'TH' => 'Thailand',
-            'MY' => 'Malaysia',
-            'PH' => 'Philippines',
-            'ID' => 'Indonesia',
-            'VN' => 'Vietnam',
+            $rules->where('location_type', 'division')->pluck('location_id')->map(fn ($id) => (int) $id)->values()->all(),
+            $rules->where('location_type', 'district')->pluck('location_id')->map(fn ($id) => (int) $id)->values()->all(),
+            $rules->where('location_type', 'upazila')->pluck('location_id')->map(fn ($id) => (int) $id)->values()->all(),
         ];
+    }
+
+    protected function syncLocationRules(ShippingMethod $method, array $locationPayload): void
+    {
+        $method->locationRules()->delete();
+
+        $rows = [];
+        $now = now();
+
+        foreach (['division', 'district', 'upazila'] as $type) {
+            foreach (array_unique($locationPayload[$type] ?? []) as $locationId) {
+                if ($locationId <= 0) {
+                    continue;
+                }
+
+                $rows[] = [
+                    'shipping_method_id' => $method->id,
+                    'location_type' => $type,
+                    'location_id' => (int) $locationId,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        if (!empty($rows)) {
+            $method->locationRules()->insert($rows);
+        }
     }
 }

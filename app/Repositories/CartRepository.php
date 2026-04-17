@@ -66,6 +66,12 @@ class CartRepository extends BaseRepository implements CartRepositoryInterface
 
     public function clearCart(int $cartId): void
     {
-        CartItem::where('cart_id', $cartId)->delete();
+        $cart = Cart::query()->find($cartId);
+
+        if (!$cart) {
+            return;
+        }
+
+        $cart->clear();
     }
 }

@@ -134,15 +134,55 @@ class Setting extends Model
      */
     public static function clearCache(?string $group = null, ?string $key = null): void
     {
+        $forgetServiceCacheKeys = static function (?string $groupName = null): void {
+            Cache::forget('settings.public.all');
+            Cache::forget('settings.admin.all');
+
+            if ($groupName) {
+                Cache::forget("settings.public.{$groupName}");
+            }
+        };
+
         if ($group && $key) {
             Cache::forget("settings.{$group}.{$key}");
+            Cache::forget("settings.group.{$group}.public");
+            Cache::forget("settings.group.{$group}.all");
+            Cache::forget('settings.all.public');
+            $forgetServiceCacheKeys($group);
+
+            return;
         }
 
         if ($group) {
+            $keys = static::where('group', $group)->pluck('key');
+
+            foreach ($keys as $settingKey) {
+                Cache::forget("settings.{$group}.{$settingKey}");
+            }
+
             Cache::forget("settings.group.{$group}.public");
             Cache::forget("settings.group.{$group}.all");
+            Cache::forget('settings.all.public');
+            $forgetServiceCacheKeys($group);
+
+            return;
+        }
+
+        $allSettings = static::query()
+            ->select(['group', 'key'])
+            ->get();
+
+        foreach ($allSettings as $setting) {
+            Cache::forget("settings.{$setting->group}.{$setting->key}");
+        }
+
+        foreach ($allSettings->pluck('group')->unique() as $groupName) {
+            Cache::forget("settings.group.{$groupName}.public");
+            Cache::forget("settings.group.{$groupName}.all");
+            $forgetServiceCacheKeys($groupName);
         }
 
         Cache::forget('settings.all.public');
+        $forgetServiceCacheKeys();
     }
 }

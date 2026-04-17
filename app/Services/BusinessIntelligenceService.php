@@ -291,11 +291,17 @@ class BusinessIntelligenceService
             $categoryBreakdown[$categoryName]['cost'] += $cost;
         }
 
+        $potentialProfit = $totalValue - $totalCost;
+        $potentialProfitPercentage = $totalCost > 0
+            ? round(($potentialProfit / $totalCost) * 100, 1)
+            : 0;
+
         return [
             'total_units' => $totalUnits,
             'total_retail_value' => round($totalValue, 2),
             'total_cost_value' => round($totalCost, 2),
-            'potential_profit' => round($totalValue - $totalCost, 2),
+            'potential_profit' => round($potentialProfit, 2),
+            'potential_profit_percentage' => $potentialProfitPercentage,
             'by_category' => collect($categoryBreakdown)
                 ->map(fn($data, $name) => [
                     'name' => $name,

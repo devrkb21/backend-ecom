@@ -20,6 +20,11 @@ class Address extends Model
         'email',
         'address_line_1',
         'address_line_2',
+        'division_id',
+        'district_id',
+        'upazila_id',
+        'union_id',
+        'area',
         'city',
         'state',
         'postal_code',
@@ -33,6 +38,10 @@ class Address extends Model
     {
         return [
             'is_default' => 'boolean',
+            'division_id' => 'integer',
+            'district_id' => 'integer',
+            'upazila_id' => 'integer',
+            'union_id' => 'integer',
             'latitude' => 'decimal:8',
             'longitude' => 'decimal:8',
         ];
@@ -41,6 +50,26 @@ class Address extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function division(): BelongsTo
+    {
+        return $this->belongsTo(BdDivision::class, 'division_id');
+    }
+
+    public function district(): BelongsTo
+    {
+        return $this->belongsTo(BdDistrict::class, 'district_id');
+    }
+
+    public function upazila(): BelongsTo
+    {
+        return $this->belongsTo(BdUpazila::class, 'upazila_id');
+    }
+
+    public function union(): BelongsTo
+    {
+        return $this->belongsTo(BdUnion::class, 'union_id');
     }
 
     /**
@@ -97,10 +126,13 @@ class Address extends Model
         $parts = array_filter([
             $this->address_line_1,
             $this->address_line_2,
-            $this->city,
-            $this->state,
+            $this->area,
+            $this->union?->name,
+            $this->upazila?->name,
+            $this->district?->name ?? $this->city,
+            $this->division?->name ?? $this->state,
             $this->postal_code,
-            $this->country,
+            'Bangladesh',
         ]);
 
         return implode(', ', $parts);
@@ -120,16 +152,25 @@ class Address extends Model
             $lines[] = $this->address_line_2;
         }
         
-        $cityLine = $this->city;
-        if ($this->state) {
-            $cityLine .= ', ' . $this->state;
-        }
+        $cityLineParts = array_filter([
+            $this->area,
+            $this->union?->name,
+            $this->upazila?->name,
+            $this->district?->name ?? $this->city,
+            $this->division?->name ?? $this->state,
+        ]);
+
+        $cityLine = implode(', ', $cityLineParts);
+
         if ($this->postal_code) {
-            $cityLine .= ' ' . $this->postal_code;
+            $cityLine .= ($cityLine ? ' - ' : '') . $this->postal_code;
         }
-        $lines[] = $cityLine;
+
+        if ($cityLine) {
+            $lines[] = $cityLine;
+        }
         
-        $lines[] = $this->country;
+        $lines[] = 'Bangladesh';
         $lines[] = 'Phone: ' . $this->phone;
 
         return implode("\n", $lines);
@@ -145,10 +186,15 @@ class Address extends Model
             'shipping_phone' => $this->phone,
             'shipping_email' => $this->email,
             'shipping_address' => $this->address_line_1 . ($this->address_line_2 ? ', ' . $this->address_line_2 : ''),
-            'shipping_city' => $this->city,
-            'shipping_state' => $this->state,
+            'shipping_division_id' => $this->division_id,
+            'shipping_district_id' => $this->district_id,
+            'shipping_upazila_id' => $this->upazila_id,
+            'shipping_union_id' => $this->union_id,
+            'shipping_area' => $this->area,
+            'shipping_city' => $this->district?->name ?? $this->city,
+            'shipping_state' => $this->division?->name ?? $this->state,
             'shipping_zip' => $this->postal_code,
-            'shipping_country' => $this->country,
+            'shipping_country' => 'Bangladesh',
         ];
     }
 }
