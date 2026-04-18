@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Services\CheckoutAddressConfigService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -75,14 +76,24 @@ class SiteSettingController extends Controller
     }
 
     /**
-     * Ensure guest checkout toggle exists in checkout settings.
+     * Ensure checkout field-manager settings exist.
      */
-    protected function ensureCheckoutGuestSettingExists(): void
+    protected function ensureCheckoutSettingsExist(): void
     {
-        $setting = Setting::firstOrCreate(
-            ['group' => 'checkout', 'key' => 'enable_guest_checkout'],
+        /** @var CheckoutAddressConfigService $checkoutConfigService */
+        $checkoutConfigService = app(CheckoutAddressConfigService::class);
+
+        $definitions = [
             [
-                'group' => 'checkout',
+                'key' => 'checkout_form_enabled',
+                'value' => '1',
+                'type' => 'boolean',
+                'label' => 'Enable Checkout Form',
+                'description' => 'Disable to block checkout submissions from frontend.',
+                'is_public' => true,
+                'sort_order' => 1,
+            ],
+            [
                 'key' => 'enable_guest_checkout',
                 'value' => '1',
                 'type' => 'boolean',
@@ -90,10 +101,50 @@ class SiteSettingController extends Controller
                 'description' => 'When disabled, customers must login before adding items to cart or placing an order.',
                 'is_public' => true,
                 'sort_order' => 2,
-            ]
-        );
+            ],
+            [
+                'key' => 'tax_enabled',
+                'value' => '0',
+                'type' => 'boolean',
+                'label' => 'Enable Tax',
+                'description' => 'Toggle tax calculation for checkout and order totals.',
+                'is_public' => true,
+                'sort_order' => 3,
+            ],
+            [
+                'key' => 'tax_percentage',
+                'value' => '0',
+                'type' => 'decimal',
+                'label' => 'Tax Percentage',
+                'description' => 'Percentage applied on cart subtotal when tax is enabled.',
+                'is_public' => true,
+                'sort_order' => 4,
+            ],
+            [
+                'key' => 'checkout_fields_schema',
+                'value' => json_encode($checkoutConfigService->getDefaultFieldSchema()),
+                'type' => 'json',
+                'label' => 'Checkout Fields Schema',
+                'description' => 'JSON schema for fully customizable billing, shipping, and additional checkout fields.',
+                'is_public' => true,
+                'sort_order' => 5,
+            ],
+        ];
 
-        if ($setting->wasRecentlyCreated) {
+        $created = false;
+
+        foreach ($definitions as $definition) {
+            $setting = Setting::firstOrCreate(
+                ['group' => 'checkout', 'key' => $definition['key']],
+                array_merge(['group' => 'checkout'], $definition)
+            );
+
+            if ($setting->wasRecentlyCreated) {
+                $created = true;
+            }
+        }
+
+        if ($created) {
             Setting::clearCache('checkout');
         }
     }
@@ -104,7 +155,7 @@ class SiteSettingController extends Controller
     public function index()
     {
         $this->ensureGeneralOrderSettingsExist();
-        $this->ensureCheckoutGuestSettingExists();
+        $this->ensureCheckoutSettingsExist();
 
         $settings = Setting::whereNotIn('group', self::RESTRICTED_GROUPS)
             ->orderBy('group')
@@ -135,7 +186,7 @@ class SiteSettingController extends Controller
         }
 
         if ($group === 'checkout') {
-            $this->ensureCheckoutGuestSettingExists();
+            $this->ensureCheckoutSettingsExist();
         }
 
         $settings = Setting::where('group', $group)->orderBy('sort_order')->get();
@@ -155,6 +206,28 @@ class SiteSettingController extends Controller
             'checkout' => 'Checkout Settings',
         ];
 
+        if ($group === 'checkout') {
+            /** @var CheckoutAddressConfigService $checkoutConfigService */
+            $checkoutConfigService = app(CheckoutAddressConfigService::class);
+            $checkoutRaw = $checkoutConfigService->getRaw();
+
+            $settingValues = [
+                'checkout_form_enabled' => (bool) ($checkoutRaw['checkout_form_enabled'] ?? true),
+                'enable_guest_checkout' => (bool) ($checkoutRaw['enable_guest_checkout'] ?? true),
+                'tax_enabled' => (bool) ($checkoutRaw['tax_enabled'] ?? false),
+                'tax_percentage' => (float) ($checkoutRaw['tax_percentage'] ?? 0),
+            ];
+
+            return view('admin.settings.site.edit-checkout', [
+                'settings' => $settings,
+                'group' => $group,
+                'groupLabel' => $groupLabels[$group] ?? ucfirst($group),
+                'settingValues' => $settingValues,
+                'checkoutFieldSchema' => $checkoutRaw['checkout_fields_schema'] ?? $checkoutConfigService->getDefaultFieldSchema(),
+                'fieldTypeOptions' => $checkoutConfigService->getFieldTypeOptions(),
+            ]);
+        }
+
         return view('admin.settings.site.edit-group', [
             'settings' => $settings,
             'group' => $group,
@@ -172,7 +245,14 @@ class SiteSettingController extends Controller
         }
 
         if ($group === 'checkout') {
-            $this->ensureCheckoutGuestSettingExists();
+            $request->validate([
+                'settings.tax_enabled' => 'nullable|boolean',
+                'settings.tax_percentage' => 'nullable|numeric|min:0|max:100',
+            ]);
+        }
+
+        if ($group === 'checkout') {
+            $this->ensureCheckoutSettingsExist();
         }
 
         $settings = Setting::where('group', $group)->get();
@@ -180,6 +260,13 @@ class SiteSettingController extends Controller
 
         $settings->each(function (Setting $setting) use ($request, &$updatedKeys) {
             $key = $setting->key;
+
+            if (
+                $setting->group === 'checkout'
+                && !in_array($key, ['checkout_form_enabled', 'enable_guest_checkout', 'tax_enabled', 'tax_percentage', 'checkout_fields_schema'], true)
+            ) {
+                return;
+            }
             
             // Handle image type - now uses media library path
             if ($setting->type === 'image') {
@@ -197,9 +284,37 @@ class SiteSettingController extends Controller
                     $updatedKeys[] = $key;
                 }
             } 
+            // Handle checkout field schema JSON
+            elseif ($setting->key === 'checkout_fields_schema') {
+                /** @var CheckoutAddressConfigService $checkoutConfigService */
+                $checkoutConfigService = app(CheckoutAddressConfigService::class);
+
+                $rawJson = $request->input("settings.{$key}", '[]');
+                $decoded = json_decode((string) $rawJson, true);
+                $normalized = $checkoutConfigService->normalizeFieldSchema(is_array($decoded) ? $decoded : []);
+                $newValue = json_encode($normalized);
+
+                if ($newValue !== $setting->value) {
+                    $setting->value = $newValue;
+                    $setting->save();
+                    $updatedKeys[] = $key;
+                }
+            }
             // Handle checkbox/boolean
             elseif ($setting->type === 'boolean') {
                 $newValue = $request->has("settings.{$key}") ? '1' : '0';
+
+                if ($newValue !== $setting->value) {
+                    $setting->value = $newValue;
+                    $setting->save();
+                    $updatedKeys[] = $key;
+                }
+            }
+            // Handle tax percentage as sanitized numeric value
+            elseif ($setting->group === 'checkout' && $setting->key === 'tax_percentage') {
+                $rawValue = $request->input("settings.{$key}", 0);
+                $numericValue = is_numeric($rawValue) ? (float) $rawValue : 0.0;
+                $newValue = (string) max(0, min(100, $numericValue));
 
                 if ($newValue !== $setting->value) {
                     $setting->value = $newValue;

@@ -14,6 +14,40 @@
     $isChecked = function (string $key) use ($valueOf) {
         return filter_var($valueOf($key, '0'), FILTER_VALIDATE_BOOLEAN);
     };
+
+    $siteVerificationEntries = old('site_verification_entries');
+
+    if (!is_array($siteVerificationEntries)) {
+        $storedSiteVerificationEntries = data_get($settings, 'site_verification_entries.value', '[]');
+
+        if (is_array($storedSiteVerificationEntries)) {
+            $siteVerificationEntries = $storedSiteVerificationEntries;
+        } else {
+            $decodedSiteVerificationEntries = json_decode((string) $storedSiteVerificationEntries, true);
+            $siteVerificationEntries = is_array($decodedSiteVerificationEntries) ? $decodedSiteVerificationEntries : [];
+        }
+    }
+
+    $siteVerificationEntries = collect($siteVerificationEntries)
+        ->filter(fn ($entry) => is_array($entry))
+        ->map(function (array $entry) {
+            return [
+                'provider' => strtolower(trim((string) ($entry['provider'] ?? 'google'))),
+                'code' => trim((string) ($entry['code'] ?? '')),
+                'meta_name' => trim((string) ($entry['meta_name'] ?? '')),
+            ];
+        })
+        ->values()
+        ->all();
+
+    $verificationProviderOptions = [
+        'google' => 'Google Search Console',
+        'bing' => 'Bing Webmaster',
+        'yandex' => 'Yandex Webmaster',
+        'pinterest' => 'Pinterest',
+        'facebook' => 'Facebook Domain Verification',
+        'custom' => 'Custom Meta Name',
+    ];
 @endphp
 
 <div class="row g-4">
@@ -102,6 +136,98 @@
                             Disabled. Enable this integration to open its configuration form.
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-semibold"><i class="bi bi-patch-check me-2"></i>Site Verification (Header Meta)</h6>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="addSiteVerificationEntryBtn">
+                        <i class="bi bi-plus-lg me-1"></i> Add Code
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="small text-muted mb-3">
+                        Add short verification codes from Google or other platforms. Each saved code is rendered as a meta tag in the frontend header.
+                    </div>
+
+                    <div id="siteVerificationEntries">
+                        @foreach($siteVerificationEntries as $index => $entry)
+                            @php
+                                $provider = $entry['provider'] ?? 'google';
+                                $code = $entry['code'] ?? '';
+                                $metaName = $entry['meta_name'] ?? '';
+                                $showMetaName = $provider === 'custom';
+                            @endphp
+                            <div class="border rounded p-3 mb-3" data-site-verification-row>
+                                <div class="row g-3 align-items-start">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Platform</label>
+                                        <select class="form-select" data-verification-field="provider" name="site_verification_entries[{{ $index }}][provider]">
+                                            @foreach($verificationProviderOptions as $providerKey => $providerLabel)
+                                                <option value="{{ $providerKey }}" {{ $provider === $providerKey ? 'selected' : '' }}>{{ $providerLabel }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label">Short Code</label>
+                                        <input type="text" class="form-control" data-verification-field="code" name="site_verification_entries[{{ $index }}][code]" value="{{ $code }}" placeholder="Paste verification code">
+                                    </div>
+                                    <div class="col-md-3 d-flex align-items-end">
+                                        <button type="button" class="btn btn-outline-danger w-100" data-remove-site-verification-row>
+                                            <i class="bi bi-trash me-1"></i> Remove
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="row g-3 mt-1 {{ $showMetaName ? '' : 'd-none' }}" data-custom-meta-wrapper>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Custom Meta Name</label>
+                                        <input type="text" class="form-control" data-verification-field="meta_name" name="site_verification_entries[{{ $index }}][meta_name]" value="{{ $metaName }}" placeholder="example-verification-name">
+                                        <div class="form-text">Required only for Custom Meta Name platform.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <template id="siteVerificationEntryTemplate">
+                        <div class="border rounded p-3 mb-3" data-site-verification-row>
+                            <div class="row g-3 align-items-start">
+                                <div class="col-md-4">
+                                    <label class="form-label">Platform</label>
+                                    <select class="form-select" data-verification-field="provider">
+                                        @foreach($verificationProviderOptions as $providerKey => $providerLabel)
+                                            <option value="{{ $providerKey }}">{{ $providerLabel }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label">Short Code</label>
+                                    <input type="text" class="form-control" data-verification-field="code" placeholder="Paste verification code">
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <button type="button" class="btn btn-outline-danger w-100" data-remove-site-verification-row>
+                                        <i class="bi bi-trash me-1"></i> Remove
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="row g-3 mt-1 d-none" data-custom-meta-wrapper>
+                                <div class="col-md-6">
+                                    <label class="form-label">Custom Meta Name</label>
+                                    <input type="text" class="form-control" data-verification-field="meta_name" placeholder="example-verification-name">
+                                    <div class="form-text">Required only for Custom Meta Name platform.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    @if($errors->has('site_verification_entries') || $errors->has('site_verification_entries.*.provider') || $errors->has('site_verification_entries.*.code') || $errors->has('site_verification_entries.*.meta_name'))
+                        <div class="alert alert-danger mb-0">
+                            Please review site verification rows. Custom entries need a custom meta name and every row needs a code.
+                        </div>
+                    @endif
                 </div>
             </div>
 
@@ -217,62 +343,141 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const getBalanceBtn = document.getElementById('getSmsBalanceBtn');
-    const balanceAlert = document.getElementById('smsBalanceAlert');
+    const verificationContainer = document.getElementById('siteVerificationEntries');
+    const verificationTemplate = document.getElementById('siteVerificationEntryTemplate');
+    const addVerificationButton = document.getElementById('addSiteVerificationEntryBtn');
 
-    if (!getBalanceBtn || !balanceAlert) {
-        return;
-    }
-
-    const label = getBalanceBtn.querySelector('.balance-btn-label');
-    const spinner = getBalanceBtn.querySelector('.spinner-border');
-
-    const setLoading = (loading) => {
-        getBalanceBtn.disabled = loading;
-        spinner?.classList.toggle('d-none', !loading);
-        label?.classList.toggle('d-none', loading);
-    };
-
-    const showAlert = (success, message) => {
-        balanceAlert.classList.remove('d-none', 'alert-success', 'alert-danger');
-        balanceAlert.classList.add(success ? 'alert-success' : 'alert-danger');
-        balanceAlert.textContent = message;
-    };
-
-    getBalanceBtn.addEventListener('click', async function () {
-        const url = getBalanceBtn.dataset.url;
-        if (!url) {
+    const syncCustomMetaVisibility = (row) => {
+        if (!row) {
             return;
         }
 
-        setLoading(true);
+        const providerField = row.querySelector('[data-verification-field="provider"]');
+        const customMetaWrapper = row.querySelector('[data-custom-meta-wrapper]');
 
-        try {
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
+        if (!providerField || !customMetaWrapper) {
+            return;
+        }
+
+        const isCustomProvider = providerField.value === 'custom';
+        customMetaWrapper.classList.toggle('d-none', !isCustomProvider);
+    };
+
+    const reindexVerificationRows = () => {
+        if (!verificationContainer) {
+            return;
+        }
+
+        const rows = verificationContainer.querySelectorAll('[data-site-verification-row]');
+
+        rows.forEach((row, index) => {
+            row.querySelectorAll('[data-verification-field]').forEach((field) => {
+                const key = field.getAttribute('data-verification-field');
+                field.setAttribute('name', `site_verification_entries[${index}][${key}]`);
             });
 
-            const payload = await response.json();
+            syncCustomMetaVisibility(row);
+        });
+    };
 
-            if (response.ok && payload.success) {
-                const balanceText = payload.balance !== null && payload.balance !== undefined
-                    ? `Current SMS Balance: ${payload.balance}`
-                    : 'Balance fetched successfully.';
-                showAlert(true, balanceText);
+    const appendNewVerificationRow = () => {
+        if (!verificationContainer || !verificationTemplate) {
+            return;
+        }
+
+        const templateContent = verificationTemplate.content.cloneNode(true);
+        verificationContainer.appendChild(templateContent);
+        reindexVerificationRows();
+    };
+
+    if (verificationContainer && verificationTemplate && addVerificationButton) {
+        if (verificationContainer.querySelectorAll('[data-site-verification-row]').length === 0) {
+            appendNewVerificationRow();
+        } else {
+            reindexVerificationRows();
+        }
+
+        addVerificationButton.addEventListener('click', function () {
+            appendNewVerificationRow();
+        });
+
+        verificationContainer.addEventListener('click', function (event) {
+            const removeButton = event.target.closest('[data-remove-site-verification-row]');
+
+            if (!removeButton) {
                 return;
             }
 
-            showAlert(false, payload.message || 'Failed to fetch SMS balance.');
-        } catch (error) {
-            showAlert(false, 'Network error while fetching SMS balance.');
-        } finally {
-            setLoading(false);
-        }
-    });
+            const row = removeButton.closest('[data-site-verification-row]');
+            if (row) {
+                row.remove();
+                reindexVerificationRows();
+            }
+        });
+
+        verificationContainer.addEventListener('change', function (event) {
+            const target = event.target;
+            if (target && target.getAttribute('data-verification-field') === 'provider') {
+                const row = target.closest('[data-site-verification-row]');
+                syncCustomMetaVisibility(row);
+            }
+        });
+    }
+
+    const getBalanceBtn = document.getElementById('getSmsBalanceBtn');
+    const balanceAlert = document.getElementById('smsBalanceAlert');
+
+    if (getBalanceBtn && balanceAlert) {
+        const label = getBalanceBtn.querySelector('.balance-btn-label');
+        const spinner = getBalanceBtn.querySelector('.spinner-border');
+
+        const setLoading = (loading) => {
+            getBalanceBtn.disabled = loading;
+            spinner?.classList.toggle('d-none', !loading);
+            label?.classList.toggle('d-none', loading);
+        };
+
+        const showAlert = (success, message) => {
+            balanceAlert.classList.remove('d-none', 'alert-success', 'alert-danger');
+            balanceAlert.classList.add(success ? 'alert-success' : 'alert-danger');
+            balanceAlert.textContent = message;
+        };
+
+        getBalanceBtn.addEventListener('click', async function () {
+            const url = getBalanceBtn.dataset.url;
+            if (!url) {
+                return;
+            }
+
+            setLoading(true);
+
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                const payload = await response.json();
+
+                if (response.ok && payload.success) {
+                    const balanceText = payload.balance !== null && payload.balance !== undefined
+                        ? `Current SMS Balance: ${payload.balance}`
+                        : 'Balance fetched successfully.';
+                    showAlert(true, balanceText);
+                    return;
+                }
+
+                showAlert(false, payload.message || 'Failed to fetch SMS balance.');
+            } catch (error) {
+                showAlert(false, 'Network error while fetching SMS balance.');
+            } finally {
+                setLoading(false);
+            }
+        });
+    }
 });
 </script>
 @endpush

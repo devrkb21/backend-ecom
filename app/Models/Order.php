@@ -20,6 +20,7 @@ class Order extends Model
         'coupon_code',
         'discount_amount',
         'order_number',
+        'guest_access_token_hash',
         'status',
         'subtotal',
         'tax',
@@ -43,6 +44,7 @@ class Order extends Model
         'shipping_zip',
         'shipping_country',
         'notes',
+        'checkout_fields_payload',
         // Tracking fields
         'tracking_number',
         'carrier',
@@ -64,11 +66,16 @@ class Order extends Model
             'shipping_union_id' => 'integer',
             'discount_amount' => 'decimal:2',
             'total' => 'decimal:2',
+            'checkout_fields_payload' => 'array',
             'shipped_at' => 'datetime',
             'estimated_delivery_at' => 'datetime',
             'delivered_at' => 'datetime',
         ];
     }
+
+    protected $hidden = [
+        'guest_access_token_hash',
+    ];
 
     public static function generateOrderNumber(): string
     {
@@ -306,5 +313,15 @@ class Order extends Model
     public function scopePendingDelivery($query)
     {
         return $query->whereIn('status', ['shipped', 'in_transit', 'out_for_delivery']);
+    }
+
+    public function hasValidGuestAccessToken(?string $plainToken): bool
+    {
+        $plainToken = trim((string) $plainToken);
+        if ($plainToken === '' || empty($this->guest_access_token_hash)) {
+            return false;
+        }
+
+        return hash_equals($this->guest_access_token_hash, hash('sha256', $plainToken));
     }
 }

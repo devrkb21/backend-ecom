@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\PaymentGateway;
+use App\Models\User;
 use App\Services\Payment\StripePaymentService;
 use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class StripeController extends Controller
 {
@@ -45,13 +47,15 @@ class StripeController extends Controller
     {
         $request->validate([
             'order_id' => ['required', 'integer', 'exists:orders,id'],
+            'guest_token' => ['nullable', 'string', 'max:255'],
+            'save_payment_method' => ['nullable', 'boolean'],
         ]);
 
         try {
             $order = $this->orderService->getOrderById($request->order_id);
+            $requestUser = $this->resolveApiUser($request);
 
-            // Verify user owns the order
-            if ($order->user_id !== $request->user()->id) {
+            if (!$this->canAccessOrder($order, $requestUser, $request->input('guest_token'))) {
                 return $this->errorResponse('Unauthorized.', 403);
             }
 
@@ -65,8 +69,30 @@ class StripeController extends Controller
                 return $this->errorResponse('Order is already paid.', 400);
             }
 
-            $result = $this->stripeService->createPaymentIntent($order, [
+            $savePaymentMethod = $requestUser ? (bool) $request->boolean('save_payment_method') : false;
+
+            $stripeOptions = [
                 'currency' => 'usd',
+                'metadata' => [
+                    'order_id' => (string) $order->id,
+                    'save_payment_method_requested' => $savePaymentMethod ? '1' : '0',
+                ],
+            ];
+
+            if ($requestUser) {
+                $hasSavedMethods = $requestUser->savedPaymentMethods()->active()->exists();
+
+                if ($savePaymentMethod || $hasSavedMethods || !empty($requestUser->stripe_customer_id)) {
+                    $stripeOptions['customer_id'] = $this->stripeService->getOrCreateCustomerForUser($requestUser);
+                }
+
+                if ($savePaymentMethod) {
+                    $stripeOptions['setup_future_usage'] = 'off_session';
+                }
+            }
+
+            $result = $this->stripeService->createPaymentIntent($order, [
+                ...$stripeOptions,
             ]);
 
             // Save payment intent ID to order
@@ -89,13 +115,15 @@ class StripeController extends Controller
         $request->validate([
             'order_id' => ['required', 'integer', 'exists:orders,id'],
             'payment_intent_id' => ['required', 'string'],
+            'guest_token' => ['nullable', 'string', 'max:255'],
+            'save_payment_method' => ['nullable', 'boolean'],
         ]);
 
         try {
             $order = $this->orderService->getOrderById($request->order_id);
+            $requestUser = $this->resolveApiUser($request);
 
-            // Verify user owns the order
-            if ($order->user_id !== $request->user()->id) {
+            if (!$this->canAccessOrder($order, $requestUser, $request->input('guest_token'))) {
                 return $this->errorResponse('Unauthorized.', 403);
             }
 
@@ -112,6 +140,23 @@ class StripeController extends Controller
                     'transaction_id' => $result['id'],
                 ]);
 
+                if ($requestUser && !empty($result['payment_method'])) {
+                    try {
+                        if ($request->boolean('save_payment_method')) {
+                            $this->stripeService->savePaymentMethodForUser($requestUser, (string) $result['payment_method']);
+                        } else {
+                            $this->stripeService->markSavedPaymentMethodUsed($requestUser, (string) $result['payment_method']);
+                        }
+                    } catch (\Exception $saveError) {
+                        Log::warning('Unable to persist Stripe saved payment method.', [
+                            'order_id' => $order->id,
+                            'user_id' => $requestUser->id,
+                            'payment_method' => $result['payment_method'],
+                            'error' => $saveError->getMessage(),
+                        ]);
+                    }
+                }
+
                 // Update order status to processing
                 $this->orderService->updateOrderStatus($order->id, 'processing');
 
@@ -119,6 +164,7 @@ class StripeController extends Controller
                     'status' => 'succeeded',
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
+                    'saved_payment_method' => $requestUser ? (bool) $request->boolean('save_payment_method') : false,
                 ], 'Payment successful!');
             }
 
@@ -216,5 +262,19 @@ class StripeController extends Controller
                 $order->update(['payment_status' => 'refunded']);
             }
         }
+    }
+
+    protected function resolveApiUser(Request $request): ?User
+    {
+        return $request->user('sanctum') ?? $request->user();
+    }
+
+    protected function canAccessOrder(Order $order, ?User $requestUser, ?string $guestToken): bool
+    {
+        if ($requestUser) {
+            return $requestUser->isAdmin() || (int) $order->user_id === (int) $requestUser->id;
+        }
+
+        return $order->hasValidGuestAccessToken($guestToken);
     }
 }

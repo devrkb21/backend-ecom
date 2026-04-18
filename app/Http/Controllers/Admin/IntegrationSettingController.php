@@ -48,6 +48,10 @@ class IntegrationSettingController extends Controller
             'sms_api_key' => ['nullable', 'string', 'max:255'],
             'sms_sender_id' => ['nullable', 'string', 'max:100'],
             'sms_balance_url' => ['nullable', 'string', 'max:255'],
+            'site_verification_entries' => ['nullable', 'array'],
+            'site_verification_entries.*.provider' => ['nullable', 'string', 'max:50'],
+            'site_verification_entries.*.code' => ['nullable', 'string', 'max:255'],
+            'site_verification_entries.*.meta_name' => ['nullable', 'string', 'max:120', 'regex:/^[A-Za-z0-9._:-]+$/'],
         ]);
 
         $currentValues = Setting::where('group', self::GROUP)
@@ -61,6 +65,14 @@ class IntegrationSettingController extends Controller
 
             if ($definition['type'] === 'boolean') {
                 $value = $request->boolean($key) ? '1' : '0';
+            } elseif ($definition['type'] === 'json') {
+                $rawValue = $validated[$key] ?? $request->input($key, []);
+
+                if ($key === 'site_verification_entries') {
+                    $value = $this->normalizeSiteVerificationEntries(is_array($rawValue) ? $rawValue : []);
+                } else {
+                    $value = is_array($rawValue) ? $rawValue : [];
+                }
             } else {
                 $toggleKey = $fieldToggleMap[$key] ?? null;
 
@@ -198,6 +210,14 @@ class IntegrationSettingController extends Controller
                 'is_public' => true,
             ],
             [
+                'key' => 'site_verification_entries',
+                'label' => 'Site Verification Entries',
+                'type' => 'json',
+                'default' => '[]',
+                'description' => 'List of domain verification entries rendered for search platforms.',
+                'is_public' => true,
+            ],
+            [
                 'key' => 'sms_enabled',
                 'label' => 'Enable SMS API',
                 'type' => 'boolean',
@@ -261,5 +281,47 @@ class IntegrationSettingController extends Controller
             'sms_sender_id' => 'sms_enabled',
             'sms_balance_url' => 'sms_enabled',
         ];
+    }
+
+    private function verificationProviders(): array
+    {
+        return ['google', 'bing', 'yandex', 'pinterest', 'facebook', 'custom'];
+    }
+
+    private function normalizeSiteVerificationEntries(array $entries): array
+    {
+        $allowedProviders = $this->verificationProviders();
+        $normalized = [];
+
+        foreach ($entries as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $provider = strtolower(trim((string) ($entry['provider'] ?? '')));
+            $code = trim((string) ($entry['code'] ?? ''));
+
+            if (!in_array($provider, $allowedProviders, true) || $code === '') {
+                continue;
+            }
+
+            $item = [
+                'provider' => $provider,
+                'code' => $code,
+            ];
+
+            if ($provider === 'custom') {
+                $metaName = strtolower(trim((string) ($entry['meta_name'] ?? '')));
+                if ($metaName === '') {
+                    continue;
+                }
+
+                $item['meta_name'] = $metaName;
+            }
+
+            $normalized[] = $item;
+        }
+
+        return array_values($normalized);
     }
 }

@@ -34,7 +34,7 @@
                             'seo' => 'Meta tags, descriptions, and Open Graph settings',
                             'footer' => 'Footer text, copyright, and newsletter settings',
                             'banner' => 'Promotional banner displayed at the top of the site',
-                            'checkout' => 'Control checkout fields, location input mode, and required options',
+                            'checkout' => 'Use the dedicated field manager to control checkout visibility, required states, guest access, and location mode',
                         ];
                     @endphp
 

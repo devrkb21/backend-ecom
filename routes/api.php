@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\LoyaltyController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderNoteController;
 use App\Http\Controllers\Api\AuditLogController;
+use App\Http\Controllers\Api\SavedPaymentMethodController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -60,10 +61,13 @@ Route::prefix('v1')->group(function () {
     // Stripe config and webhook
     Route::get('/stripe/config', [StripeController::class, 'config']);
     Route::post('/stripe/webhook', [StripeController::class, 'webhook'])->withoutMiddleware('auth:sanctum');
+    Route::post('/stripe/create-payment-intent', [StripeController::class, 'createPaymentIntent'])->middleware('throttle:20,1');
+    Route::post('/stripe/confirm-payment', [StripeController::class, 'confirmPayment'])->middleware('throttle:30,1');
 
     // bKash config and callback
     Route::get('/bkash/config', [BkashController::class, 'config']);
     Route::get('/bkash/callback', [BkashController::class, 'callback'])->withoutMiddleware('auth:sanctum');
+    Route::post('/bkash/create-payment', [BkashController::class, 'createPayment'])->middleware('throttle:20,1');
 
     // Public order tracking
     Route::prefix('track')->group(function () {
@@ -155,6 +159,9 @@ Route::prefix('v1')->group(function () {
 
     // Checkout order placement (supports guests and authenticated users)
     Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:10,1');
+    Route::post('/cart/coupon', [ApiCouponController::class, 'apply'])->middleware('throttle:20,1');
+    Route::post('/checkout/track', [AbandonedCartController::class, 'track'])->middleware('throttle:40,1');
+    Route::get('/orders/{id}/payment-summary', [OrderController::class, 'paymentSummary'])->where('id', '[0-9]+');
     Route::get('/orders/number/{orderNumber}', [OrderController::class, 'showByNumber'])
         ->where('orderNumber', 'ORD-[0-9]{14}-[A-Z0-9]{4}');
 
@@ -203,7 +210,6 @@ Route::prefix('v1')->group(function () {
             Route::delete('/items/{productId}', [CartController::class, 'removeItem'])->where('productId', '[0-9]+');
             Route::delete('/', [CartController::class, 'clear']);
             // Coupon
-            Route::post('/coupon', [ApiCouponController::class, 'apply']);
             Route::delete('/coupon', [ApiCouponController::class, 'remove']);
         });
 
@@ -252,9 +258,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/{address}/set-default', [AddressController::class, 'setDefault']);
         });
 
-        // Checkout Tracking (Abandoned Cart)
+        // Checkout recovery endpoint for authenticated contexts.
         Route::prefix('checkout')->group(function () {
-            Route::post('/track', [AbandonedCartController::class, 'track']);
             Route::post('/recovered', [AbandonedCartController::class, 'markRecovered']);
         });
 
@@ -319,18 +324,21 @@ Route::prefix('v1')->group(function () {
         });
 
         // Stripe payment routes
-        Route::prefix('stripe')->group(function () {
-            Route::post('/create-payment-intent', [StripeController::class, 'createPaymentIntent']);
-            Route::post('/confirm-payment', [StripeController::class, 'confirmPayment']);
-        });
-
         // bKash payment routes
         Route::prefix('bkash')->group(function () {
-            Route::post('/create-payment', [BkashController::class, 'createPayment']);
             Route::get('/check-status', [BkashController::class, 'checkStatus']);
             Route::middleware('admin_permission:returns.manage')->group(function () {
                 Route::post('/refund', [BkashController::class, 'refund']);
             });
+        });
+
+        // Saved payment methods (currently Stripe)
+        Route::prefix('saved-payment-methods')->group(function () {
+            Route::get('/', [SavedPaymentMethodController::class, 'index']);
+            Route::post('/{savedPaymentMethod}/set-default', [SavedPaymentMethodController::class, 'setDefault'])
+                ->where('savedPaymentMethod', '[0-9]+');
+            Route::post('/{savedPaymentMethod}/remove', [SavedPaymentMethodController::class, 'remove'])
+                ->where('savedPaymentMethod', '[0-9]+');
         });
 
         // Admin: Order Export (CSV) & Audit Logs

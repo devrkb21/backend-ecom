@@ -9,6 +9,13 @@ class OrderResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $subtotal = (float) $this->subtotal;
+        $tax = (float) $this->tax;
+        $shipping = (float) $this->shipping;
+        $discountAmount = (float) ($this->discount_amount ?? 0);
+        $total = (float) $this->total;
+        $paymentCharge = max(0, round($total - ($subtotal + $tax + $shipping - $discountAmount), 2));
+
         return [
             'id' => $this->id,
             'order_number' => $this->order_number,
@@ -17,10 +24,13 @@ class OrderResource extends JsonResource
             'payment_status' => $this->payment_status,
             'transaction_id' => $this->transaction_id,
             'shipping_method' => $this->shipping_method,
-            'subtotal' => (float) $this->subtotal,
-            'tax' => (float) $this->tax,
-            'shipping' => (float) $this->shipping,
-            'total' => (float) $this->total,
+            'coupon_code' => $this->coupon_code,
+            'discount_amount' => $discountAmount,
+            'payment_charge' => $paymentCharge,
+            'subtotal' => $subtotal,
+            'tax' => $tax,
+            'shipping' => $shipping,
+            'total' => $total,
             'shipping_name' => $this->shipping_name,
             'shipping_email' => $this->shipping_email,
             'shipping_phone' => $this->shipping_phone,
@@ -38,6 +48,7 @@ class OrderResource extends JsonResource
             'shipping_upazila' => $this->whenLoaded('shippingUpazila', fn () => $this->shippingUpazila?->name),
             'shipping_union' => $this->whenLoaded('shippingUnion', fn () => $this->shippingUnion?->name),
             'notes' => $this->notes,
+            'checkout_fields_payload' => $this->checkout_fields_payload,
             // Tracking info
             'tracking_number' => $this->tracking_number,
             'carrier' => $this->carrier,

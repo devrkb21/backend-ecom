@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\OrderTrackingController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\SavedPaymentMethodController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\MediaController;
@@ -85,6 +86,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Payments (Read Only)
         Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
+        Route::get('payments/saved-methods', [SavedPaymentMethodController::class, 'index'])->name('payments.saved-methods');
         Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
 
         // Users

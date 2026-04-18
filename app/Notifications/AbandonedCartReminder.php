@@ -6,6 +6,7 @@ use App\Models\AbandonedCart;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\Notification;
 
 class AbandonedCartReminder extends Notification implements ShouldQueue
@@ -18,6 +19,10 @@ class AbandonedCartReminder extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
+        if ($notifiable instanceof AnonymousNotifiable) {
+            return ['mail'];
+        }
+
         return ['mail', 'database'];
     }
 

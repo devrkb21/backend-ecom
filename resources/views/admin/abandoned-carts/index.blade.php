@@ -2,80 +2,200 @@
 
 @section('title', 'Abandoned Carts')
 
+@push('styles')
+<style>
+    .abandoned-carts-page .abandoned-stat-card .card-body {
+        padding: 0.75rem 0.85rem;
+    }
+
+    .abandoned-carts-page .abandoned-stat-card h6 {
+        font-size: 0.84rem;
+        font-weight: 600;
+        margin-bottom: 0.18rem;
+        letter-spacing: 0.01em;
+    }
+
+    .abandoned-carts-page .abandoned-stat-card .stat-value {
+        font-size: 1.55rem;
+        line-height: 1.05;
+        margin-bottom: 0;
+        font-weight: 700;
+    }
+
+    .abandoned-carts-page .abandoned-stat-card small {
+        font-size: 0.74rem;
+    }
+
+    .abandoned-carts-page .abandoned-secondary-stat .card-body {
+        padding: 0.65rem 0.8rem;
+    }
+
+    .abandoned-carts-page .abandoned-secondary-stat h6 {
+        font-size: 0.84rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .abandoned-carts-page .abandoned-secondary-stat h2 {
+        font-size: 2rem;
+        line-height: 1;
+        margin-bottom: 0.08rem;
+    }
+
+    .abandoned-carts-page .abandoned-filter-card .card-body {
+        padding: 0.85rem;
+    }
+
+    .abandoned-carts-page .abandoned-filter-card .form-label {
+        font-size: 0.72rem;
+        margin-bottom: 0.24rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-weight: 600;
+    }
+
+    .abandoned-carts-page .abandoned-filter-card .form-control,
+    .abandoned-carts-page .abandoned-filter-card .form-select {
+        min-height: calc(1.5em + 0.5rem + 2px);
+    }
+
+    .abandoned-carts-page .abandoned-bulk-actions .card-body {
+        padding: 0.65rem 0.85rem;
+    }
+
+    .abandoned-carts-page .abandoned-bulk-actions .btn {
+        min-width: 150px;
+        font-weight: 600;
+    }
+
+    .abandoned-carts-page .abandoned-carts-table thead th {
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #5f6f82;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .abandoned-carts-page .abandoned-carts-table tbody td {
+        font-size: 0.95rem;
+        padding: 0.6rem 0.65rem;
+        vertical-align: middle;
+    }
+
+    .abandoned-carts-page .abandoned-carts-table .contact-user-badge {
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 0.3rem 0.48rem;
+    }
+
+    .abandoned-carts-page .abandoned-action-stack {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.38rem;
+    }
+
+    .abandoned-carts-page .abandoned-action-btn {
+        min-width: 92px;
+        font-size: 0.74rem;
+        font-weight: 600;
+        padding: 0.24rem 0.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.32rem;
+    }
+
+    .abandoned-carts-page .abandoned-action-btn i {
+        font-size: 0.76rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .abandoned-carts-page .abandoned-action-btn {
+            min-width: 82px;
+        }
+
+        .abandoned-carts-page .abandoned-bulk-actions .btn {
+            min-width: 120px;
+        }
+    }
+</style>
+@endpush
+
 @section('content')
-<div class="container-fluid">
+<div class="container-fluid abandoned-carts-page">
     <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-            <h1 class="h3 mb-1">Abandoned Carts</h1>
+            <h1 class="h4 mb-1">Abandoned Carts</h1>
             <p class="text-muted mb-0">Track and recover incomplete checkouts</p>
         </div>
-        <a href="{{ route('admin.abandoned-carts.export', request()->query()) }}" class="btn btn-outline-secondary">
+        <a href="{{ route('admin.abandoned-carts.export', request()->query()) }}" class="btn btn-sm btn-outline-secondary">
             <i class="fas fa-download me-1"></i> Export CSV
         </a>
     </div>
 
     <!-- Stats Cards -->
-    <div class="row g-3 mb-4">
+    <div class="row g-2 mb-2">
         <div class="col-md-3 col-sm-6">
-            <div class="card bg-warning bg-opacity-10 border-warning">
+            <div class="card bg-warning bg-opacity-10 border-warning abandoned-stat-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h6 class="text-warning mb-1">Open Carts</h6>
-                            <h3 class="mb-0">{{ number_format($stats['open']) }}</h3>
+                            <h3 class="stat-value">{{ number_format($stats['open']) }}</h3>
                             <small class="text-muted">Pending + Follow Up</small>
                         </div>
                         <div class="text-warning opacity-50">
-                            <i class="fas fa-clock fa-2x"></i>
+                            <i class="fas fa-clock fa-lg"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3 col-sm-6">
-            <div class="card bg-info bg-opacity-10 border-info">
+            <div class="card bg-info bg-opacity-10 border-info abandoned-stat-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h6 class="text-info mb-1">Overdue Follow Up</h6>
-                            <h3 class="mb-0">{{ number_format($stats['overdue_follow_up']) }}</h3>
+                            <h3 class="stat-value">{{ number_format($stats['overdue_follow_up']) }}</h3>
                             <small class="text-muted">Need immediate action</small>
                         </div>
                         <div class="text-info opacity-50">
-                            <i class="fas fa-phone fa-2x"></i>
+                            <i class="fas fa-phone fa-lg"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3 col-sm-6">
-            <div class="card bg-success bg-opacity-10 border-success">
+            <div class="card bg-success bg-opacity-10 border-success abandoned-stat-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h6 class="text-success mb-1">Recovered (30d)</h6>
-                            <h3 class="mb-0">৳{{ number_format($stats['recovered_revenue_30d'], 0) }}</h3>
+                            <h3 class="stat-value">৳{{ number_format($stats['recovered_revenue_30d'], 0) }}</h3>
                             <small class="text-muted">Revenue won back</small>
                         </div>
                         <div class="text-success opacity-50">
-                            <i class="fas fa-check-circle fa-2x"></i>
+                            <i class="fas fa-check-circle fa-lg"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3 col-sm-6">
-            <div class="card bg-primary bg-opacity-10 border-primary">
+            <div class="card bg-primary bg-opacity-10 border-primary abandoned-stat-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h6 class="text-primary mb-1">Potential Revenue</h6>
-                            <h3 class="mb-0">৳{{ number_format($stats['potential_revenue'], 0) }}</h3>
+                            <h3 class="stat-value">৳{{ number_format($stats['potential_revenue'], 0) }}</h3>
                             <small class="text-muted">Avg ৳{{ number_format($stats['avg_open_value'], 0) }}/cart</small>
                         </div>
                         <div class="text-primary opacity-50">
-                            <i class="fas fa-coins fa-2x"></i>
+                            <i class="fas fa-coins fa-lg"></i>
                         </div>
                     </div>
                 </div>
@@ -84,9 +204,9 @@
     </div>
 
     <!-- Additional Stats -->
-    <div class="row g-3 mb-4">
+    <div class="row g-2 mb-3">
         <div class="col-md-3">
-            <div class="card">
+            <div class="card abandoned-secondary-stat">
                 <div class="card-body text-center">
                     <h6 class="text-muted mb-2">Recovery Rate (30 days)</h6>
                     <h2 class="mb-0 {{ $stats['recovery_rate'] >= 10 ? 'text-success' : 'text-warning' }}">
@@ -96,7 +216,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card">
+            <div class="card abandoned-secondary-stat">
                 <div class="card-body text-center">
                     <h6 class="text-muted mb-2">With Contact Info</h6>
                     <h2 class="mb-0 text-info">{{ number_format($stats['with_contact']) }}</h2>
@@ -105,7 +225,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card">
+            <div class="card abandoned-secondary-stat">
                 <div class="card-body text-center">
                     <h6 class="text-muted mb-2">High Value Open</h6>
                     <h2 class="mb-0 text-danger">{{ number_format($stats['high_value_open']) }}</h2>
@@ -114,7 +234,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card">
+            <div class="card abandoned-secondary-stat">
                 <div class="card-body text-center">
                     <h6 class="text-muted mb-2">Reminder Queue</h6>
                     <h2 class="mb-0 text-primary">{{ number_format($stats['reminder_due']) }}</h2>
@@ -125,12 +245,12 @@
     </div>
 
     <!-- Filters -->
-    <div class="card mb-4">
+    <div class="card mb-3 abandoned-filter-card">
         <div class="card-body">
-            <form method="GET" class="row g-3">
+            <form method="GET" class="row g-2">
                 <div class="col-md-2">
                     <label class="form-label">Status</label>
-                    <select name="status" class="form-select">
+                    <select name="status" class="form-select form-select-sm">
                         <option value="">All Statuses</option>
                         <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
                         <option value="follow_up" {{ request('status') == 'follow_up' ? 'selected' : '' }}>Follow Up</option>
@@ -140,7 +260,7 @@
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Checkout Step</label>
-                    <select name="checkout_step" class="form-select">
+                    <select name="checkout_step" class="form-select form-select-sm">
                         <option value="">All Steps</option>
                         <option value="cart" {{ request('checkout_step') == 'cart' ? 'selected' : '' }}>Cart Page</option>
                         <option value="shipping" {{ request('checkout_step') == 'shipping' ? 'selected' : '' }}>Shipping Info</option>
@@ -149,7 +269,7 @@
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Has Contact</label>
-                    <select name="has_contact" class="form-select">
+                    <select name="has_contact" class="form-select form-select-sm">
                         <option value="">All</option>
                         <option value="yes" {{ request('has_contact') == 'yes' ? 'selected' : '' }}>With Contact</option>
                         <option value="no" {{ request('has_contact') == 'no' ? 'selected' : '' }}>No Contact</option>
@@ -157,15 +277,15 @@
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Min Value</label>
-                    <input type="number" name="min_value" class="form-control" placeholder="৳0" value="{{ request('min_value') }}">
+                    <input type="number" name="min_value" class="form-control form-control-sm" placeholder="৳0" value="{{ request('min_value') }}">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Search</label>
-                    <input type="text" name="search" class="form-control" placeholder="Email, Phone, Name" value="{{ request('search') }}">
+                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Email, Phone, Name" value="{{ request('search') }}">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Priority</label>
-                    <select name="priority" class="form-select">
+                    <select name="priority" class="form-select form-select-sm">
                         <option value="">All</option>
                         <option value="high_value" {{ request('priority') == 'high_value' ? 'selected' : '' }}>High Value</option>
                         <option value="overdue_follow_up" {{ request('priority') == 'overdue_follow_up' ? 'selected' : '' }}>Overdue Follow Up</option>
@@ -175,7 +295,7 @@
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Sort</label>
-                    <select name="sort_by" class="form-select">
+                    <select name="sort_by" class="form-select form-select-sm">
                         <option value="">Latest</option>
                         <option value="oldest" {{ request('sort_by') == 'oldest' ? 'selected' : '' }}>Oldest First</option>
                         <option value="highest_value" {{ request('sort_by') == 'highest_value' ? 'selected' : '' }}>Highest Value</option>
@@ -184,10 +304,10 @@
                     </select>
                 </div>
                 <div class="col-md-2 d-flex align-items-end gap-2">
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary btn-sm">
                         <i class="fas fa-filter"></i> Filter
                     </button>
-                    <a href="{{ route('admin.abandoned-carts.index') }}" class="btn btn-outline-secondary">
+                    <a href="{{ route('admin.abandoned-carts.index') }}" class="btn btn-outline-secondary btn-sm">
                         <i class="fas fa-times"></i>
                     </a>
                 </div>
@@ -200,20 +320,20 @@
         @csrf
         
         <!-- Bulk Actions Bar -->
-        <div class="card mb-3" id="bulkActionsBar" style="display: none;">
-            <div class="card-body py-2">
+        <div class="card mb-3 abandoned-bulk-actions" id="bulkActionsBar" style="display: none;">
+            <div class="card-body">
                 <div class="d-flex align-items-center gap-3">
-                    <span class="text-muted"><span id="selectedCount">0</span> selected</span>
-                    <button type="submit" name="action" value="follow_up" class="btn btn-sm btn-info">
+                    <span class="text-muted small fw-semibold"><span id="selectedCount">0</span> selected</span>
+                    <button type="submit" name="action" value="follow_up" class="btn btn-sm btn-outline-info">
                         <i class="fas fa-phone me-1"></i> Mark Follow Up
                     </button>
-                    <button type="submit" name="action" value="recovered" class="btn btn-sm btn-success">
-                        <i class="fas fa-check me-1"></i> Mark Recovered
+                    <button type="submit" name="action" value="recovered" class="btn btn-sm btn-outline-success">
+                        <i class="fas fa-check-circle me-1"></i> Recover + Create Order
                     </button>
-                    <button type="submit" name="action" value="cancelled" class="btn btn-sm btn-secondary">
+                    <button type="submit" name="action" value="cancelled" class="btn btn-sm btn-outline-secondary">
                         <i class="fas fa-ban me-1"></i> Cancel
                     </button>
-                    <button type="submit" name="action" value="delete" class="btn btn-sm btn-danger" onclick="return confirm('Delete selected abandoned carts?')">
+                    <button type="submit" name="action" value="delete" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete selected abandoned carts?')">
                         <i class="fas fa-trash me-1"></i> Delete
                     </button>
                 </div>
@@ -223,7 +343,7 @@
         <!-- Abandoned Carts Table -->
         <div class="card">
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
+                <table class="table table-hover mb-0 abandoned-carts-table">
                     <thead class="table-light">
                         <tr>
                             <th width="40">
@@ -236,7 +356,7 @@
                             <th>Status</th>
                             <th>Time</th>
                             <th>Priority</th>
-                            <th width="100">Actions</th>
+                            <th width="260">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -265,7 +385,7 @@
                                     @endif
                                 </div>
                                 @if($cart->user)
-                                    <small class="badge bg-light text-dark">
+                                    <small class="badge bg-light text-dark contact-user-badge mt-1">
                                         <i class="fas fa-user me-1"></i>{{ $cart->user->name }}
                                     </small>
                                 @endif
@@ -323,15 +443,28 @@
                                 @endif
                             </td>
                             <td>
-                                <div class="btn-group btn-group-sm">
-                                    <a href="{{ route('admin.abandoned-carts.show', $cart) }}" class="btn btn-outline-primary" title="View Details">
+                                <div class="abandoned-action-stack">
+                                    <a href="{{ route('admin.abandoned-carts.show', $cart) }}" class="btn btn-outline-primary btn-sm abandoned-action-btn" title="View Details">
                                         <i class="fas fa-eye"></i>
+                                        <span>View</span>
                                     </a>
+
+                                    @if(in_array($cart->status, ['pending', 'follow_up'], true))
+                                    <form action="{{ route('admin.abandoned-carts.mark-recovered', $cart) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="btn btn-outline-success btn-sm abandoned-action-btn" title="Recover and create order">
+                                            <i class="fas fa-check-circle"></i>
+                                            <span>Recover</span>
+                                        </button>
+                                    </form>
+                                    @endif
+
                                     @if($cart->status === 'pending')
                                     <form action="{{ route('admin.abandoned-carts.mark-follow-up', $cart) }}" method="POST" class="d-inline">
                                         @csrf
-                                        <button type="submit" class="btn btn-outline-info" title="Mark Follow Up">
+                                        <button type="submit" class="btn btn-outline-info btn-sm abandoned-action-btn" title="Mark Follow Up">
                                             <i class="fas fa-phone"></i>
+                                            <span>Follow Up</span>
                                         </button>
                                     </form>
                                     @endif

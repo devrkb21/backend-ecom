@@ -24,6 +24,7 @@ class Coupon extends Model
         'expires_at',
         'is_active',
         'free_shipping',
+        'allow_guest_checkout',
         'applicable_categories',
         'applicable_products',
         'excluded_products',
@@ -35,6 +36,7 @@ class Coupon extends Model
         'maximum_discount' => 'decimal:2',
         'is_active' => 'boolean',
         'free_shipping' => 'boolean',
+        'allow_guest_checkout' => 'boolean',
         'starts_at' => 'datetime',
         'expires_at' => 'datetime',
         'applicable_categories' => 'array',
@@ -98,7 +100,7 @@ class Coupon extends Model
         }
 
         if (!$user) {
-            return true; // Guest checkout might be allowed
+            return $this->allow_guest_checkout;
         }
 
         // Check per-user usage limit
@@ -118,6 +120,11 @@ class Coupon extends Model
     public function validateForCart(Cart $cart): array
     {
         $errors = [];
+
+        if (!$cart->user_id && !$this->allow_guest_checkout) {
+            $errors[] = 'Please login to use this coupon.';
+            return $errors;
+        }
 
         if (!$this->is_active) {
             $errors[] = 'This coupon is no longer active.';
@@ -292,7 +299,7 @@ class Coupon extends Model
         if ($this->type === 'percentage') {
             return $this->value . '%';
         }
-        return '৳' . number_format($this->value, 2);
+        return '৳' . number_format((float) $this->value, 2);
     }
 
     /**

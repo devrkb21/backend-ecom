@@ -3,6 +3,10 @@
 @section('title', 'Configure ' . $gateway->name)
 @section('page-title', 'Configure ' . $gateway->name)
 
+@php
+    $gatewayChargeType = old('settings.extra_charge_type', $gateway->getSetting('extra_charge_type', 'fixed'));
+@endphp
+
 @section('content')
 <div class="row g-3">
     <div class="col-md-8">
@@ -90,41 +94,46 @@
                 </div>
             </div>
 
-            <!-- Gateway Specific Settings -->
-            @if($gateway->code === 'cod')
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h6 class="mb-0 fw-semibold"><i class="bi bi-cash-coin me-2"></i>COD Settings</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="extra_charge" class="form-label small text-muted">Extra Charge</label>
-                                    <input type="number" class="form-control" id="extra_charge" 
-                                           name="settings[extra_charge]" 
-                                           value="{{ old('settings.extra_charge', $gateway->getSetting('extra_charge', 0)) }}" 
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0 fw-semibold"><i class="bi bi-calculator me-2"></i>Gateway Charge Settings</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="gateway_extra_charge" class="form-label small text-muted">Gateway Charge Amount</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="gateway_extra_charge"
+                                           name="settings[extra_charge]"
+                                           value="{{ old('settings.extra_charge', $gateway->getSetting('extra_charge', 0)) }}"
                                            min="0" step="0.01">
-                                    <div class="form-text">Additional charge for COD orders</div>
+                                    <span class="input-group-text" id="gateway_extra_charge_affix">
+                                        {{ $gatewayChargeType === 'percentage' ? '%' : $currencySymbol }}
+                                    </span>
                                 </div>
+                                <div class="form-text">This charge is added in checkout totals using backend calculation.</div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="extra_charge_type" class="form-label small text-muted">Charge Type</label>
-                                    <select class="form-select" id="extra_charge_type" name="settings[extra_charge_type]">
-                                        <option value="fixed" {{ $gateway->getSetting('extra_charge_type') === 'fixed' ? 'selected' : '' }}>
-                                            Fixed Amount
-                                        </option>
-                                        <option value="percentage" {{ $gateway->getSetting('extra_charge_type') === 'percentage' ? 'selected' : '' }}>
-                                            Percentage of Total
-                                        </option>
-                                    </select>
-                                </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="gateway_extra_charge_type" class="form-label small text-muted">Charge Type</label>
+                                <select class="form-select" id="gateway_extra_charge_type" name="settings[extra_charge_type]">
+                                    <option value="fixed" {{ $gatewayChargeType === 'fixed' ? 'selected' : '' }}>
+                                        Fixed Amount
+                                    </option>
+                                    <option value="percentage" {{ $gatewayChargeType === 'percentage' ? 'selected' : '' }}>
+                                        Percentage of Order
+                                    </option>
+                                </select>
                             </div>
                         </div>
                     </div>
                 </div>
-            @elseif($gateway->code === 'stripe')
+            </div>
+
+            <!-- Gateway Specific Settings -->
+            @if($gateway->code === 'stripe')
                 <div class="card mb-4">
                     <div class="card-header">
                         <h6 class="mb-0 fw-semibold"><i class="bi bi-credit-card me-2"></i>Stripe API Settings</h6>
@@ -311,3 +320,24 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const chargeTypeSelect = document.getElementById('gateway_extra_charge_type');
+        const chargeAffix = document.getElementById('gateway_extra_charge_affix');
+        const currencySymbol = @json($currencySymbol);
+
+        if (!chargeTypeSelect || !chargeAffix) {
+            return;
+        }
+
+        const syncChargeAffix = () => {
+            chargeAffix.textContent = chargeTypeSelect.value === 'percentage' ? '%' : currencySymbol;
+        };
+
+        chargeTypeSelect.addEventListener('change', syncChargeAffix);
+        syncChargeAffix();
+    });
+</script>
+@endpush

@@ -4,12 +4,17 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AbandonedCart;
+use App\Services\OrderService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
 class AbandonedCartController extends Controller
 {
+    public function __construct(
+        protected OrderService $orderService
+    ) {}
+
     /**
      * Display listing of abandoned carts
      */
@@ -131,15 +136,23 @@ class AbandonedCartController extends Controller
      */
     public function markRecovered(Request $request, AbandonedCart $abandonedCart): RedirectResponse
     {
-        $validated = $request->validate([
-            'order_id' => 'nullable|exists:orders,id',
-        ]);
+        if (!in_array($abandonedCart->status, ['pending', 'follow_up'], true)) {
+            return redirect()
+                ->back()
+                ->with('error', 'Only incomplete checkouts can be marked as recovered.');
+        }
 
-        $abandonedCart->markAsRecovered($validated['order_id'] ?? null);
+        try {
+            $order = $this->orderService->createRecoveredOrderFromAbandonedCart($abandonedCart);
+        } catch (\Throwable $exception) {
+            return redirect()
+                ->back()
+                ->with('error', 'Recovery failed: ' . $exception->getMessage());
+        }
 
         return redirect()
             ->back()
-            ->with('success', 'Marked as recovered successfully.');
+            ->with('success', "Recovered successfully. New order created: {$order->order_number}");
     }
 
     /**
@@ -188,34 +201,49 @@ class AbandonedCartController extends Controller
         ]);
 
         $carts = AbandonedCart::query()->whereIn('id', $validated['ids'])->get();
+        $processedCount = 0;
+        $failedCount = 0;
 
-        $carts->each(function (AbandonedCart $cart) use ($validated): void {
-            switch ($validated['action']) {
-                case 'follow_up':
-                    $cart->markAsFollowUp(auth()->id());
-                    break;
-                case 'recovered':
-                    $cart->markAsRecovered();
-                    break;
-                case 'cancelled':
-                    $cart->markAsCancelled();
-                    break;
-                case 'delete':
-                    $cart->delete();
-                    break;
+        foreach ($carts as $cart) {
+            /** @var AbandonedCart $cart */
+            try {
+                switch ($validated['action']) {
+                    case 'follow_up':
+                        $cart->markAsFollowUp(auth()->id());
+                        break;
+                    case 'recovered':
+                        $this->orderService->createRecoveredOrderFromAbandonedCart($cart);
+                        break;
+                    case 'cancelled':
+                        $cart->markAsCancelled();
+                        break;
+                    case 'delete':
+                        $cart->delete();
+                        break;
+                }
+
+                $processedCount++;
+            } catch (\Throwable $exception) {
+                $failedCount++;
             }
-        });
+        }
 
         $actionLabel = match ($validated['action']) {
             'follow_up' => 'marked as follow up',
-            'recovered' => 'marked as recovered',
+            'recovered' => 'recovered with new orders',
             'cancelled' => 'cancelled',
             'delete' => 'deleted',
         };
 
-        return redirect()
+        $response = redirect()
             ->back()
-            ->with('success', count($validated['ids']) . " abandoned carts {$actionLabel}.");
+            ->with('success', "{$processedCount} abandoned carts {$actionLabel}.");
+
+        if ($failedCount > 0) {
+            $response = $response->with('error', "{$failedCount} abandoned carts failed to process.");
+        }
+
+        return $response;
     }
 
     /**

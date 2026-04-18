@@ -20,6 +20,12 @@ class AbandonedCart extends Model
         'phone',
         'name',
         'shipping_address',
+        'shipping_location_text',
+        'shipping_area',
+        'shipping_division',
+        'shipping_district',
+        'shipping_upazila',
+        'shipping_union',
         'shipping_city',
         'shipping_state',
         'shipping_zip',
@@ -31,6 +37,7 @@ class AbandonedCart extends Model
         'discount_amount',
         'payment_method',
         'shipping_method',
+        'checkout_fields_payload',
         'recovered_order_id',
         'recovered_at',
         'admin_notes',
@@ -49,6 +56,7 @@ class AbandonedCart extends Model
     {
         return [
             'cart_items' => 'array',
+            'checkout_fields_payload' => 'array',
             'subtotal' => 'decimal:2',
             'total' => 'decimal:2',
             'discount_amount' => 'decimal:2',
@@ -214,6 +222,12 @@ class AbandonedCart extends Model
     {
         $parts = array_filter([
             $this->shipping_address,
+            $this->shipping_area,
+            $this->shipping_location_text,
+            $this->shipping_union,
+            $this->shipping_upazila,
+            $this->shipping_district,
+            $this->shipping_division,
             $this->shipping_city,
             $this->shipping_state,
             $this->shipping_zip,
@@ -341,21 +355,28 @@ class AbandonedCart extends Model
      */
     public static function trackCheckout(array $data, ?int $userId = null, ?string $sessionId = null): self
     {
-        // Find existing abandoned cart or create new
-        $abandonedCart = self::where(function ($query) use ($userId, $sessionId) {
-            if ($userId) {
-                $query->where('user_id', $userId);
-            } elseif ($sessionId) {
-                $query->where('session_id', $sessionId);
-            }
-        })
-        ->whereIn('status', ['pending', 'follow_up'])
-        ->where('created_at', '>=', now()->subDays(7)) // Only match recent ones
-        ->first();
+        // Find existing abandoned cart or create new.
+        $lookup = self::query();
+
+        if ($userId) {
+            $lookup->where('user_id', $userId);
+        } elseif ($sessionId) {
+            $lookup->where('session_id', $sessionId);
+        } else {
+            // Prevent accidental cross-user updates when no identifier is available.
+            $lookup->whereRaw('1 = 0');
+        }
+
+        $abandonedCart = $lookup
+            ->whereIn('status', ['pending', 'follow_up'])
+            ->where('created_at', '>=', now()->subDays(7))
+            ->first();
 
         if (!$abandonedCart) {
             $abandonedCart = new self();
         }
+
+        $wasFollowUp = $abandonedCart->exists && $abandonedCart->status === 'follow_up';
 
         $abandonedCart->fill([
             'status' => 'pending',
@@ -366,6 +387,12 @@ class AbandonedCart extends Model
             'phone' => $data['phone'] ?? $abandonedCart->phone,
             'name' => $data['name'] ?? $abandonedCart->name,
             'shipping_address' => $data['shipping_address'] ?? $abandonedCart->shipping_address,
+            'shipping_location_text' => $data['shipping_location_text'] ?? $abandonedCart->shipping_location_text,
+            'shipping_area' => $data['shipping_area'] ?? $abandonedCart->shipping_area,
+            'shipping_division' => $data['shipping_division'] ?? $abandonedCart->shipping_division,
+            'shipping_district' => $data['shipping_district'] ?? $abandonedCart->shipping_district,
+            'shipping_upazila' => $data['shipping_upazila'] ?? $abandonedCart->shipping_upazila,
+            'shipping_union' => $data['shipping_union'] ?? $abandonedCart->shipping_union,
             'shipping_city' => $data['shipping_city'] ?? $abandonedCart->shipping_city,
             'shipping_state' => $data['shipping_state'] ?? $abandonedCart->shipping_state,
             'shipping_zip' => $data['shipping_zip'] ?? $abandonedCart->shipping_zip,
@@ -377,6 +404,7 @@ class AbandonedCart extends Model
             'discount_amount' => $data['discount_amount'] ?? $abandonedCart->discount_amount,
             'payment_method' => $data['payment_method'] ?? $abandonedCart->payment_method,
             'shipping_method' => $data['shipping_method'] ?? $abandonedCart->shipping_method,
+            'checkout_fields_payload' => $data['checkout_fields_payload'] ?? $abandonedCart->checkout_fields_payload,
             'cart_id' => $data['cart_id'] ?? $abandonedCart->cart_id,
             'user_agent' => $data['user_agent'] ?? $abandonedCart->user_agent,
             'ip_address' => $data['ip_address'] ?? $abandonedCart->ip_address,
@@ -384,7 +412,7 @@ class AbandonedCart extends Model
         ]);
 
         // If user resumed checkout after follow-up, reset follow-up owner/time.
-        if ($abandonedCart->exists && $abandonedCart->status === 'follow_up') {
+        if ($wasFollowUp) {
             $abandonedCart->followed_up_by = null;
             $abandonedCart->followed_up_at = null;
         }

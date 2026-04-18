@@ -9,6 +9,7 @@ use App\Http\Resources\OrderResource;
 use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class OrderController extends Controller
 {
@@ -61,19 +62,47 @@ class OrderController extends Controller
         ]);
     }
 
+    public function paymentSummary(Request $request, int $id): JsonResponse
+    {
+        try {
+            $order = $this->orderService->getOrderById($id);
+            $requestUser = $request->user('sanctum') ?? $request->user();
+
+            if ($requestUser) {
+                if (!$requestUser->isAdmin() && $order->user_id !== $requestUser->id) {
+                    return $this->errorResponse('Unauthorized', 403);
+                }
+            } else {
+                $guestToken = trim((string) $request->query('guest_token', ''));
+                if (!$order->hasValidGuestAccessToken($guestToken)) {
+                    return $this->errorResponse('Unauthorized', 403);
+                }
+            }
+
+            $order->loadMissing(['items.product', 'payment']);
+
+            return $this->successResponse(new OrderResource($order));
+        } catch (ModelNotFoundException) {
+            return $this->errorResponse('Order not found', 404);
+        }
+    }
+
     public function store(StoreOrderRequest $request): JsonResponse
     {
         try {
             $user = $request->user('sanctum') ?? auth()->user();
+            $checkoutSessionId = trim((string) $request->header('X-Session-ID', ''));
 
             $order = $this->orderService->createOrderFromCart(
                 $user?->id,
-                $request->validated()
+                $request->validated(),
+                $checkoutSessionId !== '' ? $checkoutSessionId : null
             );
 
             return $this->createdResponse([
                 'id' => $order->id,
                 'order_number' => $order->order_number,
+                'guest_access_token' => $user ? null : $order->getAttribute('guest_access_token'),
                 'status' => $order->status,
                 'payment_status' => $order->payment_status,
                 'payment_method' => $order->payment_method,

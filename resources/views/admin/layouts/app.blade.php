@@ -337,8 +337,13 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.payments.*') ? 'active' : '' }}" href="{{ route('admin.payments.index') }}">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.payments.index') || request()->routeIs('admin.payments.show') ? 'active' : '' }}" href="{{ route('admin.payments.index') }}">
                             <i class="bi bi-credit-card"></i> Payments
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.payments.saved-methods') ? 'active' : '' }}" href="{{ route('admin.payments.saved-methods') }}">
+                            <i class="bi bi-wallet2"></i> Saved Payment methods
                         </a>
                     </li>
                     <li class="nav-item">

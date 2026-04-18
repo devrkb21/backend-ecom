@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\PaymentGateway;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 
 class PaymentGatewayController extends Controller
@@ -39,7 +40,9 @@ class PaymentGatewayController extends Controller
      */
     public function edit(PaymentGateway $gateway)
     {
-        return view('admin.settings.payment-gateway-edit', compact('gateway'));
+        $currencySymbol = (string) Setting::getValue('general', 'currency_symbol', config('shop.currency_symbol', '৳'));
+
+        return view('admin.settings.payment-gateway-edit', compact('gateway', 'currencySymbol'));
     }
 
     /**
@@ -54,15 +57,17 @@ class PaymentGatewayController extends Controller
             'sort_order' => 'required|integer|min:0',
             'min_amount' => 'nullable|numeric|min:0',
             'max_amount' => 'nullable|numeric|min:0',
+            'settings.extra_charge' => 'nullable|numeric|min:0',
+            'settings.extra_charge_type' => 'nullable|in:fixed,percentage',
         ]);
 
         // Handle gateway-specific settings
         $settings = $gateway->settings ?? [];
+        $settings['extra_charge'] = (float) $request->input('settings.extra_charge', 0);
+        $settings['extra_charge_type'] = $request->input('settings.extra_charge_type', 'fixed');
         
         switch ($gateway->code) {
             case 'cod':
-                $settings['extra_charge'] = $request->input('settings.extra_charge', 0);
-                $settings['extra_charge_type'] = $request->input('settings.extra_charge_type', 'fixed');
                 break;
                 
             case 'stripe':

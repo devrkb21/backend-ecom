@@ -121,8 +121,8 @@ class FrontendSettingController extends Controller
         if (config('app.debug')) {
             logger()->debug('Checkout settings served via API.', [
                 'checkout_form_enabled' => $config['checkout_form_enabled'] ?? null,
-                'location_mode' => $config['location']['mode'] ?? null,
-                'fields' => $config['fields'] ?? [],
+                'field_sections' => $config['field_sections'] ?? [],
+                'fields_count' => is_array($config['fields'] ?? null) ? count($config['fields']) : 0,
             ]);
         }
 
