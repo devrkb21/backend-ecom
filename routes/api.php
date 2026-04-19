@@ -44,8 +44,8 @@ Route::get('/health', function () {
 
 // Public routes
 Route::prefix('v1')->group(function () {
-    // Authentication (rate limited: 5 attempts/min)
-    Route::prefix('auth')->middleware('throttle:auth')->group(function () {
+    // Authentication
+    Route::prefix('auth')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
         Route::post('/login', [AuthController::class, 'login']);
         Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
@@ -61,13 +61,13 @@ Route::prefix('v1')->group(function () {
     // Stripe config and webhook
     Route::get('/stripe/config', [StripeController::class, 'config']);
     Route::post('/stripe/webhook', [StripeController::class, 'webhook'])->withoutMiddleware('auth:sanctum');
-    Route::post('/stripe/create-payment-intent', [StripeController::class, 'createPaymentIntent'])->middleware('throttle:20,1');
-    Route::post('/stripe/confirm-payment', [StripeController::class, 'confirmPayment'])->middleware('throttle:30,1');
+    Route::post('/stripe/create-payment-intent', [StripeController::class, 'createPaymentIntent']);
+    Route::post('/stripe/confirm-payment', [StripeController::class, 'confirmPayment']);
 
     // bKash config and callback
     Route::get('/bkash/config', [BkashController::class, 'config']);
     Route::get('/bkash/callback', [BkashController::class, 'callback'])->withoutMiddleware('auth:sanctum');
-    Route::post('/bkash/create-payment', [BkashController::class, 'createPayment'])->middleware('throttle:20,1');
+    Route::post('/bkash/create-payment', [BkashController::class, 'createPayment']);
 
     // Public order tracking
     Route::prefix('track')->group(function () {
@@ -158,12 +158,11 @@ Route::prefix('v1')->group(function () {
     });
 
     // Checkout order placement (supports guests and authenticated users)
-    Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:10,1');
-    Route::post('/cart/coupon', [ApiCouponController::class, 'apply'])->middleware('throttle:20,1');
-    Route::post('/checkout/track', [AbandonedCartController::class, 'track'])->middleware('throttle:40,1');
+    Route::post('/orders', [OrderController::class, 'store']);
+    Route::post('/cart/coupon', [ApiCouponController::class, 'apply']);
+    Route::post('/checkout/track', [AbandonedCartController::class, 'track']);
     Route::get('/orders/{id}/payment-summary', [OrderController::class, 'paymentSummary'])->where('id', '[0-9]+');
     Route::get('/orders/number/{orderNumber}', [OrderController::class, 'showByNumber'])
-        ->middleware('throttle:30,1')
         ->where('orderNumber', '[A-Za-z0-9._-]+');
 
     // Protected routes
