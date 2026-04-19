@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\PaymentGateway;
+use App\Models\User;
 use App\Services\Payment\BkashPaymentService;
 use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
@@ -47,13 +48,14 @@ class BkashController extends Controller
     {
         $request->validate([
             'order_id' => ['required', 'integer', 'exists:orders,id'],
+            'guest_token' => ['nullable', 'string', 'max:255'],
         ]);
 
         try {
             $order = $this->orderService->getOrderById($request->order_id);
+            $requestUser = $this->resolveApiUser($request);
 
-            // Verify user owns the order
-            if ($order->user_id !== $request->user()->id) {
+            if (!$this->canAccessOrder($order, $requestUser, $request->input('guest_token'))) {
                 return $this->errorResponse('Unauthorized.', 403);
             }
 
@@ -182,6 +184,20 @@ class BkashController extends Controller
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
+    }
+
+    protected function resolveApiUser(Request $request): ?User
+    {
+        return $request->user('sanctum') ?? $request->user();
+    }
+
+    protected function canAccessOrder(Order $order, ?User $requestUser, ?string $guestToken): bool
+    {
+        if ($requestUser) {
+            return $requestUser->isAdmin() || (int) $order->user_id === (int) $requestUser->id;
+        }
+
+        return $order->hasValidGuestAccessToken($guestToken);
     }
 
     /**

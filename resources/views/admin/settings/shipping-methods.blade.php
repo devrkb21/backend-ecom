@@ -34,6 +34,7 @@
                             <td>
                                 <div class="fw-semibold">{{ $method->name }}</div>
                                 <small class="text-muted">{{ $method->code }}</small>
+                                <br><small class="text-muted">{{ $method->location_rules_count }} location rule(s)</small>
                             </td>
                             <td>
                                 @if($method->base_cost > 0)
@@ -113,7 +114,7 @@
                     <li><strong>Per Item Cost</strong> - Additional cost per item in cart</li>
                     <li><strong>Per KG Cost</strong> - Additional cost based on weight</li>
                     <li><strong>Free Shipping Threshold</strong> - Orders above this amount ship free</li>
-                    <li><strong>Country Restrictions</strong> - Limit availability by country</li>
+                    <li><strong>Location Eligibility</strong> - Restrict each method to selected divisions/districts/upazilas</li>
                 </ul>
             </div>
         </div>
@@ -128,7 +129,7 @@
                     <li>Drag and drop to reorder shipping methods</li>
                     <li>The order affects how options are displayed to customers</li>
                     <li>Inactive methods won't be shown during checkout</li>
-                    <li>Use country restrictions for region-specific shipping</li>
+                    <li>Leave location rules empty to allow method across all Bangladesh</li>
                     <li>Consider offering a free shipping threshold to increase average order value</li>
                 </ul>
             </div>

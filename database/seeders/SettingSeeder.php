@@ -25,9 +25,17 @@ class SettingSeeder extends Seeder
             ['group' => 'general', 'key' => 'site_favicon', 'type' => 'image', 'label' => 'Favicon', 'value' => '', 'sort_order' => 3],
             ['group' => 'general', 'key' => 'contact_email', 'type' => 'text', 'label' => 'Contact Email', 'value' => 'hello@innercollection.com', 'sort_order' => 4],
             ['group' => 'general', 'key' => 'contact_phone', 'type' => 'text', 'label' => 'Contact Phone', 'value' => '+880 1XXX-XXXXXX', 'sort_order' => 5],
-            ['group' => 'general', 'key' => 'address', 'type' => 'textarea', 'label' => 'Address', 'value' => 'Dhaka, Bangladesh', 'sort_order' => 6],
-            ['group' => 'general', 'key' => 'currency', 'type' => 'text', 'label' => 'Currency Code', 'value' => 'BDT', 'sort_order' => 7],
-            ['group' => 'general', 'key' => 'currency_symbol', 'type' => 'text', 'label' => 'Currency Symbol', 'value' => '৳', 'sort_order' => 8],
+            ['group' => 'general', 'key' => 'call_for_order_phone', 'type' => 'text', 'label' => 'Call For Order Phone', 'value' => '+880 1XXX-XXXXXX', 'sort_order' => 6],
+            ['group' => 'general', 'key' => 'whatsapp_order_phone', 'type' => 'text', 'label' => 'WhatsApp Order Number', 'value' => '+880 1XXX-XXXXXX', 'sort_order' => 7],
+            ['group' => 'general', 'key' => 'whatsapp_order_message', 'type' => 'textarea', 'label' => 'WhatsApp Order Message', 'value' => 'Assalamu Alaikum, I want to order: {product_name}. Product URL: {product_url}. Quantity: {quantity}.', 'sort_order' => 8],
+            ['group' => 'general', 'key' => 'open_side_cart_on_add', 'type' => 'boolean', 'label' => 'Open Side Cart After Add To Cart', 'value' => '1', 'sort_order' => 9],
+            ['group' => 'general', 'key' => 'address', 'type' => 'textarea', 'label' => 'Address', 'value' => 'Dhaka, Bangladesh', 'sort_order' => 10],
+            ['group' => 'general', 'key' => 'currency', 'type' => 'text', 'label' => 'Currency Code', 'value' => 'BDT', 'sort_order' => 11],
+            ['group' => 'general', 'key' => 'currency_symbol', 'type' => 'text', 'label' => 'Currency Symbol', 'value' => '৳', 'sort_order' => 12],
+            ['group' => 'general', 'key' => 'product_grid_columns', 'type' => 'number', 'label' => 'Product Grid Columns', 'value' => '5', 'sort_order' => 13],
+            ['group' => 'general', 'key' => 'order_number_prefix', 'type' => 'text', 'label' => 'Order Number Prefix', 'value' => 'ORD', 'sort_order' => 14],
+            ['group' => 'general', 'key' => 'order_number_generation_mode', 'type' => 'text', 'label' => 'Order Number Generation Mode', 'value' => 'timestamp_random', 'sort_order' => 15],
+            ['group' => 'general', 'key' => 'stock_enabled', 'type' => 'boolean', 'label' => 'Enable Stock Tracking', 'value' => '1', 'sort_order' => 16],
 
             // Social Media
             ['group' => 'social', 'key' => 'facebook', 'type' => 'text', 'label' => 'Facebook URL', 'value' => '', 'sort_order' => 1],
@@ -56,6 +64,24 @@ class SettingSeeder extends Seeder
             ['group' => 'banner', 'key' => 'promo_link', 'type' => 'text', 'label' => 'Promo Link', 'value' => '/products', 'sort_order' => 3],
             ['group' => 'banner', 'key' => 'promo_bg_color', 'type' => 'text', 'label' => 'Promo Background Color', 'value' => '#1a1a2e', 'sort_order' => 4],
             ['group' => 'banner', 'key' => 'promo_text_color', 'type' => 'text', 'label' => 'Promo Text Color', 'value' => '#ffffff', 'sort_order' => 5],
+
+            // Checkout Form Settings
+            ['group' => 'checkout', 'key' => 'checkout_form_enabled', 'type' => 'boolean', 'label' => 'Enable Checkout Form', 'value' => '1', 'sort_order' => 1],
+            ['group' => 'checkout', 'key' => 'enable_guest_checkout', 'type' => 'boolean', 'label' => 'Enable Guest Checkout', 'value' => '1', 'sort_order' => 2],
+            ['group' => 'checkout', 'key' => 'enable_dropdown_location', 'type' => 'boolean', 'label' => 'Enable Division/District/Upazila Fields', 'value' => '1', 'sort_order' => 3],
+            ['group' => 'checkout', 'key' => 'enable_text_location', 'type' => 'boolean', 'label' => 'Enable Text Location Input', 'value' => '1', 'sort_order' => 4],
+            ['group' => 'checkout', 'key' => 'require_dropdown_location', 'type' => 'boolean', 'label' => 'Require Dropdown Location', 'value' => '0', 'sort_order' => 5],
+            ['group' => 'checkout', 'key' => 'require_text_location', 'type' => 'boolean', 'label' => 'Require Text Location Input', 'value' => '0', 'sort_order' => 6],
+            ['group' => 'checkout', 'key' => 'show_shipping_email', 'type' => 'boolean', 'label' => 'Show Shipping Email Field', 'value' => '1', 'sort_order' => 7],
+            ['group' => 'checkout', 'key' => 'require_shipping_email', 'type' => 'boolean', 'label' => 'Require Shipping Email', 'value' => '1', 'sort_order' => 8],
+            ['group' => 'checkout', 'key' => 'show_shipping_phone', 'type' => 'boolean', 'label' => 'Show Shipping Phone Field', 'value' => '1', 'sort_order' => 9],
+            ['group' => 'checkout', 'key' => 'require_shipping_phone', 'type' => 'boolean', 'label' => 'Require Shipping Phone', 'value' => '0', 'sort_order' => 10],
+            ['group' => 'checkout', 'key' => 'show_shipping_zip', 'type' => 'boolean', 'label' => 'Show ZIP/Postal Field', 'value' => '1', 'sort_order' => 11],
+            ['group' => 'checkout', 'key' => 'require_shipping_zip', 'type' => 'boolean', 'label' => 'Require ZIP/Postal Field', 'value' => '1', 'sort_order' => 12],
+            ['group' => 'checkout', 'key' => 'show_shipping_area', 'type' => 'boolean', 'label' => 'Show Area Field', 'value' => '1', 'sort_order' => 13],
+            ['group' => 'checkout', 'key' => 'require_shipping_area', 'type' => 'boolean', 'label' => 'Require Area Field', 'value' => '0', 'sort_order' => 14],
+            ['group' => 'checkout', 'key' => 'show_order_notes', 'type' => 'boolean', 'label' => 'Show Order Notes Field', 'value' => '1', 'sort_order' => 15],
+            ['group' => 'checkout', 'key' => 'require_order_notes', 'type' => 'boolean', 'label' => 'Require Order Notes Field', 'value' => '0', 'sort_order' => 16],
         ];
 
         foreach ($settings as $setting) {

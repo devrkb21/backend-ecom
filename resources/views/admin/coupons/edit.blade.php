@@ -243,6 +243,15 @@
                         </div>
                         <div class="form-text">Waive shipping costs when this coupon is applied</div>
                     </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input type="checkbox" class="form-check-input" id="allow_guest_checkout" name="allow_guest_checkout" value="1" {{ old('allow_guest_checkout', $coupon->allow_guest_checkout) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="allow_guest_checkout">
+                                <i class="bi bi-person me-1"></i> Allow Guest Checkout
+                            </label>
+                        </div>
+                        <div class="form-text">Enable to let guests apply this coupon without login.</div>
+                    </div>
                 </div>
             </div>
 

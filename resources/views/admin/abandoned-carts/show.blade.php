@@ -28,7 +28,7 @@
             <form action="{{ route('admin.abandoned-carts.mark-recovered', $abandonedCart) }}" method="POST" class="d-inline">
                 @csrf
                 <button type="submit" class="btn btn-success">
-                    <i class="fas fa-check me-1"></i> Mark Recovered
+                    <i class="fas fa-check-circle me-1"></i> Mark Recovered + Create Order
                 </button>
             </form>
             <form action="{{ route('admin.abandoned-carts.mark-cancelled', $abandonedCart) }}" method="POST" class="d-inline">
@@ -128,7 +128,21 @@
             </div>
 
             <!-- Shipping Address -->
-            @if($abandonedCart->shipping_address || $abandonedCart->shipping_city)
+            @php
+                $hasShippingDetails =
+                    !empty($abandonedCart->shipping_address)
+                    || !empty($abandonedCart->shipping_location_text)
+                    || !empty($abandonedCart->shipping_area)
+                    || !empty($abandonedCart->shipping_division)
+                    || !empty($abandonedCart->shipping_district)
+                    || !empty($abandonedCart->shipping_upazila)
+                    || !empty($abandonedCart->shipping_union)
+                    || !empty($abandonedCart->shipping_city)
+                    || !empty($abandonedCart->shipping_state)
+                    || !empty($abandonedCart->shipping_zip)
+                    || !empty($abandonedCart->shipping_country);
+            @endphp
+            @if($hasShippingDetails)
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
@@ -136,14 +150,118 @@
                     </h5>
                 </div>
                 <div class="card-body">
+                    @php
+                        $locationText = trim((string) $abandonedCart->shipping_location_text);
+                        $shippingAddressLine = trim((string) $abandonedCart->shipping_address);
+                        $showLocationText = $locationText !== '' && strcasecmp($locationText, $shippingAddressLine) !== 0;
+                        $dropdownParts = array_filter([
+                            $abandonedCart->shipping_union,
+                            $abandonedCart->shipping_upazila,
+                            $abandonedCart->shipping_district,
+                            $abandonedCart->shipping_division,
+                        ]);
+                    @endphp
+
+                    <div class="small text-muted mb-3">Captured directly from checkout form input.</div>
+
                     <address class="mb-0">
-                        @if($abandonedCart->shipping_address){{ $abandonedCart->shipping_address }}<br>@endif
-                        @if($abandonedCart->shipping_city){{ $abandonedCart->shipping_city }}@endif
-                        @if($abandonedCart->shipping_state), {{ $abandonedCart->shipping_state }}@endif
-                        @if($abandonedCart->shipping_zip) {{ $abandonedCart->shipping_zip }}@endif
-                        <br>
-                        @if($abandonedCart->shipping_country){{ $abandonedCart->shipping_country }}@endif
+                        @if($shippingAddressLine !== '')
+                            <div class="mb-1"><strong>Address:</strong> {{ $shippingAddressLine }}</div>
+                        @endif
+
+                        @if(!empty($abandonedCart->shipping_area))
+                            <div class="mb-1"><strong>Area:</strong> {{ $abandonedCart->shipping_area }}</div>
+                        @endif
+
+                        @if($showLocationText)
+                            <div class="mb-1"><strong>Location Text:</strong> {{ $locationText }}</div>
+                        @endif
+
+                        @if(!empty($dropdownParts))
+                            <div class="mb-1"><strong>Dropdown Location:</strong> {{ implode(', ', $dropdownParts) }}</div>
+                        @endif
+
+                        @if($abandonedCart->shipping_city || $abandonedCart->shipping_state || $abandonedCart->shipping_zip)
+                            <div class="mb-1">
+                                <strong>City/State:</strong>
+                                @if($abandonedCart->shipping_city){{ $abandonedCart->shipping_city }}@endif
+                                @if($abandonedCart->shipping_state), {{ $abandonedCart->shipping_state }}@endif
+                                @if($abandonedCart->shipping_zip) {{ $abandonedCart->shipping_zip }}@endif
+                            </div>
+                        @endif
+
+                        @if($abandonedCart->shipping_country)
+                            <div><strong>Country:</strong> {{ $abandonedCart->shipping_country }}</div>
+                        @endif
                     </address>
+                </div>
+            </div>
+            @endif
+
+            @php
+                $checkoutFieldSnapshot = collect(is_array($abandonedCart->checkout_fields_payload) ? $abandonedCart->checkout_fields_payload : [])
+                    ->filter(function ($value, $key) {
+                        $normalizedKey = strtolower(trim((string) $key));
+
+                        if ($normalizedKey === '') {
+                            return false;
+                        }
+
+                        if (is_string($value)) {
+                            return trim($value) !== '';
+                        }
+
+                        return is_bool($value) || is_int($value) || is_float($value);
+                    });
+            @endphp
+            @if($checkoutFieldSnapshot->isNotEmpty())
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list-alt me-2"></i>Checkout Field Snapshot
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="small text-muted mb-3">Live field values synced from checkout (including additional and custom fields).</div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <tbody>
+                                @foreach($checkoutFieldSnapshot as $fieldKey => $fieldValue)
+                                    @php
+                                        $normalizedFieldKey = strtolower(trim((string) $fieldKey));
+                                        $fieldLabel = match ($normalizedFieldKey) {
+                                            'order_notes', 'notes' => 'Order Notes',
+                                            'shipping_name' => 'Shipping Name',
+                                            'shipping_email' => 'Shipping Email',
+                                            'shipping_phone' => 'Shipping Phone',
+                                            'shipping_address' => 'Shipping Address',
+                                            'shipping_location_text' => 'Shipping Location Text',
+                                            'shipping_division_id' => 'Shipping Division',
+                                            'shipping_district_id' => 'Shipping District',
+                                            'shipping_upazila_id' => 'Shipping Upazila',
+                                            'shipping_union_id' => 'Shipping Union',
+                                            default => \Illuminate\Support\Str::headline(str_replace('_', ' ', $normalizedFieldKey)),
+                                        };
+
+                                        $formattedValue = is_bool($fieldValue)
+                                            ? ($fieldValue ? 'Yes' : 'No')
+                                            : trim((string) $fieldValue);
+                                    @endphp
+                                    <tr>
+                                        <th class="text-muted" style="width: 240px;">{{ $fieldLabel }}</th>
+                                        <td>
+                                            @if($formattedValue !== '')
+                                                <div style="white-space: pre-line;">{{ $formattedValue }}</div>
+                                            @else
+                                                <span class="text-muted">N/A</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
             @endif
@@ -172,6 +290,18 @@
                                 @foreach($abandonedCart->cart_items as $item)
                                 <tr>
                                     <td>
+                                        @php
+                                            $variantName = trim((string) ($item['variant_name'] ?? ''));
+                                            $variantAttributes = trim((string) ($item['variant_attributes'] ?? ''));
+                                            $variantSku = trim((string) ($item['variant_sku'] ?? ''));
+                                            $variantId = !empty($item['variant_id']) ? (int) $item['variant_id'] : null;
+
+                                            $variantLabel = $variantName !== ''
+                                                ? $variantName
+                                                : ($variantAttributes !== ''
+                                                    ? $variantAttributes
+                                                    : ($variantId ? ('Variant #' . $variantId) : ''));
+                                        @endphp
                                         <div class="d-flex align-items-center">
                                             @if(!empty($item['product_image']))
                                             <img src="{{ $item['product_image'] }}" alt="" class="rounded me-2" style="width: 40px; height: 40px; object-fit: cover;">
@@ -180,6 +310,18 @@
                                                 <strong>{{ $item['product_name'] ?? 'Unknown Product' }}</strong>
                                                 @if(!empty($item['product_sku']))
                                                 <br><small class="text-muted">SKU: {{ $item['product_sku'] }}</small>
+                                                @endif
+
+                                                @if($variantLabel !== '')
+                                                    <br><small class="text-info"><strong>Variant:</strong> {{ $variantLabel }}</small>
+                                                @endif
+
+                                                @if($variantAttributes !== '' && $variantAttributes !== $variantName)
+                                                    <br><small class="text-muted">{{ $variantAttributes }}</small>
+                                                @endif
+
+                                                @if($variantSku !== '')
+                                                    <br><small class="text-muted">Variant SKU: {{ $variantSku }}</small>
                                                 @endif
                                             </div>
                                         </div>

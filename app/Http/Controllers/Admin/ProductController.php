@@ -8,17 +8,31 @@ use App\Http\Requests\Admin\UpdateProductRequest;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductAttribute;
+use App\Models\ProductAttributeValue;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
+use App\Services\ProductService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
+    public function __construct(
+        protected ProductService $frontendProductService
+    ) {}
+
     public function index(Request $request)
     {
-        $query = Product::with(['category', 'images']);
+        $query = Product::with([
+            'category',
+            'images',
+            'variants' => function ($variantQuery) {
+                $variantQuery
+                    ->where('is_active', true)
+                    ->select(['id', 'product_id', 'regular_price', 'discounted_price', 'stock_quantity', 'is_active']);
+            },
+        ])->withCount('variants');
 
         // Search
         if ($search = $request->input('search')) {
@@ -67,7 +81,8 @@ class ProductController extends Controller
     {
         $categories = Category::with('children')->whereNull('parent_id')->orderBy('name')->get();
         $attributes = ProductAttribute::with('values')->get();
-        return view('admin.products.create', compact('categories', 'attributes'));
+        $stockEnabled = Product::isStockEnabled();
+        return view('admin.products.create', compact('categories', 'attributes', 'stockEnabled'));
     }
 
     public function store(StoreProductRequest $request)
@@ -115,7 +130,13 @@ class ProductController extends Controller
                     }
                 }
             }
+
+            if ($request->boolean('is_variable') || $product->variants()->exists()) {
+                $this->syncProductBaseStockFromVariants($product);
+            }
         });
+
+        $this->clearFrontendProductCache();
 
         return redirect()
             ->route('admin.products.index')
@@ -133,7 +154,8 @@ class ProductController extends Controller
         $product->load(['images', 'variants.attributeValues.attribute']);
         $categories = Category::with('children')->whereNull('parent_id')->orderBy('name')->get();
         $attributes = ProductAttribute::with('values')->get();
-        return view('admin.products.edit', compact('product', 'categories', 'attributes'));
+        $stockEnabled = Product::isStockEnabled();
+        return view('admin.products.edit', compact('product', 'categories', 'attributes', 'stockEnabled'));
     }
 
     public function update(UpdateProductRequest $request, Product $product)
@@ -194,7 +216,13 @@ class ProductController extends Controller
                     $img->delete();
                 }
             }
+
+            if ($request->boolean('is_variable') || $product->variants()->exists()) {
+                $this->syncProductBaseStockFromVariants($product);
+            }
         });
+
+        $this->clearFrontendProductCache();
 
         return redirect()
             ->route('admin.products.index')
@@ -211,6 +239,7 @@ class ProductController extends Controller
         }
 
         $product->delete();
+        $this->clearFrontendProductCache();
 
         return redirect()
             ->route('admin.products.index')
@@ -220,60 +249,61 @@ class ProductController extends Controller
     // Variant management
     public function storeVariant(Request $request, Product $product)
     {
-        // Multiple attribute values selection
-        $attributeValueIds = $request->input('attribute_value_ids', []);
+        $stockEnabled = Product::isStockEnabled();
 
-        if (empty($attributeValueIds)) {
+        $request->validate([
+            'attribute_groups' => ['nullable', 'array'],
+            'attribute_groups.*' => ['array'],
+            'attribute_groups.*.*' => ['integer', 'exists:product_attribute_values,id'],
+            'attribute_value_ids' => ['nullable', 'array'],
+            'attribute_value_ids.*' => ['integer', 'exists:product_attribute_values,id'],
+            'variant_price_adjustment' => ['nullable', 'numeric'],
+            'variant_stock_quantity' => $stockEnabled
+                ? ['required', 'integer', 'min:0']
+                : ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $attributeGroups = $this->normalizeAttributeGroups($request->input('attribute_groups', []));
+
+        // Backward compatibility for old single-list payload.
+        if (empty($attributeGroups)) {
+            $attributeGroups = $this->expandLegacyValueSelectionToGroups(
+                $request->input('attribute_value_ids', [])
+            );
+        }
+
+        if (empty($attributeGroups)) {
             return redirect()
                 ->route('admin.products.edit', $product)
                 ->with('error', 'Please select at least one attribute value.');
         }
 
-        $created = 0;
-        $skipped = 0;
-        $priceAdjustment = $request->input('variant_price_adjustment', 0);
-        $stockQuantity = $request->input('variant_stock_quantity', 0);
+        $priceAdjustment = (float) $request->input('variant_price_adjustment', 0);
+        $stockQuantity = $stockEnabled
+            ? (int) $request->input('variant_stock_quantity', 0)
+            : 0;
 
-        // Get existing variant attribute value IDs
-        $existingValueIds = $product->variants()
-            ->with('attributeValues')
-            ->get()
-            ->flatMap(function ($variant) {
-                return $variant->attributeValues->pluck('id');
-            })
-            ->unique()
-            ->toArray();
+        try {
+            [$created, $skipped] = $this->createVariantsFromAttributeGroups(
+                $product,
+                $attributeGroups,
+                $priceAdjustment,
+                $stockQuantity,
+                (string) $product->sku
+            );
 
-        foreach ($attributeValueIds as $valueId) {
-            // Skip if variant with this attribute value already exists
-            if (in_array((int)$valueId, $existingValueIds)) {
-                $skipped++;
-                continue;
-            }
-
-            try {
-                // Generate unique SKU
-                $baseSku = $product->sku . '-' . strtoupper(substr(md5($valueId . time() . $created), 0, 6));
-
-                $variant = $product->variants()->create([
-                    'sku' => $baseSku,
-                    'price_adjustment' => $priceAdjustment,
-                    'stock_quantity' => $stockQuantity,
-                    'is_active' => true,
-                ]);
-
-                // Attach the single attribute value
-                $variant->attributeValues()->attach([$valueId]);
-                $created++;
-            } catch (\Exception $e) {
-                continue;
-            }
+            $this->syncProductBaseStockFromVariants($product);
+            $this->clearFrontendProductCache();
+        } catch (\Throwable $exception) {
+            return redirect()
+                ->route('admin.products.edit', $product)
+                ->with('error', $exception->getMessage());
         }
 
         if ($created > 0) {
-            $message = "{$created} variant(s) added successfully.";
+            $message = "{$created} variant combination(s) added successfully.";
             if ($skipped > 0) {
-                $message .= " {$skipped} already existing value(s) skipped.";
+                $message .= " {$skipped} existing combination(s) skipped.";
             }
             return redirect()
                 ->route('admin.products.edit', $product)
@@ -282,12 +312,14 @@ class ProductController extends Controller
 
         return redirect()
             ->route('admin.products.edit', $product)
-            ->with('error', 'No variants were created. Selected values may already exist.');
+            ->with('error', 'No variants were created. Selected combinations may already exist.');
     }
 
     public function destroyVariant(Product $product, ProductVariant $variant)
     {
         $variant->delete();
+        $this->syncProductBaseStockFromVariants($product);
+        $this->clearFrontendProductCache();
 
         return redirect()
             ->route('admin.products.edit', $product)
@@ -296,6 +328,7 @@ class ProductController extends Controller
 
     public function bulkUpdateVariants(Request $request, Product $product)
     {
+        $stockEnabled = Product::isStockEnabled();
         $variantIds = $request->input('variant_ids', []);
 
         if (empty($variantIds)) {
@@ -307,6 +340,8 @@ class ProductController extends Controller
         // Handle bulk delete
         if ($request->boolean('bulk_delete')) {
             $deleted = $product->variants()->whereIn('id', $variantIds)->delete();
+            $this->syncProductBaseStockFromVariants($product);
+            $this->clearFrontendProductCache();
             return redirect()
                 ->route('admin.products.edit', $product)
                 ->with('success', "{$deleted} variant(s) deleted successfully.");
@@ -319,7 +354,7 @@ class ProductController extends Controller
             $updateData['price_adjustment'] = $request->input('bulk_price_adjustment');
         }
 
-        if ($request->filled('bulk_stock_quantity')) {
+        if ($stockEnabled && $request->filled('bulk_stock_quantity')) {
             $updateData['stock_quantity'] = $request->input('bulk_stock_quantity');
         }
 
@@ -335,13 +370,16 @@ class ProductController extends Controller
         }
 
         // Handle add stock (increment)
-        if ($request->filled('bulk_add_stock')) {
+        if ($stockEnabled && $request->filled('bulk_add_stock')) {
             $addStock = (int) $request->input('bulk_add_stock');
             if ($addStock > 0) {
                 $product->variants()->whereIn('id', $variantIds)->increment('stock_quantity', $addStock);
                 $updated = count($variantIds);
             }
         }
+
+        $this->syncProductBaseStockFromVariants($product);
+        $this->clearFrontendProductCache();
 
         if ($updated > 0) {
             return redirect()
@@ -356,10 +394,14 @@ class ProductController extends Controller
 
     public function updateVariant(Request $request, Product $product, ProductVariant $variant)
     {
+        $stockEnabled = Product::isStockEnabled();
+
         $request->validate([
             'sku' => 'nullable|string|max:100',
             'price_adjustment' => 'nullable|numeric',
-            'stock_quantity' => 'nullable|integer|min:0',
+            'stock_quantity' => $stockEnabled
+                ? 'required|integer|min:0'
+                : 'nullable|integer|min:0',
             'is_active' => 'nullable',
             'variant_image_path' => 'nullable|string',
         ]);
@@ -367,9 +409,12 @@ class ProductController extends Controller
         $data = [
             'sku' => $request->input('sku', $variant->sku),
             'price_adjustment' => $request->input('price_adjustment', $variant->price_adjustment),
-            'stock_quantity' => $request->input('stock_quantity', $variant->stock_quantity),
             'is_active' => $request->has('is_active'),
         ];
+
+        if ($stockEnabled) {
+            $data['stock_quantity'] = $request->input('stock_quantity', $variant->stock_quantity);
+        }
 
         // Handle image removal
         if ($request->boolean('remove_variant_image') && $variant->image) {
@@ -390,68 +435,294 @@ class ProductController extends Controller
         }
 
         $variant->update($data);
+        $this->syncProductBaseStockFromVariants($product);
+        $this->clearFrontendProductCache();
 
         return redirect()
             ->route('admin.products.edit', $product)
             ->with('success', 'Variant updated successfully.');
     }
 
+    public function updateVariantMatrix(Request $request, Product $product)
+    {
+        $stockEnabled = Product::isStockEnabled();
+
+        $request->validate([
+            'default_variant_id' => ['nullable', 'integer', 'min:1'],
+            'variants' => ['required', 'array', 'min:1'],
+            'variants.*.id' => ['required', 'integer', 'distinct', 'exists:product_variants,id'],
+            'variants.*.sku' => ['required', 'string', 'max:100'],
+            'variants.*.purchase_price' => ['required', 'numeric', 'min:0'],
+            'variants.*.regular_price' => ['required', 'numeric', 'min:0'],
+            'variants.*.discounted_price' => ['nullable', 'numeric', 'min:0'],
+            'variants.*.stock_quantity' => $stockEnabled
+                ? ['required', 'integer', 'min:0']
+                : ['nullable', 'integer', 'min:0'],
+            'variants.*.is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $rows = collect($request->input('variants', []))->map(function (array $row) use ($stockEnabled) {
+            $stockQuantity = array_key_exists('stock_quantity', $row)
+                ? max(0, (int) ($row['stock_quantity'] ?? 0))
+                : null;
+
+            $regularPrice = round((float) ($row['regular_price'] ?? 0), 2);
+
+            $discountedPriceInput = $row['discounted_price'] ?? null;
+            $discountedPrice = ($discountedPriceInput === null || $discountedPriceInput === '')
+                ? null
+                : round((float) $discountedPriceInput, 2);
+
+            return [
+                'id' => (int) ($row['id'] ?? 0),
+                'sku' => trim((string) ($row['sku'] ?? '')),
+                'purchase_price' => round((float) ($row['purchase_price'] ?? 0), 2),
+                'regular_price' => $regularPrice,
+                'discounted_price' => $discountedPrice,
+                'stock_quantity' => $stockEnabled ? ($stockQuantity ?? 0) : $stockQuantity,
+                'is_active' => (bool) ($row['is_active'] ?? false),
+            ];
+        })->values();
+
+        if ($rows->contains(fn (array $row) => $row['id'] <= 0 || $row['sku'] === '')) {
+            return redirect()
+                ->route('admin.products.edit', $product)
+                ->with('error', 'Each variant row must include a valid SKU.');
+        }
+
+        $normalizedSkus = $rows
+            ->pluck('sku')
+            ->map(fn (string $sku) => strtolower($sku))
+            ->all();
+
+        if (count($normalizedSkus) !== count(array_unique($normalizedSkus))) {
+            return redirect()
+                ->route('admin.products.edit', $product)
+                ->with('error', 'Duplicate SKU found in the submitted rows.');
+        }
+
+        if ($rows->contains(fn (array $row) => $row['discounted_price'] !== null && $row['discounted_price'] > $row['regular_price'])) {
+            return redirect()
+                ->route('admin.products.edit', $product)
+                ->with('error', 'Discounted price cannot be greater than regular price.');
+        }
+
+        $requestedDefaultVariantIdInput = $request->input('default_variant_id');
+        $requestedDefaultVariantId = ($requestedDefaultVariantIdInput === null || $requestedDefaultVariantIdInput === '')
+            ? null
+            : (int) $requestedDefaultVariantIdInput;
+
+        if ($requestedDefaultVariantId !== null) {
+            $defaultRow = $rows->first(fn (array $row) => $row['id'] === $requestedDefaultVariantId);
+
+            if (!$defaultRow) {
+                return redirect()
+                    ->route('admin.products.edit', $product)
+                    ->with('error', 'Selected base variant does not belong to this product.');
+            }
+
+            if (!$defaultRow['is_active']) {
+                return redirect()
+                    ->route('admin.products.edit', $product)
+                    ->with('error', 'Base variant must be active. Please enable the selected variant first.');
+            }
+        }
+
+        $variantIds = $rows->pluck('id')->all();
+
+        $variants = $product->variants()
+            ->whereIn('id', $variantIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($variants->count() !== count($variantIds)) {
+            return redirect()
+                ->route('admin.products.edit', $product)
+                ->with('error', 'One or more variants do not belong to this product.');
+        }
+
+        $basePriceForAdjustment = round((float) ($product->sale_price ?? $product->regular_price), 2);
+
+        try {
+            DB::transaction(function () use ($rows, $variants, $basePriceForAdjustment, $stockEnabled, $product, $requestedDefaultVariantId) {
+                foreach ($rows as $row) {
+                    $variantId = (int) $row['id'];
+                    $sku = $row['sku'];
+
+                    $skuExists = ProductVariant::query()
+                        ->where('sku', $sku)
+                        ->where('id', '!=', $variantId)
+                        ->exists();
+
+                    if ($skuExists) {
+                        throw new \RuntimeException("SKU already exists: {$sku}");
+                    }
+
+                    /** @var ProductVariant $variant */
+                    $variant = $variants->get($variantId);
+                    $effectiveDiscountedPrice = $row['discounted_price'] ?? $row['regular_price'];
+                    $priceAdjustment = round((float) $effectiveDiscountedPrice - $basePriceForAdjustment, 2);
+
+                    $updateData = [
+                        'sku' => $sku,
+                        'purchase_price' => $row['purchase_price'],
+                        'regular_price' => $row['regular_price'],
+                        'discounted_price' => $row['discounted_price'],
+                        'price_adjustment' => $priceAdjustment,
+                        'is_active' => $row['is_active'],
+                    ];
+
+                    if ($stockEnabled && $row['stock_quantity'] !== null) {
+                        $updateData['stock_quantity'] = $row['stock_quantity'];
+                    }
+
+                    $variant->update($updateData);
+                }
+
+                $this->syncProductDefaultVariantSelection($product, $requestedDefaultVariantId);
+            });
+
+            $this->syncProductBaseStockFromVariants($product);
+            $this->clearFrontendProductCache();
+        } catch (\Throwable $exception) {
+            return redirect()
+                ->route('admin.products.edit', $product)
+                ->with('error', $exception->getMessage());
+        }
+
+        return redirect()
+            ->route('admin.products.edit', $product)
+            ->with('success', 'Variant matrix updated successfully.');
+    }
+
     public function generateVariants(Request $request, Product $product)
     {
-        $attributeValues = $request->input('attribute_values', []);
-        $defaultPriceAdjustment = $request->input('default_price_adjustment', 0);
-        $defaultStock = $request->input('default_stock', 0);
-        $skuPrefix = $request->input('sku_prefix', $product->sku);
+        $isJsonRequest = $request->expectsJson() || $request->ajax();
+        $stockEnabled = Product::isStockEnabled();
 
-        if (empty($attributeValues)) {
+        $request->validate([
+            'attribute_groups' => ['nullable', 'array'],
+            'attribute_groups.*' => ['array'],
+            'attribute_groups.*.*' => ['integer', 'exists:product_attribute_values,id'],
+            'attribute_values' => ['nullable', 'array'],
+            'attribute_values.*' => ['integer', 'exists:product_attribute_values,id'],
+            'default_price_adjustment' => ['nullable', 'numeric'],
+            'default_stock' => $stockEnabled
+                ? ['required', 'integer', 'min:0']
+                : ['nullable', 'integer', 'min:0'],
+            'sku_prefix' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $attributeGroups = $this->normalizeAttributeGroups($request->input('attribute_groups', []));
+
+        // Backward compatibility for old single-list payload.
+        if (empty($attributeGroups)) {
+            $attributeGroups = $this->expandLegacyValueSelectionToGroups(
+                $request->input('attribute_values', [])
+            );
+        }
+
+        if (empty($attributeGroups)) {
+            if ($isJsonRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please select at least one attribute value.',
+                ], 422);
+            }
+
             return redirect()
                 ->route('admin.products.edit', $product)
                 ->with('error', 'Please select at least one attribute value.');
         }
 
-        $created = 0;
-        $skipped = 0;
+        $defaultPriceAdjustment = (float) $request->input('default_price_adjustment', 0);
+        $defaultStock = $stockEnabled
+            ? (int) $request->input('default_stock', 0)
+            : 0;
+        $skuPrefix = (string) $request->input('sku_prefix', $product->sku);
 
-        // Get existing variant attribute value IDs
-        $existingValueIds = $product->variants()
-            ->with('attributeValues')
-            ->get()
-            ->flatMap(function ($variant) {
-                return $variant->attributeValues->pluck('id');
-            })
-            ->unique()
-            ->toArray();
+        try {
+            $syncSummary = $this->syncVariantsFromAttributeGroups(
+                $product,
+                $attributeGroups,
+                $defaultPriceAdjustment,
+                $defaultStock,
+                $skuPrefix
+            );
 
-        foreach ($attributeValues as $index => $valueId) {
-            // Skip if variant with this attribute value already exists
-            if (in_array((int)$valueId, $existingValueIds)) {
-                $skipped++;
-                continue;
+            $this->syncProductBaseStockFromVariants($product);
+            $this->clearFrontendProductCache();
+        } catch (\Throwable $exception) {
+            if ($isJsonRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $exception->getMessage(),
+                ], 422);
             }
 
-            // Generate unique SKU
-            $sku = $skuPrefix . '-' . strtoupper(substr(md5($valueId . $index . time()), 0, 6));
-
-            try {
-                $variant = $product->variants()->create([
-                    'sku' => $sku,
-                    'price_adjustment' => $defaultPriceAdjustment,
-                    'stock_quantity' => $defaultStock,
-                    'is_active' => true,
-                ]);
-
-                // Attach single attribute value
-                $variant->attributeValues()->attach([$valueId]);
-                $created++;
-            } catch (\Exception $e) {
-                // Skip failed variants
-                continue;
-            }
+            return redirect()
+                ->route('admin.products.edit', $product)
+                ->with('error', $exception->getMessage());
         }
 
-        $message = "{$created} variant(s) created successfully.";
-        if ($skipped > 0) {
-            $message .= " {$skipped} already existing value(s) skipped.";
+        $created = (int) ($syncSummary['created'] ?? 0);
+        $updated = (int) ($syncSummary['updated'] ?? 0);
+        $deleted = (int) ($syncSummary['deleted'] ?? 0);
+        $unchanged = (int) ($syncSummary['unchanged'] ?? 0);
+        $changedCount = $created + $updated + $deleted;
+
+        $viewData = $this->buildVariantMatrixViewData($product);
+
+        if ($changedCount > 0) {
+            $messageParts = [];
+            if ($created > 0) {
+                $messageParts[] = "{$created} created";
+            }
+            if ($updated > 0) {
+                $messageParts[] = "{$updated} updated";
+            }
+            if ($deleted > 0) {
+                $messageParts[] = "{$deleted} removed";
+            }
+
+            $message = 'Variants synced: ' . implode(', ', $messageParts) . '.';
+            if ($unchanged > 0) {
+                $message .= " {$unchanged} already matched.";
+            }
+
+            if ($isJsonRequest) {
+                return response()->json([
+                    'success' => true,
+                    'created' => $created,
+                    'updated' => $updated,
+                    'deleted' => $deleted,
+                    'unchanged' => $unchanged,
+                    'changed_count' => $changedCount,
+                    'message' => $message,
+                    'variant_count' => $viewData['product']->variants->count(),
+                    'matrix_html' => view('admin.products.partials.variant-matrix', $viewData)->render(),
+                ]);
+            }
+
+            return redirect()
+                ->route('admin.products.edit', $product)
+                ->with('success', $message);
+        }
+
+        $message = 'No changes needed. Variants already match selected combinations.';
+
+        if ($isJsonRequest) {
+            return response()->json([
+                'success' => true,
+                'created' => 0,
+                'updated' => 0,
+                'deleted' => 0,
+                'unchanged' => $unchanged,
+                'changed_count' => 0,
+                'message' => $message,
+                'variant_count' => $viewData['product']->variants->count(),
+                'matrix_html' => view('admin.products.partials.variant-matrix', $viewData)->render(),
+            ]);
         }
 
         return redirect()
@@ -467,6 +738,7 @@ class ProductController extends Controller
 
         // Set this as primary
         $image->update(['is_primary' => true]);
+        $this->clearFrontendProductCache();
 
         return redirect()
             ->route('admin.products.edit', $product)
@@ -477,6 +749,7 @@ class ProductController extends Controller
     {
         Storage::disk('public')->delete($image->image);
         $image->delete();
+        $this->clearFrontendProductCache();
 
         return redirect()
             ->route('admin.products.edit', $product)
@@ -486,6 +759,30 @@ class ProductController extends Controller
     private function prepareProductData(array $data, Request $request, ?Product $product = null): array
     {
         unset($data['dynamic_discount_tiers'], $data['free_delivery']);
+
+        $isVariableProduct = $request->boolean('is_variable') || ($product?->isVariableProduct() ?? false);
+
+        if ($isVariableProduct) {
+            if (!array_key_exists('regular_price', $data) || $data['regular_price'] === null || $data['regular_price'] === '') {
+                $data['regular_price'] = (float) ($product?->regular_price ?? 0.01);
+            } else {
+                $data['regular_price'] = max(0.01, round((float) $data['regular_price'], 2));
+            }
+
+            if (array_key_exists('sale_price', $data) && $data['sale_price'] !== null && $data['sale_price'] !== '') {
+                $data['sale_price'] = round(max(0, (float) $data['sale_price']), 2);
+            } else {
+                $data['sale_price'] = null;
+            }
+        }
+
+        if ($isVariableProduct) {
+            $data['stock_quantity'] = (int) ($product?->variants()->sum('stock_quantity') ?? 0);
+        } elseif (!array_key_exists('stock_quantity', $data) || $data['stock_quantity'] === null || $data['stock_quantity'] === '') {
+            $data['stock_quantity'] = (int) ($product?->stock_quantity ?? 0);
+        } else {
+            $data['stock_quantity'] = max(0, (int) $data['stock_quantity']);
+        }
 
         $metaData = is_array($product?->meta_data) ? $product->meta_data : [];
         $metaData = is_array($metaData) ? $metaData : [];
@@ -503,9 +800,73 @@ class ProductController extends Controller
             unset($metaData['free_delivery']);
         }
 
+        $metaData['is_variable'] = $isVariableProduct;
+
         $data['meta_data'] = empty($metaData) ? null : $metaData;
 
         return $data;
+    }
+
+    private function syncProductBaseStockFromVariants(Product $product): void
+    {
+        $hasVariants = $product->variants()->exists();
+
+        if (!$hasVariants && !$product->isVariableProduct()) {
+            $this->syncProductDefaultVariantSelection($product);
+            return;
+        }
+
+        $totalStock = (int) $product->variants()->sum('stock_quantity');
+
+        if ((int) $product->stock_quantity !== $totalStock) {
+            $product->forceFill(['stock_quantity' => $totalStock])->saveQuietly();
+        }
+
+        $this->syncProductDefaultVariantSelection($product);
+    }
+
+    private function syncProductDefaultVariantSelection(Product $product, ?int $requestedDefaultVariantId = null): void
+    {
+        $metaData = is_array($product->meta_data) ? $product->meta_data : [];
+
+        $currentDefaultIdRaw = $metaData['default_variant_id'] ?? null;
+        $currentDefaultId = is_numeric($currentDefaultIdRaw) ? (int) $currentDefaultIdRaw : null;
+
+        $targetDefaultId = null;
+
+        if ($requestedDefaultVariantId !== null && $requestedDefaultVariantId > 0) {
+            $targetDefaultId = $requestedDefaultVariantId;
+        } elseif ($currentDefaultId !== null && $currentDefaultId > 0) {
+            $targetDefaultId = $currentDefaultId;
+        }
+
+        if ($targetDefaultId !== null) {
+            $isValidActiveVariant = $product->variants()
+                ->where('id', $targetDefaultId)
+                ->where('is_active', true)
+                ->exists();
+
+            if ($isValidActiveVariant) {
+                $metaData['default_variant_id'] = $targetDefaultId;
+            } else {
+                unset($metaData['default_variant_id']);
+            }
+        } else {
+            unset($metaData['default_variant_id']);
+        }
+
+        $normalizedMetaData = empty($metaData) ? null : $metaData;
+
+        if ($product->meta_data === $normalizedMetaData) {
+            return;
+        }
+
+        $product->forceFill(['meta_data' => $normalizedMetaData])->saveQuietly();
+    }
+
+    private function clearFrontendProductCache(): void
+    {
+        $this->frontendProductService->clearProductCache();
     }
 
     private function normalizeDynamicDiscountTiers(mixed $tiers): array
@@ -543,5 +904,365 @@ class ProductController extends Controller
         ksort($normalized);
 
         return array_values($normalized);
+    }
+
+    private function buildVariantMatrixViewData(Product $product): array
+    {
+        $productForView = $product->fresh(['variants.attributeValues.attribute'])
+            ?: $product->load(['variants.attributeValues.attribute']);
+
+        $stockEnabled = Product::isStockEnabled();
+
+        $variantAttributes = $productForView->variants
+            ->flatMap(fn(ProductVariant $variant) => $variant->attributeValues->map(fn($value) => $value->attribute))
+            ->filter()
+            ->unique('id')
+            ->sortBy('id')
+            ->values();
+
+        return [
+            'product' => $productForView,
+            'variantAttributes' => $variantAttributes,
+            'variantBasePurchasePrice' => (float) ($productForView->buy_price ?? 0),
+            'variantBaseRegularPrice' => (float) $productForView->regular_price,
+            'variantBaseDiscountPrice' => (float) ($productForView->sale_price ?? $productForView->regular_price),
+            'stockEnabled' => $stockEnabled,
+        ];
+    }
+
+    private function createVariantsFromAttributeGroups(
+        Product $product,
+        array $rawAttributeGroups,
+        float $priceAdjustment,
+        int $stockQuantity,
+        ?string $skuPrefix = null
+    ): array {
+        $attributeGroups = $this->normalizeAttributeGroups($rawAttributeGroups);
+        if (empty($attributeGroups)) {
+            return [0, 0];
+        }
+
+        $allValueIds = array_values(array_unique(array_merge(...array_values($attributeGroups))));
+
+        $values = ProductAttributeValue::query()
+            ->select(['id', 'attribute_id'])
+            ->whereIn('id', $allValueIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($values->count() !== count($allValueIds)) {
+            throw new \InvalidArgumentException('One or more selected attribute values are invalid.');
+        }
+
+        foreach ($attributeGroups as $attributeId => $valueIds) {
+            foreach ($valueIds as $valueId) {
+                $value = $values->get($valueId);
+                if (!$value || (int) $value->attribute_id !== (int) $attributeId) {
+                    throw new \InvalidArgumentException('Selected values do not match the selected attributes.');
+                }
+            }
+        }
+
+        $existingSignatures = $product->variants()
+            ->with('attributeValues:id')
+            ->get()
+            ->mapWithKeys(function (ProductVariant $variant) {
+                $signature = $this->buildAttributeCombinationSignature($variant->attributeValues->pluck('id')->all());
+                return [$signature => true];
+            })
+            ->all();
+
+        $combinations = $this->generateAttributeCombinations(array_values($attributeGroups));
+
+        $created = 0;
+        $skipped = 0;
+
+        foreach ($combinations as $combinationValueIds) {
+            $signature = $this->buildAttributeCombinationSignature($combinationValueIds);
+
+            if (isset($existingSignatures[$signature])) {
+                $skipped++;
+                continue;
+            }
+
+            $variant = $product->variants()->create([
+                'sku' => $this->generateUniqueVariantSku($product, $combinationValueIds, $skuPrefix),
+                'price_adjustment' => $priceAdjustment,
+                'stock_quantity' => max(0, $stockQuantity),
+                'is_active' => true,
+            ]);
+
+            $variant->attributeValues()->sync($combinationValueIds);
+
+            $existingSignatures[$signature] = true;
+            $created++;
+        }
+
+        return [$created, $skipped];
+    }
+
+    private function syncVariantsFromAttributeGroups(
+        Product $product,
+        array $rawAttributeGroups,
+        float $priceAdjustment,
+        int $stockQuantity,
+        ?string $skuPrefix = null
+    ): array {
+        $attributeGroups = $this->normalizeAttributeGroups($rawAttributeGroups);
+        if (empty($attributeGroups)) {
+            return [
+                'created' => 0,
+                'updated' => 0,
+                'deleted' => 0,
+                'unchanged' => 0,
+            ];
+        }
+
+        $allValueIds = array_values(array_unique(array_merge(...array_values($attributeGroups))));
+
+        $values = ProductAttributeValue::query()
+            ->select(['id', 'attribute_id'])
+            ->whereIn('id', $allValueIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($values->count() !== count($allValueIds)) {
+            throw new \InvalidArgumentException('One or more selected attribute values are invalid.');
+        }
+
+        foreach ($attributeGroups as $attributeId => $valueIds) {
+            foreach ($valueIds as $valueId) {
+                $value = $values->get($valueId);
+                if (!$value || (int) $value->attribute_id !== (int) $attributeId) {
+                    throw new \InvalidArgumentException('Selected values do not match the selected attributes.');
+                }
+            }
+        }
+
+        $targetCombinations = [];
+        foreach ($this->generateAttributeCombinations(array_values($attributeGroups)) as $combinationValueIds) {
+            $normalizedValueIds = array_values(array_unique(array_map('intval', $combinationValueIds)));
+            sort($normalizedValueIds);
+
+            $signature = $this->buildAttributeCombinationSignature($normalizedValueIds);
+            $targetCombinations[$signature] = $normalizedValueIds;
+        }
+
+        return DB::transaction(function () use ($product, $targetCombinations, $priceAdjustment, $stockQuantity, $skuPrefix) {
+            $existingVariants = $product->variants()
+                ->with('attributeValues:id')
+                ->get();
+
+            $existingBySignature = [];
+            $existingValueMap = [];
+
+            foreach ($existingVariants as $variant) {
+                $valueIds = $variant->attributeValues
+                    ->pluck('id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+
+                $signature = $this->buildAttributeCombinationSignature($valueIds);
+
+                if (!isset($existingBySignature[$signature])) {
+                    $existingBySignature[$signature] = [];
+                }
+
+                $existingBySignature[$signature][] = $variant;
+                $existingValueMap[$variant->id] = $valueIds;
+            }
+
+            $created = 0;
+            $updated = 0;
+            $deleted = 0;
+            $unchanged = 0;
+
+            $missingCombinations = [];
+
+            foreach ($targetCombinations as $signature => $targetValueIds) {
+                if (!empty($existingBySignature[$signature])) {
+                    array_shift($existingBySignature[$signature]);
+                    $unchanged++;
+                    continue;
+                }
+
+                $missingCombinations[$signature] = $targetValueIds;
+            }
+
+            $reusableVariants = [];
+            foreach ($existingBySignature as $variantsForSignature) {
+                foreach ($variantsForSignature as $variant) {
+                    $reusableVariants[$variant->id] = $variant;
+                }
+            }
+
+            $stillMissingCombinations = [];
+
+            foreach ($missingCombinations as $signature => $targetValueIds) {
+                $bestVariantId = null;
+                $bestOverlap = -1;
+
+                foreach ($reusableVariants as $variantId => $candidateVariant) {
+                    $candidateValueIds = $existingValueMap[$variantId] ?? [];
+                    $overlap = count(array_intersect($candidateValueIds, $targetValueIds));
+
+                    if ($overlap > $bestOverlap) {
+                        $bestOverlap = $overlap;
+                        $bestVariantId = $variantId;
+                    }
+                }
+
+                if ($bestVariantId === null) {
+                    $stillMissingCombinations[$signature] = $targetValueIds;
+                    continue;
+                }
+
+                $variantToUpdate = $reusableVariants[$bestVariantId];
+                $variantToUpdate->attributeValues()->sync($targetValueIds);
+
+                unset($reusableVariants[$bestVariantId], $existingValueMap[$bestVariantId]);
+                $updated++;
+            }
+
+            foreach ($reusableVariants as $variantToDelete) {
+                $variantToDelete->delete();
+                $deleted++;
+            }
+
+            foreach ($stillMissingCombinations as $combinationValueIds) {
+                $variant = $product->variants()->create([
+                    'sku' => $this->generateUniqueVariantSku($product, $combinationValueIds, $skuPrefix),
+                    'price_adjustment' => $priceAdjustment,
+                    'stock_quantity' => max(0, $stockQuantity),
+                    'is_active' => true,
+                ]);
+
+                $variant->attributeValues()->sync($combinationValueIds);
+                $created++;
+            }
+
+            return [
+                'created' => $created,
+                'updated' => $updated,
+                'deleted' => $deleted,
+                'unchanged' => $unchanged,
+            ];
+        });
+    }
+
+    private function normalizeAttributeGroups(mixed $rawGroups): array
+    {
+        if (!is_array($rawGroups)) {
+            return [];
+        }
+
+        $normalized = [];
+
+        foreach ($rawGroups as $rawAttributeId => $rawValueIds) {
+            $attributeId = (int) $rawAttributeId;
+            if ($attributeId <= 0 || !is_array($rawValueIds)) {
+                continue;
+            }
+
+            $valueIds = array_values(array_unique(array_filter(
+                array_map('intval', $rawValueIds),
+                fn (int $id) => $id > 0
+            )));
+
+            if (!empty($valueIds)) {
+                sort($valueIds);
+                $normalized[$attributeId] = $valueIds;
+            }
+        }
+
+        ksort($normalized);
+
+        return $normalized;
+    }
+
+    private function expandLegacyValueSelectionToGroups(mixed $rawValueIds): array
+    {
+        if (!is_array($rawValueIds)) {
+            return [];
+        }
+
+        $valueIds = array_values(array_unique(array_filter(
+            array_map('intval', $rawValueIds),
+            fn (int $id) => $id > 0
+        )));
+
+        if (empty($valueIds)) {
+            return [];
+        }
+
+        return ProductAttributeValue::query()
+            ->select(['id', 'attribute_id'])
+            ->whereIn('id', $valueIds)
+            ->get()
+            ->groupBy('attribute_id')
+            ->map(function ($items) {
+                return $items
+                    ->pluck('id')
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
+                    ->sort()
+                    ->values()
+                    ->all();
+            })
+            ->filter(fn (array $ids) => !empty($ids))
+            ->sortKeys()
+            ->toArray();
+    }
+
+    private function generateAttributeCombinations(array $attributeValueSets): array
+    {
+        if (empty($attributeValueSets)) {
+            return [];
+        }
+
+        $combinations = [[]];
+
+        foreach ($attributeValueSets as $valueSet) {
+            $next = [];
+
+            foreach ($combinations as $combination) {
+                foreach ($valueSet as $valueId) {
+                    $candidate = $combination;
+                    $candidate[] = (int) $valueId;
+                    $next[] = $candidate;
+                }
+            }
+
+            $combinations = $next;
+        }
+
+        return $combinations;
+    }
+
+    private function buildAttributeCombinationSignature(array $valueIds): string
+    {
+        $normalized = array_values(array_unique(array_map('intval', $valueIds)));
+        sort($normalized);
+
+        return implode('-', $normalized);
+    }
+
+    private function generateUniqueVariantSku(Product $product, array $combinationValueIds, ?string $skuPrefix = null): string
+    {
+        $prefix = strtoupper(trim((string) ($skuPrefix ?: $product->sku ?: ('VAR' . $product->id))));
+        $prefix = preg_replace('/[^A-Z0-9\-]/', '', $prefix) ?: ('VAR' . $product->id);
+
+        $seed = strtoupper(substr(md5($product->id . ':' . implode('-', $combinationValueIds)), 0, 6));
+        $base = rtrim($prefix, '-') . '-' . $seed;
+
+        $candidate = $base;
+        $counter = 1;
+
+        while (ProductVariant::query()->where('sku', $candidate)->exists()) {
+            $candidate = $base . '-' . $counter;
+            $counter++;
+        }
+
+        return $candidate;
     }
 }

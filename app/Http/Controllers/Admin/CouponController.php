@@ -49,6 +49,17 @@ class CouponController extends Controller
             $query->where('type', $type);
         }
 
+        // Filter by guest checkout eligibility
+        if ($guestEligibility = $request->input('guest_eligibility')) {
+            if ($guestEligibility === 'allowed') {
+                $query->where('allow_guest_checkout', true);
+            }
+
+            if ($guestEligibility === 'login_required') {
+                $query->where('allow_guest_checkout', false);
+            }
+        }
+
         $coupons = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
 
         return view('admin.coupons.index', compact('coupons'));
@@ -84,6 +95,7 @@ class CouponController extends Controller
             'expires_at' => 'nullable|date|after_or_equal:starts_at',
             'is_active' => 'boolean',
             'free_shipping' => 'boolean',
+            'allow_guest_checkout' => 'boolean',
             'applicable_categories' => 'nullable|array',
             'applicable_categories.*' => 'exists:categories,id',
             'applicable_products' => 'nullable|array',
@@ -98,6 +110,7 @@ class CouponController extends Controller
         // Set defaults for booleans
         $validated['is_active'] = $request->boolean('is_active');
         $validated['free_shipping'] = $request->boolean('free_shipping');
+        $validated['allow_guest_checkout'] = $request->boolean('allow_guest_checkout');
 
         // Validate percentage max value
         if ($validated['type'] === 'percentage' && $validated['value'] > 100) {
@@ -151,6 +164,7 @@ class CouponController extends Controller
             'expires_at' => 'nullable|date|after_or_equal:starts_at',
             'is_active' => 'boolean',
             'free_shipping' => 'boolean',
+            'allow_guest_checkout' => 'boolean',
             'applicable_categories' => 'nullable|array',
             'applicable_categories.*' => 'exists:categories,id',
             'applicable_products' => 'nullable|array',
@@ -165,6 +179,7 @@ class CouponController extends Controller
         // Set defaults for booleans
         $validated['is_active'] = $request->boolean('is_active');
         $validated['free_shipping'] = $request->boolean('free_shipping');
+        $validated['allow_guest_checkout'] = $request->boolean('allow_guest_checkout');
 
         // Handle null arrays
         $validated['applicable_categories'] = $validated['applicable_categories'] ?? null;

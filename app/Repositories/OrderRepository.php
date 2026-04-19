@@ -19,7 +19,7 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
     public function getByUserId(int $userId): Collection
     {
         return $this->model
-            ->with(['items.product', 'payment'])
+            ->with(['items.product', 'items.variant.attributeValues.attribute', 'payment'])
             ->where('user_id', $userId)
             ->orderByDesc('created_at')
             ->get();
@@ -28,7 +28,7 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
     public function getByUserIdPaginated(int $userId, int $perPage = 15): LengthAwarePaginator
     {
         return $this->model
-            ->with(['items.product', 'payment'])
+            ->with(['items.product', 'items.variant.attributeValues.attribute', 'payment'])
             ->where('user_id', $userId)
             ->orderByDesc('created_at')
             ->paginate($perPage);
@@ -36,16 +36,18 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
 
     public function findByOrderNumber(string $orderNumber): ?Order
     {
+        $normalized = strtolower(trim($orderNumber));
+
         return $this->model
-            ->with(['items.product', 'payment'])
-            ->where('order_number', $orderNumber)
+            ->with(['items.product', 'items.variant.attributeValues.attribute', 'payment'])
+            ->whereRaw('LOWER(order_number) = ?', [$normalized])
             ->first();
     }
 
     public function getByStatus(string $status): Collection
     {
         return $this->model
-            ->with(['items.product', 'payment', 'user'])
+            ->with(['items.product', 'items.variant.attributeValues.attribute', 'payment', 'user'])
             ->byStatus($status)
             ->orderByDesc('created_at')
             ->get();
@@ -55,7 +57,7 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
     {
         $order = $this->findOrFail($orderId);
         $order->update(['status' => $status]);
-        return $order->fresh(['items.product', 'payment']);
+        return $order->fresh(['items.product', 'items.variant.attributeValues.attribute', 'payment']);
     }
 
     public function createWithItems(array $orderData, array $items): Order
@@ -67,6 +69,7 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
+                    'product_variant_id' => $item['product_variant_id'] ?? null,
                     'product_name' => $item['product_name'],
                     'product_sku' => $item['product_sku'],
                     'quantity' => $item['quantity'],
@@ -75,7 +78,7 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
                 ]);
             }
 
-            return $order->load(['items.product', 'payment']);
+            return $order->load(['items.product', 'items.variant.attributeValues.attribute', 'payment']);
         });
     }
 }

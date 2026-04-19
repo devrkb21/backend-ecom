@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Media;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class MediaController extends Controller
 {
@@ -83,9 +82,10 @@ class MediaController extends Controller
 
         foreach ($request->file('files') as $file) {
             try {
-                // Generate unique filename
-                $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('media/' . date('Y/m'), $filename, 'public');
+                $originalName = trim((string) basename((string) $file->getClientOriginalName()));
+                $safeName = preg_replace('/[\\x00-\\x1F\\x7F\\/\\\\]+/', '', $originalName) ?? '';
+                $filename = $safeName !== '' ? $safeName : ('upload.' . $file->getClientOriginalExtension());
+                $path = $file->storeAs('media/' . now()->format('Y/m'), $filename, 'public_root');
 
                 // Get image dimensions
                 $dimensions = @getimagesize($file->getRealPath());
@@ -96,7 +96,7 @@ class MediaController extends Controller
                     'filename' => $filename,
                     'original_name' => $file->getClientOriginalName(),
                     'path' => $path,
-                    'disk' => 'public',
+                    'disk' => 'public_root',
                     'mime_type' => $file->getMimeType(),
                     'size' => $file->getSize(),
                     'width' => $width,
@@ -186,12 +186,12 @@ class MediaController extends Controller
             'ids.*' => 'exists:media,id',
         ]);
 
-        $media = Media::whereIn('id', $request->input('ids'))->get();
-
-        foreach ($media as $item) {
-            Storage::disk($item->disk)->delete($item->path);
-            $item->delete();
-        }
+        Media::whereIn('id', $request->input('ids'))
+            ->get()
+            ->each(function (Media $item): void {
+                Storage::disk($item->disk)->delete($item->path);
+                $item->delete();
+            });
 
         if ($request->expectsJson()) {
             return response()->json([

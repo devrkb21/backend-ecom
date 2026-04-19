@@ -93,9 +93,17 @@
                         <h6><i class="bi bi-images"></i> Review Images</h6>
                         <div class="row g-2">
                             @foreach($review->images as $image)
+                                @php
+                                    $reviewImagePath = ltrim((string) $image, '/');
+                                    $reviewImageUrl = (str_starts_with($reviewImagePath, 'http://') || str_starts_with($reviewImagePath, 'https://'))
+                                        ? $image
+                                        : ((str_starts_with($reviewImagePath, 'media/') || str_starts_with($reviewImagePath, 'storage/'))
+                                            ? asset($reviewImagePath)
+                                            : asset('storage/' . $reviewImagePath));
+                                @endphp
                                 <div class="col-auto">
-                                    <a href="{{ asset('storage/' . $image) }}" target="_blank">
-                                        <img src="{{ asset('storage/' . $image) }}" 
+                                    <a href="{{ $reviewImageUrl }}" target="_blank">
+                                        <img src="{{ $reviewImageUrl }}" 
                                              alt="Review image" 
                                              class="rounded" 
                                              style="width: 100px; height: 100px; object-fit: cover;">

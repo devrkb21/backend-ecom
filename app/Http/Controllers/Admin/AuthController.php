@@ -16,16 +16,42 @@ class AuthController extends Controller
         return Auth::guard('web');
     }
 
-    public function showLoginForm()
+    public function showLoginForm(Request $request)
     {
-        if ($this->guard()->check() && $this->guard()->user()->canAccessAdminPanel()) {
-            return redirect()->route('admin.dashboard');
+        if ($this->guard()->check()) {
+            $user = $this->guard()->user();
+
+            if ($user && $user->canAccessAdminPanel()) {
+                return redirect()->route('admin.dashboard');
+            }
+
+            // Clear stale non-admin web sessions before showing admin login form.
+            $this->guard()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('admin.login')->with('error', 'Access denied. Please login with an admin account.');
         }
+
         return view('admin.auth.login');
     }
 
     public function login(Request $request)
     {
+        if ($this->guard()->check()) {
+            $user = $this->guard()->user();
+
+            if ($user && $user->canAccessAdminPanel()) {
+                return redirect()->route('admin.dashboard');
+            }
+
+            $this->guard()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('admin.login')->with('error', 'Access denied. Please login with an admin account.');
+        }
+
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required'],

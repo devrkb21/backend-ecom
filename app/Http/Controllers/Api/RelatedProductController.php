@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use App\Services\RelatedProductService;
 use Illuminate\Http\JsonResponse;
@@ -25,15 +26,7 @@ class RelatedProductController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $relatedProducts->map(fn($p) => [
-                'id' => $p->id,
-                'name' => $p->name,
-                'slug' => $p->slug,
-                'regular_price' => $p->regular_price,
-                'sale_price' => $p->sale_price,
-                'image' => $p->image,
-                'category' => $p->category?->name,
-            ]),
+            'data' => ProductResource::collection($relatedProducts)->resolve(),
         ]);
     }
 
@@ -48,14 +41,7 @@ class RelatedProductController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $products->map(fn($p) => [
-                'id' => $p->id,
-                'name' => $p->name,
-                'slug' => $p->slug,
-                'regular_price' => $p->regular_price,
-                'sale_price' => $p->sale_price,
-                'image' => $p->image,
-            ]),
+            'data' => ProductResource::collection($products)->resolve(),
         ]);
     }
 
@@ -71,15 +57,7 @@ class RelatedProductController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $recommendations->map(fn($p) => [
-                'id' => $p->id,
-                'name' => $p->name,
-                'slug' => $p->slug,
-                'regular_price' => $p->regular_price,
-                'sale_price' => $p->sale_price,
-                'image' => $p->image,
-                'category' => $p->category?->name,
-            ]),
+            'data' => ProductResource::collection($recommendations)->resolve(),
         ]);
     }
 
@@ -94,14 +72,7 @@ class RelatedProductController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $products->map(fn($p) => [
-                'id' => $p->id,
-                'name' => $p->name,
-                'slug' => $p->slug,
-                'regular_price' => $p->regular_price,
-                'sale_price' => $p->sale_price,
-                'image' => $p->image,
-            ]),
+            'data' => ProductResource::collection($products)->resolve(),
         ]);
     }
 
@@ -116,15 +87,7 @@ class RelatedProductController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $products->map(fn($p) => [
-                'id' => $p->id,
-                'name' => $p->name,
-                'slug' => $p->slug,
-                'regular_price' => $p->regular_price,
-                'sale_price' => $p->sale_price,
-                'image' => $p->image,
-                'category' => $p->category?->name,
-            ]),
+            'data' => ProductResource::collection($products)->resolve(),
         ]);
     }
 }

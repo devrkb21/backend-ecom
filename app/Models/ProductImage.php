@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
 
 class ProductImage extends Model
 {
@@ -30,6 +29,17 @@ class ProductImage extends Model
         if (!$this->image) {
             return null;
         }
-        return Storage::disk('public')->url($this->image);
+
+        $normalized = ltrim((string) $this->image, '/');
+
+        if (str_starts_with($normalized, 'http://') || str_starts_with($normalized, 'https://')) {
+            return $this->image;
+        }
+
+        if (str_starts_with($normalized, 'media/') || str_starts_with($normalized, 'storage/')) {
+            return asset($normalized);
+        }
+
+        return asset('storage/' . $normalized);
     }
 }

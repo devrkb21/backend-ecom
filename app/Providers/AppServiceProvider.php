@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\User;
+use App\Observers\UserObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -16,6 +18,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        User::observe(UserObserver::class);
+
         // General API rate limit: 120 requests/min for authenticated, 60 for guests
         RateLimiter::for('api', function (Request $request) {
             return $request->user()

@@ -20,7 +20,17 @@ class ReviewResource extends JsonResource
             'cons' => $this->cons ?? [],
             'images' => $this->images ?? [],
             'image_urls' => $this->images ? array_map(function ($path) {
-                return asset('storage/' . $path);
+                $normalized = ltrim((string) $path, '/');
+
+                if (str_starts_with($normalized, 'http://') || str_starts_with($normalized, 'https://')) {
+                    return $path;
+                }
+
+                if (str_starts_with($normalized, 'media/') || str_starts_with($normalized, 'storage/')) {
+                    return asset($normalized);
+                }
+
+                return asset('storage/' . $normalized);
             }, $this->images) : [],
             'is_verified_purchase' => $this->is_verified_purchase,
             'is_approved' => $this->is_approved,

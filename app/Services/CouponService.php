@@ -6,7 +6,9 @@ use App\Models\Cart;
 use App\Models\Coupon;
 use App\Models\CouponUsage;
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\User;
+use InvalidArgumentException;
 
 class CouponService
 {
@@ -60,15 +62,56 @@ class CouponService
         return [
             'success' => true,
             'message' => 'Coupon applied successfully!',
-            'coupon' => [
-                'id' => $coupon->id,
-                'code' => $coupon->code,
-                'name' => $coupon->name,
-                'type' => $coupon->type,
-                'value' => $coupon->value,
-                'formatted_value' => $coupon->formatted_value,
-                'free_shipping' => $coupon->free_shipping,
-            ],
+            'coupon' => $this->formatCouponPayload($coupon),
+            'discount' => $discount,
+        ];
+    }
+
+    /**
+     * Validate and apply coupon against guest-provided cart items (without persisting cart state).
+     */
+    public function applyToGuestItems(string $code, array $items): array
+    {
+        $coupon = Coupon::findByCode($code);
+
+        if (!$coupon) {
+            return [
+                'success' => false,
+                'message' => 'Invalid coupon code.',
+            ];
+        }
+
+        if (!$coupon->allow_guest_checkout) {
+            return [
+                'success' => false,
+                'message' => 'Please login to use this coupon.',
+            ];
+        }
+
+        try {
+            $previewCart = $this->buildGuestPreviewCart($items);
+        } catch (InvalidArgumentException $exception) {
+            return [
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ];
+        }
+
+        $errors = $coupon->validateForCart($previewCart);
+        if (!empty($errors)) {
+            return [
+                'success' => false,
+                'message' => $errors[0],
+                'errors' => $errors,
+            ];
+        }
+
+        $discount = $coupon->calculateDiscount($previewCart);
+
+        return [
+            'success' => true,
+            'message' => 'Coupon applied successfully!',
+            'coupon' => $this->formatCouponPayload($coupon),
             'discount' => $discount,
         ];
     }
@@ -125,6 +168,13 @@ class CouponService
             ];
         }
 
+        if (!$user && !$coupon->allow_guest_checkout) {
+            return [
+                'valid' => false,
+                'message' => 'Please login to use this coupon.',
+            ];
+        }
+
         if ($orderTotal !== null && $coupon->minimum_order_amount) {
             if ($orderTotal < $coupon->minimum_order_amount) {
                 return [
@@ -138,17 +188,7 @@ class CouponService
 
         return [
             'valid' => true,
-            'coupon' => [
-                'id' => $coupon->id,
-                'code' => $coupon->code,
-                'name' => $coupon->name,
-                'type' => $coupon->type,
-                'value' => $coupon->value,
-                'formatted_value' => $coupon->formatted_value,
-                'minimum_order_amount' => $coupon->minimum_order_amount,
-                'maximum_discount' => $coupon->maximum_discount,
-                'free_shipping' => $coupon->free_shipping,
-            ],
+            'coupon' => $this->formatCouponPayload($coupon),
             'discount' => $discount,
         ];
     }
@@ -185,6 +225,11 @@ class CouponService
         $applicable = [];
 
         foreach ($coupons as $coupon) {
+            /** @var Coupon $coupon */
+            if (!$user && !$coupon->allow_guest_checkout) {
+                continue;
+            }
+
             if ($user && !$coupon->isValidForUser($user)) {
                 continue;
             }
@@ -209,5 +254,83 @@ class CouponService
         usort($applicable, fn($a, $b) => $b['potential_discount'] <=> $a['potential_discount']);
 
         return $applicable;
+    }
+
+    private function formatCouponPayload(Coupon $coupon): array
+    {
+        return [
+            'id' => $coupon->id,
+            'code' => $coupon->code,
+            'name' => $coupon->name,
+            'type' => $coupon->type,
+            'value' => $coupon->value,
+            'formatted_value' => $coupon->formatted_value,
+            'minimum_order_amount' => $coupon->minimum_order_amount,
+            'maximum_discount' => $coupon->maximum_discount,
+            'free_shipping' => $coupon->free_shipping,
+            'allow_guest_checkout' => $coupon->allow_guest_checkout,
+        ];
+    }
+
+    private function buildGuestPreviewCart(array $items): Cart
+    {
+        if (empty($items)) {
+            throw new InvalidArgumentException('Your cart is empty.');
+        }
+
+        $normalizedItems = collect($items)
+            ->map(function (array $item) {
+                $productId = (int) ($item['product_id'] ?? 0);
+                $quantity = (int) ($item['quantity'] ?? 0);
+
+                if ($productId <= 0) {
+                    throw new InvalidArgumentException('Invalid product provided for coupon validation.');
+                }
+
+                if ($quantity <= 0) {
+                    throw new InvalidArgumentException('Invalid quantity provided for coupon validation.');
+                }
+
+                return [
+                    'product_id' => $productId,
+                    'quantity' => $quantity,
+                ];
+            })
+            ->groupBy('product_id')
+            ->map(function ($group, int $productId) {
+                return [
+                    'product_id' => $productId,
+                    'quantity' => (int) $group->sum('quantity'),
+                ];
+            })
+            ->values();
+
+        $products = Product::query()
+            ->whereIn('id', $normalizedItems->pluck('product_id')->all())
+            ->where('is_active', true)
+            ->get()
+            ->keyBy('id');
+
+        $previewItems = $normalizedItems->map(function (array $item) use ($products) {
+            /** @var Product|null $product */
+            $product = $products->get($item['product_id']);
+
+            if (!$product) {
+                throw new InvalidArgumentException('One or more cart items are no longer available.');
+            }
+
+            return (object) [
+                'product_id' => (int) $item['product_id'],
+                'quantity' => (int) $item['quantity'],
+                'price' => (float) $product->current_price,
+                'product' => $product,
+            ];
+        });
+
+        $cart = new Cart();
+        $cart->setAttribute('user_id', null);
+        $cart->setRelation('items', $previewItems);
+
+        return $cart;
     }
 }

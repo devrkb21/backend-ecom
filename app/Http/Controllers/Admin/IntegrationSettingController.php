@@ -48,15 +48,42 @@ class IntegrationSettingController extends Controller
             'sms_api_key' => ['nullable', 'string', 'max:255'],
             'sms_sender_id' => ['nullable', 'string', 'max:100'],
             'sms_balance_url' => ['nullable', 'string', 'max:255'],
+            'site_verification_entries' => ['nullable', 'array'],
+            'site_verification_entries.*.provider' => ['nullable', 'string', 'max:50'],
+            'site_verification_entries.*.code' => ['nullable', 'string', 'max:255'],
+            'site_verification_entries.*.meta_name' => ['nullable', 'string', 'max:120', 'regex:/^[A-Za-z0-9._:-]+$/'],
         ]);
+
+        $currentValues = Setting::where('group', self::GROUP)
+            ->pluck('value', 'key')
+            ->all();
+
+        $fieldToggleMap = $this->fieldToggleMap();
 
         foreach ($this->definitions() as $index => $definition) {
             $key = $definition['key'];
 
             if ($definition['type'] === 'boolean') {
                 $value = $request->boolean($key) ? '1' : '0';
+            } elseif ($definition['type'] === 'json') {
+                $rawValue = $validated[$key] ?? $request->input($key, []);
+
+                if ($key === 'site_verification_entries') {
+                    $value = $this->normalizeSiteVerificationEntries(is_array($rawValue) ? $rawValue : []);
+                } else {
+                    $value = is_array($rawValue) ? $rawValue : [];
+                }
             } else {
-                $value = trim((string) ($validated[$key] ?? ''));
+                $toggleKey = $fieldToggleMap[$key] ?? null;
+
+                if ($toggleKey && !$request->boolean($toggleKey)) {
+                    // Preserve existing value when the integration is disabled.
+                    $value = (string) ($currentValues[$key] ?? ($definition['default'] ?? ''));
+                } elseif (array_key_exists($key, $validated)) {
+                    $value = trim((string) ($validated[$key] ?? ''));
+                } else {
+                    $value = (string) ($currentValues[$key] ?? ($definition['default'] ?? ''));
+                }
             }
 
             Setting::setValue(self::GROUP, $key, $value, [
@@ -183,6 +210,14 @@ class IntegrationSettingController extends Controller
                 'is_public' => true,
             ],
             [
+                'key' => 'site_verification_entries',
+                'label' => 'Site Verification Entries',
+                'type' => 'json',
+                'default' => '[]',
+                'description' => 'List of domain verification entries rendered for search platforms.',
+                'is_public' => true,
+            ],
+            [
                 'key' => 'sms_enabled',
                 'label' => 'Enable SMS API',
                 'type' => 'boolean',
@@ -231,5 +266,62 @@ class IntegrationSettingController extends Controller
                 'is_public' => false,
             ],
         ];
+    }
+
+    private function fieldToggleMap(): array
+    {
+        return [
+            'gtm_container_id' => 'gtm_enabled',
+            'facebook_pixel_id' => 'facebook_pixel_enabled',
+            'tiktok_pixel_id' => 'tiktok_pixel_enabled',
+            'google_analytics_measurement_id' => 'google_analytics_enabled',
+            'sms_provider' => 'sms_enabled',
+            'sms_api_base_url' => 'sms_enabled',
+            'sms_api_key' => 'sms_enabled',
+            'sms_sender_id' => 'sms_enabled',
+            'sms_balance_url' => 'sms_enabled',
+        ];
+    }
+
+    private function verificationProviders(): array
+    {
+        return ['google', 'bing', 'yandex', 'pinterest', 'facebook', 'custom'];
+    }
+
+    private function normalizeSiteVerificationEntries(array $entries): array
+    {
+        $allowedProviders = $this->verificationProviders();
+        $normalized = [];
+
+        foreach ($entries as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $provider = strtolower(trim((string) ($entry['provider'] ?? '')));
+            $code = trim((string) ($entry['code'] ?? ''));
+
+            if (!in_array($provider, $allowedProviders, true) || $code === '') {
+                continue;
+            }
+
+            $item = [
+                'provider' => $provider,
+                'code' => $code,
+            ];
+
+            if ($provider === 'custom') {
+                $metaName = strtolower(trim((string) ($entry['meta_name'] ?? '')));
+                if ($metaName === '') {
+                    continue;
+                }
+
+                $item['meta_name'] = $metaName;
+            }
+
+            $normalized[] = $item;
+        }
+
+        return array_values($normalized);
     }
 }

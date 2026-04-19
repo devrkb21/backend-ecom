@@ -4,6 +4,10 @@
 @section('page-title', 'Create Product')
 
 @section('content')
+@php
+    $stockEnabled = $stockEnabled ?? true;
+    $isVariableProduct = (bool) old('is_variable', false);
+@endphp
 <form action="{{ route('admin.products.store') }}" method="POST" enctype="multipart/form-data">
     @csrf
     <div class="row g-3">
@@ -140,6 +144,39 @@
         <div class="col-md-4">
             <div class="card mb-4">
                 <div class="card-header">
+                    <i class="bi bi-diagram-3"></i> Product Type
+                </div>
+                <div class="card-body">
+                    <div class="form-check form-switch mb-2">
+                        <input
+                            type="checkbox"
+                            class="form-check-input"
+                            id="is_variable"
+                            name="is_variable"
+                            value="1"
+                            {{ $isVariableProduct ? 'checked' : '' }}
+                        >
+                        <label class="form-check-label" for="is_variable">Variable product (managed by variants)</label>
+                    </div>
+                    <small class="text-muted d-block">
+                        When enabled, base Pricing &amp; Stock is hidden. After saving, set pricing and stock from variant rows on the edit page.
+                    </small>
+                </div>
+            </div>
+
+            <div class="card mb-4 {{ $isVariableProduct ? '' : 'd-none' }}" id="variableManagedNoticeCard">
+                <div class="card-header">
+                    <i class="bi bi-info-circle"></i> Variant Managed
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-0 small">
+                        This product is set as variable. Base pricing and stock are ignored, and variants will be the source of truth.
+                    </p>
+                </div>
+            </div>
+
+            <div class="card mb-4 {{ $isVariableProduct ? 'd-none' : '' }}" id="basePricingStockCard">
+                <div class="card-header">
                     <i class="bi bi-currency-dollar"></i> Pricing & Stock
                 </div>
                 <div class="card-body">
@@ -147,7 +184,7 @@
                         <label for="regular_price" class="form-label">Regular Price <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">৳</span>
-                            <input type="number" step="0.01" min="0" class="form-control @error('regular_price') is-invalid @enderror" id="regular_price" name="regular_price" value="{{ old('regular_price') }}" required>
+                            <input type="number" step="0.01" min="0" class="form-control @error('regular_price') is-invalid @enderror" id="regular_price" name="regular_price" value="{{ old('regular_price') }}" @if(!$isVariableProduct) required @endif>
                         </div>
                         @error('regular_price')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
@@ -181,8 +218,24 @@
                     <hr>
 
                     <div class="mb-3">
-                        <label for="stock_quantity" class="form-label">Stock Quantity <span class="text-danger">*</span></label>
-                        <input type="number" min="0" class="form-control @error('stock_quantity') is-invalid @enderror" id="stock_quantity" name="stock_quantity" value="{{ old('stock_quantity', 0) }}" required>
+                        <label for="stock_quantity" class="form-label">
+                            Stock Quantity
+                            @if($stockEnabled)
+                                <span class="text-danger">*</span>
+                            @endif
+                        </label>
+                        <input
+                            type="number"
+                            min="0"
+                            class="form-control @error('stock_quantity') is-invalid @enderror"
+                            id="stock_quantity"
+                            name="stock_quantity"
+                            value="{{ old('stock_quantity', 0) }}"
+                            @if($stockEnabled && !$isVariableProduct) required @endif
+                        >
+                        @if(!$stockEnabled)
+                            <div class="form-text">Global stock tracking is disabled. This value is optional and ignored.</div>
+                        @endif
                         @error('stock_quantity')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
@@ -339,5 +392,41 @@ function handleGalleryImagesSelect(mediaItems) {
     feedback.innerHTML = `<i class="bi bi-check"></i> ${mediaItems.length} image(s) selected.`;
     container.appendChild(feedback);
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    var variableToggle = document.getElementById('is_variable');
+    var basePricingStockCard = document.getElementById('basePricingStockCard');
+    var variableManagedNoticeCard = document.getElementById('variableManagedNoticeCard');
+    var regularPriceInput = document.getElementById('regular_price');
+    var stockQuantityInput = document.getElementById('stock_quantity');
+    var stockEnabled = @json($stockEnabled);
+
+    if (!variableToggle) {
+        return;
+    }
+
+    function syncVariableProductModeUI() {
+        var isVariable = variableToggle.checked;
+
+        if (basePricingStockCard) {
+            basePricingStockCard.classList.toggle('d-none', isVariable);
+        }
+
+        if (variableManagedNoticeCard) {
+            variableManagedNoticeCard.classList.toggle('d-none', !isVariable);
+        }
+
+        if (regularPriceInput) {
+            regularPriceInput.required = !isVariable;
+        }
+
+        if (stockQuantityInput) {
+            stockQuantityInput.required = stockEnabled && !isVariable;
+        }
+    }
+
+    variableToggle.addEventListener('change', syncVariableProductModeUI);
+    syncVariableProductModeUI();
+});
 </script>
 @endpush

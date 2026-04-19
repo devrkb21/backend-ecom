@@ -100,6 +100,11 @@
                             $primaryImage = $product->images->firstWhere('is_primary', true) ?? $product->images->first();
                             $frontendBaseUrl = rtrim(config('app.frontend_url', url('/')), '/');
                             $frontendProductUrl = $frontendBaseUrl . '/products/' . rawurlencode($product->slug ?? (string) $product->id);
+                            $pricing = $product->resolveGlobalPricingSnapshot();
+                            $effectiveStock = $product->hasActiveVariants()
+                                ? $product->getActiveVariantStockQuantity()
+                                : (int) $product->stock_quantity;
+                            $hasPriceRange = (bool) ($pricing['has_price_range'] ?? false);
                         @endphp
                         <tr>
                             <td>{{ $product->id }}</td>
@@ -118,20 +123,26 @@
                             </td>
                             <td>{{ $product->category?->name ?? '-' }}</td>
                             <td>
-                                @if($product->sale_price)
-                                    <span class="text-decoration-line-through text-muted">৳{{ number_format($product->regular_price, 2) }}</span>
-                                    <span class="text-danger">৳{{ number_format($product->sale_price, 2) }}</span>
+                                @if($hasPriceRange)
+                                    <span>৳{{ number_format((float) ($pricing['price_range_min'] ?? 0), 2) }} - ৳{{ number_format((float) ($pricing['price_range_max'] ?? 0), 2) }}</span>
+                                    <div class="small text-muted">Variant price range</div>
+                                @elseif(($pricing['sale_price'] ?? null) !== null)
+                                    <span class="text-decoration-line-through text-muted">৳{{ number_format((float) ($pricing['regular_price'] ?? 0), 2) }}</span>
+                                    <span class="text-danger">৳{{ number_format((float) $pricing['sale_price'], 2) }}</span>
                                 @else
-                                    ৳{{ number_format($product->regular_price, 2) }}
+                                    ৳{{ number_format((float) ($pricing['current_price'] ?? 0), 2) }}
                                 @endif
                             </td>
                             <td>
-                                @if($product->stock_quantity <= 0)
+                                @if($effectiveStock <= 0)
                                     <span class="badge bg-danger">Out of Stock</span>
-                                @elseif($product->stock_quantity <= 10)
-                                    <span class="badge bg-warning text-dark">{{ $product->stock_quantity }}</span>
+                                @elseif($effectiveStock <= 10)
+                                    <span class="badge bg-warning text-dark">{{ $effectiveStock }}</span>
                                 @else
-                                    <span class="badge bg-success">{{ $product->stock_quantity }}</span>
+                                    <span class="badge bg-success">{{ $effectiveStock }}</span>
+                                @endif
+                                @if($product->hasActiveVariants())
+                                    <div class="small text-muted">From active variants</div>
                                 @endif
                             </td>
                             <td>

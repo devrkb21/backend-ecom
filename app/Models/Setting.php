@@ -101,13 +101,23 @@ class Setting extends Model
      */
     protected static function castValue(mixed $value, string $type): mixed
     {
+        $resolveImageUrl = static function (string $path): string {
+            $normalized = ltrim($path, '/');
+
+            if (str_starts_with($normalized, 'media/') || str_starts_with($normalized, 'storage/')) {
+                return asset($normalized);
+            }
+
+            return asset('storage/' . $normalized);
+        };
+
         return match ($type) {
             'boolean' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
             'number', 'integer' => (int) $value,
             'float', 'decimal' => (float) $value,
             'json', 'array' => is_string($value) ? json_decode($value, true) : $value,
             'image' => is_string($value) && $value !== '' && !str_starts_with($value, 'http')
-                ? \Illuminate\Support\Facades\Storage::disk('public')->url($value)
+                ? $resolveImageUrl($value)
                 : $value,
             default => $value,
         };
@@ -134,15 +144,55 @@ class Setting extends Model
      */
     public static function clearCache(?string $group = null, ?string $key = null): void
     {
+        $forgetServiceCacheKeys = static function (?string $groupName = null): void {
+            Cache::forget('settings.public.all');
+            Cache::forget('settings.admin.all');
+
+            if ($groupName) {
+                Cache::forget("settings.public.{$groupName}");
+            }
+        };
+
         if ($group && $key) {
             Cache::forget("settings.{$group}.{$key}");
+            Cache::forget("settings.group.{$group}.public");
+            Cache::forget("settings.group.{$group}.all");
+            Cache::forget('settings.all.public');
+            $forgetServiceCacheKeys($group);
+
+            return;
         }
 
         if ($group) {
+            $keys = static::where('group', $group)->pluck('key');
+
+            foreach ($keys as $settingKey) {
+                Cache::forget("settings.{$group}.{$settingKey}");
+            }
+
             Cache::forget("settings.group.{$group}.public");
             Cache::forget("settings.group.{$group}.all");
+            Cache::forget('settings.all.public');
+            $forgetServiceCacheKeys($group);
+
+            return;
+        }
+
+        $allSettings = static::query()
+            ->select(['group', 'key'])
+            ->get();
+
+        foreach ($allSettings as $setting) {
+            Cache::forget("settings.{$setting->group}.{$setting->key}");
+        }
+
+        foreach ($allSettings->pluck('group')->unique() as $groupName) {
+            Cache::forget("settings.group.{$groupName}.public");
+            Cache::forget("settings.group.{$groupName}.all");
+            $forgetServiceCacheKeys($groupName);
         }
 
         Cache::forget('settings.all.public');
+        $forgetServiceCacheKeys();
     }
 }

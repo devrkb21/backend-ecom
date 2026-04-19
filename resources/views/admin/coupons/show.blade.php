@@ -87,6 +87,16 @@
                             @endif
                         </p>
                     </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Guest Checkout</h6>
+                        <p>
+                            @if($coupon->allow_guest_checkout)
+                                <span class="badge bg-success"><i class="bi bi-person me-1"></i>Allowed</span>
+                            @else
+                                <span class="text-muted">Login required</span>
+                            @endif
+                        </p>
+                    </div>
                 </div>
 
                 @if($coupon->applicable_categories || $coupon->applicable_products || $coupon->excluded_products)

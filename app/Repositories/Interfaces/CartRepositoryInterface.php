@@ -10,11 +10,11 @@ interface CartRepositoryInterface extends BaseRepositoryInterface
 
     public function getOrCreateForUser(int $userId): Cart;
 
-    public function addItem(int $cartId, int $productId, int $quantity, float $price): void;
+    public function addItem(int $cartId, int $productId, int $quantity, float $price, ?int $variantId = null): void;
 
-    public function updateItemQuantity(int $cartId, int $productId, int $quantity, ?float $price = null): void;
+    public function updateItemQuantity(int $cartId, int $productId, int $quantity, ?float $price = null, ?int $variantId = null): void;
 
-    public function removeItem(int $cartId, int $productId): void;
+    public function removeItem(int $cartId, int $productId, ?int $variantId = null): void;
 
     public function clearCart(int $cartId): void;
 }

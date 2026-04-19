@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AbandonedCart;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -106,6 +107,9 @@ class DashboardController extends Controller
             ->where('stock_quantity', '<=', 10)
             ->count();
 
+        // Abandoned cart summary
+        $abandonedSummary = AbandonedCart::getSummary();
+
         return view('admin.dashboard', compact(
             'stats',
             'todayStats',
@@ -114,7 +118,8 @@ class DashboardController extends Controller
             'chartData',
             'recentOrders',
             'topProducts',
-            'lowStockCount'
+            'lowStockCount',
+            'abandonedSummary'
         ));
     }
 }

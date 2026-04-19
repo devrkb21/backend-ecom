@@ -26,13 +26,16 @@
                 <tbody>
                     @forelse($payments as $payment)
                         <tr>
+                            @php
+                                $displayOrderNumber = $payment->order?->order_number ?? $payment->order_id;
+                            @endphp
                             <td>#{{ $payment->id }}</td>
                             <td>
                                 <a href="{{ route('admin.orders.show', $payment->order_id) }}">
-                                    Order #{{ $payment->order_id }}
+                                    Order #{{ $displayOrderNumber }}
                                 </a>
                             </td>
-                            <td>{{ $payment->order->user->name ?? 'N/A' }}</td>
+                            <td>{{ $payment->order?->user?->name ?? 'N/A' }}</td>
                             <td>{{ ucfirst($payment->payment_method) }}</td>
                             <td><strong>৳{{ number_format($payment->amount, 2) }}</strong></td>
                             <td>

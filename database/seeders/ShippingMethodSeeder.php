@@ -69,7 +69,7 @@ class ShippingMethodSeeder extends Seeder
                 'max_weight' => 15,
                 'min_delivery_days' => 1,
                 'max_delivery_days' => 1,
-                'allowed_countries' => ['BD'],
+                'allowed_countries' => null,
                 'excluded_countries' => null,
                 'settings' => [
                     'tracking_available' => true,
@@ -102,29 +102,6 @@ class ShippingMethodSeeder extends Seeder
                             'hours' => 'Sat-Thu 10am-8pm, Fri 3pm-8pm',
                         ],
                     ],
-                ],
-            ],
-            [
-                'code' => 'international',
-                'name' => 'International Shipping',
-                'description' => 'Worldwide delivery',
-                'is_active' => true,
-                'sort_order' => 5,
-                'base_cost' => 2500,
-                'cost_per_item' => 100,
-                'cost_per_kg' => 150,
-                'free_shipping_threshold' => 15000,
-                'min_order_amount' => 3000,
-                'max_order_amount' => null,
-                'max_weight' => 20,
-                'min_delivery_days' => 7,
-                'max_delivery_days' => 21,
-                'allowed_countries' => null,
-                'excluded_countries' => ['CU', 'KP', 'IR', 'SY'], // Sanctioned countries
-                'settings' => [
-                    'tracking_available' => true,
-                    'insurance_available' => true,
-                    'customs_declaration_required' => true,
                 ],
             ],
         ];

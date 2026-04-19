@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\OrderTrackingController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\SavedPaymentMethodController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\MediaController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Admin\ShippingMethodController;
 use App\Http\Controllers\Admin\SiteSettingController;
 use App\Http\Controllers\Admin\IntegrationSettingController;
 use App\Http\Controllers\Admin\AdminRoleController;
+use App\Http\Controllers\Admin\OrderStatusController;
 use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\AbandonedCartController;
@@ -36,10 +38,8 @@ Route::get('login', fn() => redirect()->route('admin.login'))->name('login');
 
 // Admin Auth Routes (Guest)
 Route::prefix('admin')->name('admin.')->group(function () {
-    Route::middleware('guest:web')->group(function () {
-        Route::get('login', [AuthController::class, 'showLoginForm'])->name('login');
-        Route::post('login', [AuthController::class, 'login'])->name('login.submit');
-    });
+    Route::get('login', [AuthController::class, 'showLoginForm'])->name('login');
+    Route::post('login', [AuthController::class, 'login'])->name('login.submit');
 
     // Admin Protected Routes
     Route::middleware(['auth:web', 'is_admin', 'admin_permission'])->group(function () {
@@ -57,6 +57,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Product Variants
         Route::post('products/{product}/variants', [ProductController::class, 'storeVariant'])->name('products.variants.store');
         Route::put('products/{product}/variants/{variant}', [ProductController::class, 'updateVariant'])->name('products.variants.update');
+        Route::put('products/{product}/variants-matrix', [ProductController::class, 'updateVariantMatrix'])->name('products.variants.matrix-update');
         Route::post('products/{product}/variants/generate', [ProductController::class, 'generateVariants'])->name('products.variants.generate');
         Route::put('products/{product}/variants-bulk', [ProductController::class, 'bulkUpdateVariants'])->name('products.variants.bulk-update');
         Route::delete('products/{product}/variants/{variant}', [ProductController::class, 'destroyVariant'])->name('products.variants.destroy');
@@ -73,6 +74,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Orders (Read + Status Update)
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::post('orders/bulk-action', [OrderController::class, 'bulkAction'])->name('orders.bulk-action');
         Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
         Route::patch('orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
 
@@ -85,6 +87,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Payments (Read Only)
         Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
+        Route::get('payments/saved-methods', [SavedPaymentMethodController::class, 'index'])->name('payments.saved-methods');
         Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
 
         // Users
@@ -154,6 +157,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('integrations', [IntegrationSettingController::class, 'index'])->name('integrations');
             Route::put('integrations', [IntegrationSettingController::class, 'update'])->name('integrations.update');
             Route::get('integrations/sms-balance', [IntegrationSettingController::class, 'smsBalance'])->name('integrations.sms-balance');
+
+            // Order Statuses
+            Route::get('order-statuses', [OrderStatusController::class, 'index'])->name('order-statuses');
+            Route::post('order-statuses', [OrderStatusController::class, 'store'])->name('order-statuses.store');
+            Route::put('order-statuses/{orderStatus}', [OrderStatusController::class, 'update'])->name('order-statuses.update');
+            Route::delete('order-statuses/{orderStatus}', [OrderStatusController::class, 'destroy'])->name('order-statuses.destroy');
         });
 
         // Coupons

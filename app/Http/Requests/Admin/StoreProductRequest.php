@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreProductRequest extends FormRequest
@@ -13,17 +14,37 @@ class StoreProductRequest extends FormRequest
 
     public function rules(): array
     {
+        $hasSubmittedVariants = is_array($this->input('variants'))
+            && !empty($this->input('variants'));
+        $isVariableProduct = $this->boolean('is_variable') || $hasSubmittedVariants;
+
+        $stockRules = ['nullable', 'integer', 'min:0'];
+
+        if (Product::isStockEnabled() && !$isVariableProduct) {
+            $stockRules[0] = 'required';
+        }
+
+        $regularPriceRules = $isVariableProduct
+            ? ['nullable', 'numeric', 'min:0']
+            : ['required', 'numeric', 'min:0.01'];
+
+        $salePriceRules = ['nullable', 'numeric', 'min:0'];
+        if (!$isVariableProduct) {
+            $salePriceRules[] = 'lt:regular_price';
+        }
+
         return [
             'category_id' => ['required', 'integer', 'exists:categories,id'],
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', 'unique:products,slug'],
             'description' => ['nullable', 'string'],
             'short_description' => ['nullable', 'string', 'max:500'],
-            'regular_price' => ['required', 'numeric', 'min:0.01'],
-            'sale_price' => ['nullable', 'numeric', 'min:0', 'lt:regular_price'],
+            'regular_price' => $regularPriceRules,
+            'sale_price' => $salePriceRules,
             'buy_price' => ['nullable', 'numeric', 'min:0'],
             'sku' => ['nullable', 'string', 'max:100', 'unique:products,sku'],
-            'stock_quantity' => ['required', 'integer', 'min:0'],
+            'stock_quantity' => $stockRules,
+            'is_variable' => ['nullable', 'boolean'],
             'free_delivery' => ['nullable', 'boolean'],
             'dynamic_discount_tiers' => ['nullable', 'array'],
             'dynamic_discount_tiers.*.min_quantity' => ['nullable', 'integer', 'min:1'],
@@ -44,6 +65,7 @@ class StoreProductRequest extends FormRequest
             'is_featured' => $this->boolean('is_featured'),
             'is_new' => $this->boolean('is_new'),
             'is_bestseller' => $this->boolean('is_bestseller'),
+            'is_variable' => $this->boolean('is_variable'),
             'free_delivery' => $this->boolean('free_delivery'),
         ]);
     }

@@ -100,7 +100,7 @@
                             <tbody>
                                 @foreach($user->orders->take(10) as $order)
                                     <tr>
-                                        <td>#{{ $order->id }}</td>
+                                        <td>#{{ $order->order_number ?? $order->id }}</td>
                                         <td>৳{{ number_format($order->total, 2) }}</td>
                                         <td>
                                             <span class="badge badge-status-{{ $order->status }}">

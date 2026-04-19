@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\PaymentGateway;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 
 class PaymentGatewayController extends Controller
@@ -39,7 +40,9 @@ class PaymentGatewayController extends Controller
      */
     public function edit(PaymentGateway $gateway)
     {
-        return view('admin.settings.payment-gateway-edit', compact('gateway'));
+        $currencySymbol = (string) Setting::getValue('general', 'currency_symbol', config('shop.currency_symbol', '৳'));
+
+        return view('admin.settings.payment-gateway-edit', compact('gateway', 'currencySymbol'));
     }
 
     /**
@@ -51,18 +54,23 @@ class PaymentGatewayController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:500',
             'instructions' => 'nullable|string',
+            'icon' => 'nullable|string|max:255',
             'sort_order' => 'required|integer|min:0',
             'min_amount' => 'nullable|numeric|min:0',
             'max_amount' => 'nullable|numeric|min:0',
+            'settings.extra_charge' => 'nullable|numeric|min:0',
+            'settings.extra_charge_type' => 'nullable|in:fixed,percentage',
+            'settings.extra_charge_label' => 'nullable|string|max:120',
         ]);
 
         // Handle gateway-specific settings
         $settings = $gateway->settings ?? [];
+        $settings['extra_charge'] = (float) $request->input('settings.extra_charge', 0);
+        $settings['extra_charge_type'] = $request->input('settings.extra_charge_type', 'fixed');
+        $settings['extra_charge_label'] = trim((string) $request->input('settings.extra_charge_label', ''));
         
         switch ($gateway->code) {
             case 'cod':
-                $settings['extra_charge'] = $request->input('settings.extra_charge', 0);
-                $settings['extra_charge_type'] = $request->input('settings.extra_charge_type', 'fixed');
                 break;
                 
             case 'stripe':

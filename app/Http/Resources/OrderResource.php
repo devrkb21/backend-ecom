@@ -9,6 +9,16 @@ class OrderResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $subtotal = (float) $this->subtotal;
+        $tax = (float) $this->tax;
+        $shipping = (float) $this->shipping;
+        $discountAmount = (float) ($this->discount_amount ?? 0);
+        $total = (float) $this->total;
+        $paymentCharge = max(0, round($total - ($subtotal + $tax + $shipping - $discountAmount), 2));
+        $checkoutFieldsPayload = is_array($this->checkout_fields_payload) ? $this->checkout_fields_payload : [];
+        $shippingLocationText = $this->extractCheckoutFieldValue($checkoutFieldsPayload, ['shipping_location_text', 'location_text']);
+        $shippingArea = $this->extractCheckoutFieldValue($checkoutFieldsPayload, ['shipping_area', 'area', 'address_line_2', 'billing_address_2']);
+
         return [
             'id' => $this->id,
             'order_number' => $this->order_number,
@@ -17,19 +27,33 @@ class OrderResource extends JsonResource
             'payment_status' => $this->payment_status,
             'transaction_id' => $this->transaction_id,
             'shipping_method' => $this->shipping_method,
-            'subtotal' => (float) $this->subtotal,
-            'tax' => (float) $this->tax,
-            'shipping' => (float) $this->shipping,
-            'total' => (float) $this->total,
+            'coupon_code' => $this->coupon_code,
+            'discount_amount' => $discountAmount,
+            'payment_charge' => $paymentCharge,
+            'subtotal' => $subtotal,
+            'tax' => $tax,
+            'shipping' => $shipping,
+            'total' => $total,
             'shipping_name' => $this->shipping_name,
             'shipping_email' => $this->shipping_email,
             'shipping_phone' => $this->shipping_phone,
             'shipping_address' => $this->shipping_address,
+            'shipping_location_text' => $shippingLocationText,
+            'shipping_area' => $shippingArea,
+            'shipping_division_id' => $this->shipping_division_id,
+            'shipping_district_id' => $this->shipping_district_id,
+            'shipping_upazila_id' => $this->shipping_upazila_id,
+            'shipping_union_id' => $this->shipping_union_id,
             'shipping_city' => $this->shipping_city,
             'shipping_state' => $this->shipping_state,
             'shipping_zip' => $this->shipping_zip,
             'shipping_country' => $this->shipping_country,
+            'shipping_division' => $this->whenLoaded('shippingDivision', fn () => $this->shippingDivision?->name),
+            'shipping_district' => $this->whenLoaded('shippingDistrict', fn () => $this->shippingDistrict?->name),
+            'shipping_upazila' => $this->whenLoaded('shippingUpazila', fn () => $this->shippingUpazila?->name),
+            'shipping_union' => $this->whenLoaded('shippingUnion', fn () => $this->shippingUnion?->name),
             'notes' => $this->notes,
+            'checkout_fields_payload' => $checkoutFieldsPayload,
             // Tracking info
             'tracking_number' => $this->tracking_number,
             'carrier' => $this->carrier,
@@ -48,5 +72,28 @@ class OrderResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
+    }
+
+    private function extractCheckoutFieldValue(array $payload, array $keys): ?string
+    {
+        foreach ($keys as $key) {
+            if (!array_key_exists($key, $payload)) {
+                continue;
+            }
+
+            $value = $payload[$key];
+
+            if ($value === null) {
+                continue;
+            }
+
+            $normalized = trim((string) $value);
+
+            if ($normalized !== '') {
+                return $normalized;
+            }
+        }
+
+        return null;
     }
 }

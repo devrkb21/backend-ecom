@@ -4,13 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PublicSettingResource;
+use App\Services\CheckoutAddressConfigService;
 use App\Services\SettingService;
 use Illuminate\Http\JsonResponse;
 
 class FrontendSettingController extends Controller
 {
     public function __construct(
-        protected SettingService $settingService
+        protected SettingService $settingService,
+        protected CheckoutAddressConfigService $checkoutAddressConfigService
     ) {}
 
     /**
@@ -107,5 +109,23 @@ class FrontendSettingController extends Controller
         return $this->successResponse(
             PublicSettingResource::formatGroup($settings)
         );
+    }
+
+    /**
+     * Get structured checkout form settings.
+     */
+    public function checkout(): JsonResponse
+    {
+        $config = $this->checkoutAddressConfigService->getFrontendConfig();
+
+        if (config('app.debug')) {
+            logger()->debug('Checkout settings served via API.', [
+                'checkout_form_enabled' => $config['checkout_form_enabled'] ?? null,
+                'field_sections' => $config['field_sections'] ?? [],
+                'fields_count' => is_array($config['fields'] ?? null) ? count($config['fields']) : 0,
+            ]);
+        }
+
+        return $this->successResponse($config);
     }
 }

@@ -41,6 +41,9 @@ return [
     |--------------------------------------------------------------------------
     */
     'order_prefix' => env('SHOP_ORDER_PREFIX', 'ORD'),
+    'guest_checkout_user_email' => env('SHOP_GUEST_CHECKOUT_USER_EMAIL', 'guest.checkout@innercollection.local'),
+    'guest_checkout_user_name' => env('SHOP_GUEST_CHECKOUT_USER_NAME', 'Guest Checkout'),
+    'guest_checkout_user_phone' => env('SHOP_GUEST_CHECKOUT_USER_PHONE', null),
 
     /*
     |--------------------------------------------------------------------------
@@ -76,6 +79,13 @@ return [
     */
     'max_cart_items' => 50,
     'abandoned_cart_hours' => 2,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Internal API
+    |--------------------------------------------------------------------------
+    */
+    'internal_api_secret' => env('INTERNAL_API_SECRET', ''),
 
     /*
     |--------------------------------------------------------------------------

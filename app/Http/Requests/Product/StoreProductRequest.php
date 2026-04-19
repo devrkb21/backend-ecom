@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Product;
 
+use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreProductRequest extends FormRequest
@@ -13,6 +14,12 @@ class StoreProductRequest extends FormRequest
 
     public function rules(): array
     {
+        $stockRules = ['nullable', 'integer', 'min:0'];
+
+        if (Product::isStockEnabled()) {
+            $stockRules[0] = 'required';
+        }
+
         return [
             'category_id' => ['required', 'integer', 'exists:categories,id'],
             'name' => ['required', 'string', 'max:255'],
@@ -22,7 +29,7 @@ class StoreProductRequest extends FormRequest
             'sale_price' => ['nullable', 'numeric', 'min:0', 'lt:regular_price'],
             'buy_price' => ['nullable', 'numeric', 'min:0'],
             'sku' => ['required', 'string', 'max:100', 'unique:products'],
-            'stock_quantity' => ['required', 'integer', 'min:0'],
+            'stock_quantity' => $stockRules,
             'image' => ['nullable', 'string', 'max:500'],
             'is_active' => ['boolean'],
             'is_featured' => ['boolean'],

@@ -16,37 +16,62 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
 
     public function getActive(): Collection
     {
-        return $this->model->active()->with(['category', 'images'])->get();
+        return $this->model->active()
+            ->with($this->listingRelations())
+            ->withCount('variants')
+            ->get();
     }
 
     public function getActivePaginated(int $perPage = 15): LengthAwarePaginator
     {
-        return $this->model->active()->with(['category', 'images'])->paginate($perPage);
+        return $this->model->active()
+            ->with($this->listingRelations())
+            ->withCount('variants')
+            ->paginate($perPage);
     }
 
     public function getFeatured(): Collection
     {
-        return $this->model->active()->featured()->with(['category', 'images'])->get();
+        return $this->model->active()
+            ->featured()
+            ->with($this->listingRelations())
+            ->withCount('variants')
+            ->get();
     }
 
     public function getNew(): Collection
     {
-        return $this->model->active()->where('is_new', true)->with(['category', 'images'])->limit(12)->get();
+        return $this->model->active()
+            ->where('is_new', true)
+            ->with($this->listingRelations())
+            ->withCount('variants')
+            ->limit(12)
+            ->get();
     }
 
     public function getBestsellers(): Collection
     {
-        return $this->model->active()->where('is_bestseller', true)->with(['category', 'images'])->limit(12)->get();
+        return $this->model->active()
+            ->where('is_bestseller', true)
+            ->with($this->listingRelations())
+            ->withCount('variants')
+            ->limit(12)
+            ->get();
     }
 
     public function findBySlug(string $slug): ?Product
     {
-        return $this->model->with(['category', 'images', 'variants.attributeValues.attribute'])->where('slug', $slug)->first();
+        return $this->model
+            ->with(['category', 'images', 'variants.product', 'variants.attributeValues.attribute'])
+            ->where('slug', $slug)
+            ->first();
     }
 
     public function findWithDetails(int $id): ?Product
     {
-        return $this->model->with(['category', 'images', 'variants.attributeValues.attribute'])->find($id);
+        return $this->model
+            ->with(['category', 'images', 'variants.product', 'variants.attributeValues.attribute'])
+            ->find($id);
     }
 
     public function findBySku(string $sku): ?Product
@@ -56,7 +81,11 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
 
     public function getByCategory(int $categoryId): Collection
     {
-        return $this->model->active()->where('category_id', $categoryId)->with(['category', 'images'])->get();
+        return $this->model->active()
+            ->where('category_id', $categoryId)
+            ->with($this->listingRelations())
+            ->withCount('variants')
+            ->get();
     }
 
     public function getByCategoryPaginated(int $categoryId, int $perPage = 15): LengthAwarePaginator
@@ -64,7 +93,8 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
         return $this->model
             ->active()
             ->where('category_id', $categoryId)
-            ->with(['category', 'images'])
+            ->with($this->listingRelations())
+            ->withCount('variants')
             ->paginate($perPage);
     }
 
@@ -77,7 +107,21 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
                     ->orWhere('description', 'like', "%{$query}%")
                     ->orWhere('sku', 'like', "%{$query}%");
             })
-            ->with(['category', 'images'])
+            ->with($this->listingRelations())
+            ->withCount('variants')
             ->get();
+    }
+
+    private function listingRelations(): array
+    {
+        return [
+            'category',
+            'images',
+            'variants' => function ($query) {
+                $query
+                    ->where('is_active', true)
+                    ->select(['id', 'product_id', 'sku', 'price_adjustment', 'purchase_price', 'regular_price', 'discounted_price', 'stock_quantity', 'is_active', 'image']);
+            },
+        ];
     }
 }

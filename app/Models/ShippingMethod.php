@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ShippingMethod extends Model
 {
@@ -64,10 +65,40 @@ class ShippingMethod extends Model
         return static::where('code', $code)->first();
     }
 
+    public function districtRates(): HasMany
+    {
+        return $this->hasMany(ShippingMethodDistrictRate::class, 'shipping_method_id');
+    }
+
+    public function locationRules(): HasMany
+    {
+        return $this->hasMany(ShippingMethodLocationRule::class, 'shipping_method_id');
+    }
+
+    public function getDistrictRate(?int $districtId = null): ?float
+    {
+        if (!$districtId) {
+            return null;
+        }
+
+        $rate = $this->districtRates()
+            ->where('district_id', $districtId)
+            ->value('rate');
+
+        return $rate !== null ? (float) $rate : null;
+    }
+
     /**
      * Check if this method is available for a given order
      */
-    public function isAvailableFor(float $orderAmount, ?float $weight = null, ?string $countryCode = null): bool
+    public function isAvailableFor(
+        float $orderAmount,
+        ?float $weight = null,
+        ?string $countryCode = null,
+        ?int $divisionId = null,
+        ?int $districtId = null,
+        ?int $upazilaId = null
+    ): bool
     {
         // Check if active
         if (!$this->is_active) {
@@ -89,20 +120,45 @@ class ShippingMethod extends Model
             return false;
         }
 
-        // Check country restrictions
+        // Bangladesh-only operation policy.
         if ($countryCode) {
-            // Check if excluded
-            if ($this->excluded_countries && in_array($countryCode, $this->excluded_countries)) {
-                return false;
-            }
-
-            // Check if allowed (if specific countries are set)
-            if ($this->allowed_countries && !empty($this->allowed_countries) && !in_array($countryCode, $this->allowed_countries)) {
+            $normalizedCountry = strtoupper(trim($countryCode));
+            if (!in_array($normalizedCountry, ['BD', 'BANGLADESH'], true)) {
                 return false;
             }
         }
 
+        $hasLocationContext = $divisionId || $districtId || $upazilaId;
+        if ($hasLocationContext && !$this->isAvailableForLocation($divisionId, $districtId, $upazilaId)) {
+            return false;
+        }
+
         return true;
+    }
+
+    public function isAvailableForLocation(?int $divisionId = null, ?int $districtId = null, ?int $upazilaId = null): bool
+    {
+        $rules = $this->locationRules()->get(['location_type', 'location_id']);
+
+        if ($rules->isEmpty()) {
+            return true;
+        }
+
+        foreach ($rules as $rule) {
+            if ($rule->location_type === 'division' && $divisionId && (int) $rule->location_id === (int) $divisionId) {
+                return true;
+            }
+
+            if ($rule->location_type === 'district' && $districtId && (int) $rule->location_id === (int) $districtId) {
+                return true;
+            }
+
+            if ($rule->location_type === 'upazila' && $upazilaId && (int) $rule->location_id === (int) $upazilaId) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

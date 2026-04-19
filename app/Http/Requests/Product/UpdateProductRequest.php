@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Product;
 
+use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,6 +16,9 @@ class UpdateProductRequest extends FormRequest
     public function rules(): array
     {
         $productId = $this->route('product');
+        $stockRules = Product::isStockEnabled()
+            ? ['sometimes', 'integer', 'min:0']
+            : ['nullable', 'integer', 'min:0'];
 
         return [
             'category_id' => ['sometimes', 'integer', 'exists:categories,id'],
@@ -25,7 +29,7 @@ class UpdateProductRequest extends FormRequest
             'sale_price' => ['nullable', 'numeric', 'min:0'],
             'buy_price' => ['nullable', 'numeric', 'min:0'],
             'sku' => ['sometimes', 'string', 'max:100', Rule::unique('products')->ignore($productId)],
-            'stock_quantity' => ['sometimes', 'integer', 'min:0'],
+            'stock_quantity' => $stockRules,
             'image' => ['nullable', 'string', 'max:500'],
             'is_active' => ['boolean'],
             'is_featured' => ['boolean'],

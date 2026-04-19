@@ -105,22 +105,22 @@
                         </div>
                     </div>
                     <p class="text-muted small mb-3">{{ $gateway->description }}</p>
-                    
-                    @if($gateway->code === 'cod')
-                        <div class="small">
-                            <i class="bi bi-info-circle text-info me-1"></i>
-                            @if($gateway->getSetting('extra_charge', 0) > 0)
-                                Extra charge: 
-                                @if($gateway->getSetting('extra_charge_type') === 'percentage')
-                                    {{ $gateway->getSetting('extra_charge') }}%
-                                @else
-                                    ৳{{ number_format($gateway->getSetting('extra_charge'), 2) }}
-                                @endif
+
+                    <div class="small mb-1">
+                        <i class="bi bi-calculator text-info me-1"></i>
+                        @if($gateway->getSetting('extra_charge', 0) > 0)
+                            Gateway charge:
+                            @if($gateway->getSetting('extra_charge_type', 'fixed') === 'percentage')
+                                {{ $gateway->getSetting('extra_charge') }}%
                             @else
-                                No extra charge
+                                ৳{{ number_format((float) $gateway->getSetting('extra_charge'), 2) }}
                             @endif
-                        </div>
-                    @elseif($gateway->code === 'stripe')
+                        @else
+                            No gateway charge
+                        @endif
+                    </div>
+
+                    @if($gateway->code === 'stripe')
                         <div class="small">
                             <i class="bi bi-{{ $gateway->getSetting('mode') === 'live' ? 'check-circle text-success' : 'exclamation-circle text-warning' }} me-1"></i>
                             Mode: <strong>{{ ucfirst($gateway->getSetting('mode', 'test')) }}</strong>

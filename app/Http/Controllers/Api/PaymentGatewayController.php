@@ -24,10 +24,10 @@ class PaymentGatewayController extends Controller
         
         // Only filter by amount/currency if amount is provided
         if ($amount !== null && $amount > 0) {
-            $gateways = $gateways->filter(fn($gateway) => $gateway->isAvailableFor((float) $amount, $currency));
+            $gateways = $gateways->filter(fn(PaymentGateway $gateway) => $gateway->isAvailableFor((float) $amount, $currency));
         }
         
-        $gateways = $gateways->map(fn($gateway) => [
+        $gateways = $gateways->map(fn(PaymentGateway $gateway) => [
                 'code' => $gateway->code,
                 'name' => $gateway->name,
                 'description' => $gateway->description,
@@ -82,27 +82,26 @@ class PaymentGatewayController extends Controller
     }
 
     /**
-     * Calculate extra charge for COD or other gateways
+     * Calculate gateway extra charge from payment gateway settings.
      */
     private function calculateExtraCharge(PaymentGateway $gateway, float $amount): ?array
     {
-        if ($gateway->code !== 'cod') {
-            return null;
-        }
-
-        $extraCharge = $gateway->getSetting('extra_charge', 0);
+        $extraCharge = (float) $gateway->getSetting('extra_charge', 0);
         $chargeType = $gateway->getSetting('extra_charge_type', 'fixed');
+        $customLabel = trim((string) $gateway->getSetting('extra_charge_label', ''));
 
         if ($extraCharge <= 0) {
             return null;
         }
+
+        $label = $customLabel !== '' ? $customLabel : "{$gateway->name} gateway charge";
 
         if ($chargeType === 'percentage') {
             return [
                 'type' => 'percentage',
                 'value' => $extraCharge,
                 'calculated' => round($amount * ($extraCharge / 100), 2),
-                'label' => "{$extraCharge}% COD fee",
+                'label' => $label,
             ];
         }
 
@@ -110,7 +109,7 @@ class PaymentGatewayController extends Controller
             'type' => 'fixed',
             'value' => $extraCharge,
             'calculated' => $extraCharge,
-            'label' => 'COD fee',
+            'label' => $label,
         ];
     }
 }

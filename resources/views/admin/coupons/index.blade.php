@@ -14,7 +14,7 @@
     <div class="card-body">
         {{-- Filters --}}
         <form action="{{ route('admin.coupons.index') }}" method="GET" class="row g-3 mb-4">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
                     <input type="text" class="form-control" name="search" value="{{ request('search') }}" placeholder="Search by code or name...">
@@ -37,11 +37,18 @@
                 </select>
             </div>
             <div class="col-md-2">
+                <select name="guest_eligibility" class="form-select">
+                    <option value="">Guest: All</option>
+                    <option value="allowed" {{ request('guest_eligibility') == 'allowed' ? 'selected' : '' }}>Guest Allowed</option>
+                    <option value="login_required" {{ request('guest_eligibility') == 'login_required' ? 'selected' : '' }}>Login Required</option>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <button type="submit" class="btn btn-outline-primary w-100">
                     <i class="bi bi-funnel me-1"></i> Filter
                 </button>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <a href="{{ route('admin.coupons.index') }}" class="btn btn-outline-secondary w-100">
                     <i class="bi bi-x-lg me-1"></i> Clear
                 </a>
@@ -98,12 +105,22 @@
                                 @if($coupon->free_shipping)
                                     <span class="badge bg-info ms-1" title="Free Shipping"><i class="bi bi-truck"></i></span>
                                 @endif
+                                @if($coupon->allow_guest_checkout)
+                                    <span class="badge bg-success ms-1" title="Guest Checkout Allowed"><i class="bi bi-person"></i></span>
+                                @endif
                             </td>
                             <td>
                                 <div class="fw-semibold">{{ $coupon->name }}</div>
                                 @if($coupon->minimum_order_amount)
                                     <small class="text-muted">Min: ৳{{ number_format($coupon->minimum_order_amount) }}</small>
                                 @endif
+                                <div class="mt-1">
+                                    @if($coupon->allow_guest_checkout)
+                                        <span class="badge bg-success">Guest Allowed</span>
+                                    @else
+                                        <span class="badge bg-secondary">Guest Login Required</span>
+                                    @endif
+                                </div>
                             </td>
                             <td>
                                 <span class="badge bg-{{ $coupon->type == 'percentage' ? 'warning' : 'success' }} text-dark">

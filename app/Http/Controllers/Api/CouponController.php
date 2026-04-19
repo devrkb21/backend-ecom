@@ -25,10 +25,31 @@ class CouponController extends Controller
     {
         $request->validate([
             'code' => 'required|string|max:50',
+            'items' => 'nullable|array|min:1',
+            'items.*.product_id' => 'required_with:items|integer|exists:products,id',
+            'items.*.quantity' => 'required_with:items|integer|min:1|max:100',
         ]);
 
         $user = $request->user();
-        $cart = Cart::with(['items.product'])->where('user_id', $user->id)->first();
+
+        if (!$user) {
+            $result = $this->couponService->applyToGuestItems($request->code, $request->input('items', []));
+
+            if (!$result['success']) {
+                return response()->json($result, 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $result['message'],
+                'data' => [
+                    'coupon' => $result['coupon'],
+                    'discount' => $result['discount'],
+                ],
+            ]);
+        }
+
+        $cart = Cart::with(['items.product', 'items.variant.attributeValues.attribute'])->where('user_id', $user->id)->first();
 
         if (!$cart || $cart->items->isEmpty()) {
             return response()->json([
@@ -45,7 +66,7 @@ class CouponController extends Controller
 
         // Reload cart with updated data
         $cart->refresh();
-        $cart->load(['items.product', 'coupon']);
+        $cart->load(['items.product', 'items.variant.attributeValues.attribute', 'coupon']);
 
         return response()->json([
             'success' => true,
@@ -76,7 +97,7 @@ class CouponController extends Controller
         $result = $this->couponService->removeFromCart($cart);
 
         $cart->refresh();
-        $cart->load(['items.product']);
+        $cart->load(['items.product', 'items.variant.attributeValues.attribute']);
 
         return response()->json([
             'success' => true,
@@ -101,7 +122,7 @@ class CouponController extends Controller
         $orderTotal = $request->input('order_total');
 
         // If no order total provided, calculate from cart
-        if ($orderTotal === null) {
+        if ($orderTotal === null && $user) {
             $cart = Cart::with('items')->where('user_id', $user->id)->first();
             if ($cart) {
                 $orderTotal = $cart->items->sum(fn($item) => $item->price * $item->quantity);
@@ -177,7 +198,7 @@ class CouponController extends Controller
                     'product_id' => $item->product_id,
                     'product_name' => $item->product?->name,
                     'product_image' => $item->product?->primary_image_url,
-                    'variant_id' => $item->variant_id,
+                    'variant_id' => $item->product_variant_id,
                     'quantity' => $item->quantity,
                     'price' => $item->price,
                     'subtotal' => round($item->price * $item->quantity, 2),

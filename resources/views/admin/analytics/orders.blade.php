@@ -184,25 +184,35 @@
             </div>
             <div class="card-body p-0">
                 <ul class="list-group list-group-flush">
-                    <li class="list-group-item d-flex justify-content-between align-items-center py-3">
-                        <span><span class="badge badge-status-pending me-2">•</span> Pending</span>
-                        <strong>{{ $stats['pending'] }}</strong>
+                    <li class="list-group-item p-0">
+                        <a href="{{ route('admin.orders.index', ['status' => 'pending']) }}" class="d-flex justify-content-between align-items-center py-3 px-3 text-decoration-none text-body">
+                            <span><span class="badge badge-status-pending me-2">•</span> Pending</span>
+                            <strong>{{ $stats['pending'] }}</strong>
+                        </a>
                     </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center py-3">
-                        <span><span class="badge badge-status-processing me-2">•</span> Processing</span>
-                        <strong>{{ $stats['processing'] }}</strong>
+                    <li class="list-group-item p-0">
+                        <a href="{{ route('admin.orders.index', ['status' => 'processing']) }}" class="d-flex justify-content-between align-items-center py-3 px-3 text-decoration-none text-body">
+                            <span><span class="badge badge-status-processing me-2">•</span> Processing</span>
+                            <strong>{{ $stats['processing'] }}</strong>
+                        </a>
                     </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center py-3">
-                        <span><span class="badge badge-status-shipped me-2">•</span> Shipped</span>
-                        <strong>{{ $stats['shipped'] }}</strong>
+                    <li class="list-group-item p-0">
+                        <a href="{{ route('admin.orders.index', ['status' => 'shipped']) }}" class="d-flex justify-content-between align-items-center py-3 px-3 text-decoration-none text-body">
+                            <span><span class="badge badge-status-shipped me-2">•</span> Shipped</span>
+                            <strong>{{ $stats['shipped'] }}</strong>
+                        </a>
                     </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center py-3">
-                        <span><span class="badge badge-status-delivered me-2">•</span> Delivered</span>
-                        <strong>{{ $stats['delivered'] }}</strong>
+                    <li class="list-group-item p-0">
+                        <a href="{{ route('admin.orders.index', ['status' => 'delivered']) }}" class="d-flex justify-content-between align-items-center py-3 px-3 text-decoration-none text-body">
+                            <span><span class="badge badge-status-delivered me-2">•</span> Delivered</span>
+                            <strong>{{ $stats['delivered'] }}</strong>
+                        </a>
                     </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center py-3">
-                        <span><span class="badge badge-status-cancelled me-2">•</span> Cancelled</span>
-                        <strong>{{ $stats['cancelled'] }}</strong>
+                    <li class="list-group-item p-0">
+                        <a href="{{ route('admin.orders.index', ['status' => 'cancelled']) }}" class="d-flex justify-content-between align-items-center py-3 px-3 text-decoration-none text-body">
+                            <span><span class="badge badge-status-cancelled me-2">•</span> Cancelled</span>
+                            <strong>{{ $stats['cancelled'] }}</strong>
+                        </a>
                     </li>
                 </ul>
             </div>

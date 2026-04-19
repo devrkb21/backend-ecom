@@ -9,6 +9,7 @@ use App\Http\Resources\OrderResource;
 use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class OrderController extends Controller
 {
@@ -36,34 +37,109 @@ class OrderController extends Controller
             return $this->errorResponse('Unauthorized', 403);
         }
 
+        $order->loadMissing([
+            'items.product',
+            'items.variant.attributeValues.attribute',
+            'payment',
+            'user',
+            'trackingHistory',
+            'shippingDivision',
+            'shippingDistrict',
+            'shippingUpazila',
+            'shippingUnion',
+        ]);
+
         return $this->successResponse(new OrderResource($order));
     }
 
     public function showByNumber(Request $request, string $orderNumber): JsonResponse
     {
-        $order = $this->orderService->getOrderByNumber($orderNumber);
+        $normalizedOrderNumber = strtoupper(trim($orderNumber));
+
+        if (
+            $normalizedOrderNumber === ''
+            || strlen($normalizedOrderNumber) > 64
+            || !preg_match('/^[A-Z0-9][A-Z0-9._-]*$/', $normalizedOrderNumber)
+        ) {
+            return $this->errorResponse('Order not found', 404);
+        }
+
+        $order = $this->orderService->getOrderByNumber($normalizedOrderNumber);
 
         if (!$order) {
             return $this->errorResponse('Order not found', 404);
         }
 
-        // Users can only view their own orders unless admin
-        if (!$request->user()->isAdmin() && $order->user_id !== $request->user()->id) {
-            return $this->errorResponse('Unauthorized', 403);
-        }
+        $order->loadMissing([
+            'items.product',
+            'items.variant.attributeValues.attribute',
+            'payment',
+            'trackingHistory',
+            'shippingDivision',
+            'shippingDistrict',
+            'shippingUpazila',
+            'shippingUnion',
+        ]);
 
         return $this->successResponse(new OrderResource($order));
+    }
+
+    public function paymentSummary(Request $request, int $id): JsonResponse
+    {
+        try {
+            $order = $this->orderService->getOrderById($id);
+            $requestUser = $request->user('sanctum') ?? $request->user();
+
+            if ($requestUser) {
+                if (!$requestUser->isAdmin() && $order->user_id !== $requestUser->id) {
+                    return $this->errorResponse('Unauthorized', 403);
+                }
+            } else {
+                $guestToken = trim((string) $request->query('guest_token', ''));
+                if (!$order->hasValidGuestAccessToken($guestToken)) {
+                    return $this->errorResponse('Unauthorized', 403);
+                }
+            }
+
+            $order->loadMissing([
+                'items.product',
+                'items.variant.attributeValues.attribute',
+                'payment',
+                'user',
+                'trackingHistory',
+                'shippingDivision',
+                'shippingDistrict',
+                'shippingUpazila',
+                'shippingUnion',
+            ]);
+
+            return $this->successResponse(new OrderResource($order));
+        } catch (ModelNotFoundException) {
+            return $this->errorResponse('Order not found', 404);
+        }
     }
 
     public function store(StoreOrderRequest $request): JsonResponse
     {
         try {
+            $user = $request->user('sanctum') ?? auth()->user();
+            $checkoutSessionId = trim((string) $request->header('X-Session-ID', ''));
+
             $order = $this->orderService->createOrderFromCart(
-                $request->user()->id,
-                $request->validated()
+                $user?->id,
+                $request->validated(),
+                $checkoutSessionId !== '' ? $checkoutSessionId : null
             );
 
-            return $this->createdResponse(new OrderResource($order), 'Order created successfully');
+            return $this->createdResponse([
+                'id' => $order->id,
+                'order_number' => $order->order_number,
+                'guest_access_token' => $user ? null : $order->getAttribute('guest_access_token'),
+                'status' => $order->status,
+                'payment_status' => $order->payment_status,
+                'payment_method' => $order->payment_method,
+                'total' => (float) $order->total,
+            ], 'Order created successfully');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
