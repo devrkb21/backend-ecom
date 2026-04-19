@@ -28,7 +28,7 @@
                         <th>Order</th>
                         <td>
                             <a href="{{ route('admin.orders.show', $payment->order_id) }}">
-                                Order #{{ $payment->order_id }}
+                                Order #{{ $payment->order?->order_number ?? $payment->order_id }}
                             </a>
                         </td>
                     </tr>

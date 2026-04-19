@@ -49,7 +49,7 @@ class CouponController extends Controller
             ]);
         }
 
-        $cart = Cart::with(['items.product'])->where('user_id', $user->id)->first();
+        $cart = Cart::with(['items.product', 'items.variant.attributeValues.attribute'])->where('user_id', $user->id)->first();
 
         if (!$cart || $cart->items->isEmpty()) {
             return response()->json([
@@ -66,7 +66,7 @@ class CouponController extends Controller
 
         // Reload cart with updated data
         $cart->refresh();
-        $cart->load(['items.product', 'coupon']);
+        $cart->load(['items.product', 'items.variant.attributeValues.attribute', 'coupon']);
 
         return response()->json([
             'success' => true,
@@ -97,7 +97,7 @@ class CouponController extends Controller
         $result = $this->couponService->removeFromCart($cart);
 
         $cart->refresh();
-        $cart->load(['items.product']);
+        $cart->load(['items.product', 'items.variant.attributeValues.attribute']);
 
         return response()->json([
             'success' => true,
@@ -198,7 +198,7 @@ class CouponController extends Controller
                     'product_id' => $item->product_id,
                     'product_name' => $item->product?->name,
                     'product_image' => $item->product?->primary_image_url,
-                    'variant_id' => $item->variant_id,
+                    'variant_id' => $item->product_variant_id,
                     'quantity' => $item->quantity,
                     'price' => $item->price,
                     'subtotal' => round($item->price * $item->quantity, 2),

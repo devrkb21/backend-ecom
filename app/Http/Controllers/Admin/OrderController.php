@@ -48,6 +48,24 @@ class OrderController extends Controller
             $query->where('status', $view);
         }
 
+        $search = trim((string) $request->input('search', ''));
+
+        if ($search !== '') {
+            $query->where(function ($searchQuery) use ($search) {
+                $searchQuery->where('order_number', 'like', "%{$search}%")
+                    ->orWhere('shipping_name', 'like', "%{$search}%")
+                    ->orWhere('shipping_email', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($userQuery) use ($search) {
+                        $userQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+
+                if (is_numeric($search)) {
+                    $searchQuery->orWhere('id', (int) $search);
+                }
+            });
+        }
+
         $orders = $query->paginate(15)->withQueryString();
 
         $filterCounts = ['all' => Order::query()->count()];
@@ -87,7 +105,17 @@ class OrderController extends Controller
 
     public function show(Order $order)
     {
-        $order->load(['user', 'items.product', 'payment', 'statusConfig']);
+        $order->load([
+            'user',
+            'items.product',
+            'items.variant.attributeValues.attribute',
+            'payment',
+            'statusConfig',
+            'shippingDivision',
+            'shippingDistrict',
+            'shippingUpazila',
+            'shippingUnion',
+        ]);
 
         $availableStatuses = OrderStatus::query()
             ->where('is_active', true)

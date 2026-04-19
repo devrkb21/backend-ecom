@@ -163,7 +163,8 @@ Route::prefix('v1')->group(function () {
     Route::post('/checkout/track', [AbandonedCartController::class, 'track'])->middleware('throttle:40,1');
     Route::get('/orders/{id}/payment-summary', [OrderController::class, 'paymentSummary'])->where('id', '[0-9]+');
     Route::get('/orders/number/{orderNumber}', [OrderController::class, 'showByNumber'])
-        ->where('orderNumber', 'ORD-[0-9]{14}-[A-Z0-9]{4}');
+        ->middleware('throttle:30,1')
+        ->where('orderNumber', '[A-Za-z0-9._-]+');
 
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {

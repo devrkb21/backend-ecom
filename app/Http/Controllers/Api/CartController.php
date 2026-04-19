@@ -29,7 +29,8 @@ class CartController extends Controller
             $cart = $this->cartService->addToCart(
                 $request->user()->id,
                 $request->product_id,
-                $request->quantity
+                $request->quantity,
+                $request->input('variant_id') !== null ? (int) $request->input('variant_id') : null
             );
 
             return $this->successResponse(new CartResource($cart), 'Item added to cart');
@@ -44,7 +45,8 @@ class CartController extends Controller
             $cart = $this->cartService->updateCartItem(
                 $request->user()->id,
                 $productId,
-                $request->quantity
+                $request->quantity,
+                $request->input('variant_id') !== null ? (int) $request->input('variant_id') : null
             );
 
             return $this->successResponse(new CartResource($cart), 'Cart updated');
@@ -56,7 +58,33 @@ class CartController extends Controller
     public function removeItem(Request $request, int $productId): JsonResponse
     {
         try {
-            $cart = $this->cartService->removeFromCart($request->user()->id, $productId);
+            $validated = $request->validate([
+                'variant_id' => [
+                    'nullable',
+                    'integer',
+                    'exists:product_variants,id',
+                    function ($attribute, $value, $fail) use ($productId) {
+                        if ($value === null) {
+                            return;
+                        }
+
+                        $variantBelongsToProduct = \App\Models\ProductVariant::query()
+                            ->where('id', (int) $value)
+                            ->where('product_id', $productId)
+                            ->exists();
+
+                        if (!$variantBelongsToProduct) {
+                            $fail('The selected variant is invalid for the selected product.');
+                        }
+                    },
+                ],
+            ]);
+
+            $variantId = array_key_exists('variant_id', $validated) && $validated['variant_id'] !== null
+                ? (int) $validated['variant_id']
+                : null;
+
+            $cart = $this->cartService->removeFromCart($request->user()->id, $productId, $variantId);
 
             return $this->successResponse(new CartResource($cart), 'Item removed from cart');
         } catch (\Exception $e) {

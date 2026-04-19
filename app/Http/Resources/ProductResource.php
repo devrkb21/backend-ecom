@@ -2,25 +2,28 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Product as ProductModel;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class ProductResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $stockEnabled = ProductModel::isStockEnabled();
+        $pricing = $this->resolveGlobalPricingSnapshot();
+
         // Determine if product has active variants
-        $hasVariants = $this->relationLoaded('variants')
-            ? $this->variants->isNotEmpty()
-            : (($this->variants_count ?? null) !== null
-                ? $this->variants_count > 0
+        $hasVariants = (($this->variants_count ?? null) !== null)
+            ? $this->variants_count > 0
+            : ($this->relationLoaded('variants')
+                ? $this->variants->isNotEmpty()
                 : $this->variants()->exists());
 
         // Calculate effective stock - use variant stock sum if variants exist, otherwise base stock
-        $effectiveStock = $hasVariants && $this->relationLoaded('variants') && $this->variants->isNotEmpty()
-            ? $this->variants->sum('stock_quantity')
-            : $this->stock_quantity;
+        $effectiveStock = $hasVariants
+            ? (int) $this->total_stock
+            : (int) $this->stock_quantity;
 
         // Get primary image from product_images table
         $primaryImage = null;
@@ -35,6 +38,10 @@ class ProductResource extends JsonResource
             }
         }
 
+        $quantityOnePrice = !empty($dynamicDiscountTiers)
+            ? $this->getPriceForQuantity(1)
+            : (float) ($pricing['current_price'] ?? 0);
+
         return [
             'id' => $this->id,
             'category_id' => $this->category_id,
@@ -42,19 +49,26 @@ class ProductResource extends JsonResource
             'slug' => $this->slug,
             'description' => $this->description,
             'short_description' => $this->short_description,
-            'regular_price' => (float) $this->regular_price,
-            'price' => (float) $this->regular_price,
-            'sale_price' => $this->sale_price ? (float) $this->sale_price : null,
-            'current_price' => (float) ($this->sale_price ?? $this->regular_price),
-            'dynamic_price_for_quantity_1' => $this->getPriceForQuantity(1),
-            'is_on_sale' => $this->sale_price !== null && $this->sale_price < $this->regular_price,
+            'regular_price' => (float) ($pricing['regular_price'] ?? 0),
+            'price' => (float) ($pricing['regular_price'] ?? 0),
+            'sale_price' => array_key_exists('sale_price', $pricing) && $pricing['sale_price'] !== null
+                ? (float) $pricing['sale_price']
+                : null,
+            'current_price' => (float) ($pricing['current_price'] ?? 0),
+            'dynamic_price_for_quantity_1' => (float) $quantityOnePrice,
+            'is_on_sale' => (bool) ($pricing['is_on_sale'] ?? false),
             'has_dynamic_discount' => !empty($dynamicDiscountTiers),
             'dynamic_discount_tiers' => $dynamicDiscountTiers,
+            'default_variant_id' => $pricing['default_variant_id'] ?? null,
+            'has_price_range' => (bool) ($pricing['has_price_range'] ?? false),
+            'price_range_min' => (float) ($pricing['price_range_min'] ?? ($pricing['current_price'] ?? 0)),
+            'price_range_max' => (float) ($pricing['price_range_max'] ?? ($pricing['current_price'] ?? 0)),
             'free_delivery' => $this->hasFreeDeliveryOffer(),
             'sku' => $this->sku,
-            'stock_quantity' => $this->stock_quantity,
+            'stock_quantity' => $effectiveStock,
             'total_stock' => $effectiveStock,
-            'in_stock' => $effectiveStock > 0,
+            'in_stock' => $stockEnabled ? $effectiveStock > 0 : true,
+            'stock_enabled' => $stockEnabled,
             'image' => $primaryImage,
             'image_url' => $primaryImageUrl,
             'is_active' => $this->is_active,

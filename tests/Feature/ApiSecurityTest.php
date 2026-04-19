@@ -11,7 +11,9 @@ class ApiSecurityTest extends TestCase
     {
         $response = $this->getJson('/api/v1/products');
 
-        $response->assertUnauthorized();
+        // Products index is protected by internal.api (shared secret), so unauthenticated
+        // requests without that header are forbidden.
+        $response->assertForbidden();
     }
 
     public function test_login_endpoint_remains_publicly_reachable(): void
@@ -29,8 +31,20 @@ class ApiSecurityTest extends TestCase
             'POST api/v1/auth/forgot-password',
             'POST api/v1/auth/reset-password',
             'GET api/v1/auth/email/verify/{id}/{hash}',
+            'GET api/v1/stripe/config',
             'POST api/v1/stripe/webhook',
+            'POST api/v1/stripe/create-payment-intent',
+            'POST api/v1/stripe/confirm-payment',
+            'GET api/v1/bkash/config',
             'GET api/v1/bkash/callback',
+            'POST api/v1/bkash/create-payment',
+            'GET api/v1/track/order/{orderNumber}',
+            'GET api/v1/track/tracking/{trackingNumber}',
+            'POST api/v1/orders',
+            'POST api/v1/cart/coupon',
+            'POST api/v1/checkout/track',
+            'GET api/v1/orders/{id}/payment-summary',
+            'GET api/v1/orders/number/{orderNumber}',
         ];
 
         $unexpectedPublicRoutes = [];
@@ -47,6 +61,9 @@ class ApiSecurityTest extends TestCase
             $hasSanctumAuth = collect($middleware)->contains(function (string $entry) {
                 return $entry === 'auth:sanctum' || str_contains($entry, 'Authenticate:sanctum');
             });
+            $hasInternalGuard = collect($middleware)->contains(function (string $entry) {
+                return $entry === 'internal.api' || str_contains($entry, 'InternalApiOnly');
+            });
 
             foreach ($methods as $method) {
                 $signature = sprintf('%s %s', $method, $uri);
@@ -55,7 +72,9 @@ class ApiSecurityTest extends TestCase
                     continue;
                 }
 
-                if (!$hasSanctumAuth) {
+                // Non-whitelisted v1 routes must be protected by either sanctum auth
+                // or internal.api shared-secret middleware.
+                if (!$hasSanctumAuth && !$hasInternalGuard) {
                     $unexpectedPublicRoutes[] = sprintf('%s [%s]', $signature, implode(', ', $middleware));
                 }
             }

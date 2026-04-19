@@ -30,6 +30,16 @@ class ProductAttributeValue extends Model
             return null;
         }
 
-        return asset('storage/' . ltrim($this->image, '/'));
+        $normalized = ltrim((string) $this->image, '/');
+
+        if (str_starts_with($normalized, 'http://') || str_starts_with($normalized, 'https://')) {
+            return $this->image;
+        }
+
+        if (str_starts_with($normalized, 'media/') || str_starts_with($normalized, 'storage/')) {
+            return asset($normalized);
+        }
+
+        return asset('storage/' . $normalized);
     }
 }

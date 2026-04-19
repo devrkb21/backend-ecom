@@ -38,7 +38,7 @@ class LoyaltyController extends Controller
             ->groupBy('loyalty_tier')
             ->get();
 
-        $recentTransactions = LoyaltyTransaction::with('user')
+        $recentTransactions = LoyaltyTransaction::with(['user', 'order:id,order_number'])
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
@@ -306,7 +306,7 @@ class LoyaltyController extends Controller
      */
     public function redemptions(Request $request)
     {
-        $query = LoyaltyRedemption::with(['user', 'reward']);
+        $query = LoyaltyRedemption::with(['user', 'reward', 'order:id,order_number']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -324,7 +324,7 @@ class LoyaltyController extends Controller
      */
     public function transactions(Request $request)
     {
-        $query = LoyaltyTransaction::with('user');
+        $query = LoyaltyTransaction::with(['user', 'order:id,order_number']);
 
         if ($request->filled('type')) {
             $query->where('type', $request->type);

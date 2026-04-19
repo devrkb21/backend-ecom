@@ -393,9 +393,29 @@
                             <td>
                                 <span class="fw-semibold">{{ $cart->item_count }} items</span>
                                 @if($cart->cart_items && count($cart->cart_items) > 0)
+                                    @php
+                                        $cartItemPreview = collect($cart->cart_items)
+                                            ->map(function ($item) {
+                                                $productName = trim((string) ($item['product_name'] ?? 'Unknown Product'));
+                                                $variantName = trim((string) ($item['variant_name'] ?? ''));
+                                                $variantAttributes = trim((string) ($item['variant_attributes'] ?? ''));
+                                                $variantId = !empty($item['variant_id']) ? (int) $item['variant_id'] : null;
+
+                                                $variantLabel = $variantName !== ''
+                                                    ? $variantName
+                                                    : ($variantAttributes !== ''
+                                                        ? $variantAttributes
+                                                        : ($variantId ? ('Variant #' . $variantId) : ''));
+
+                                                return $variantLabel !== ''
+                                                    ? "{$productName} ({$variantLabel})"
+                                                    : $productName;
+                                            })
+                                            ->implode(', ');
+                                    @endphp
                                     <br>
                                     <small class="text-muted">
-                                        {{ \Illuminate\Support\Str::limit(collect($cart->cart_items)->pluck('product_name')->implode(', '), 50) }}
+                                        {{ \Illuminate\Support\Str::limit($cartItemPreview, 70) }}
                                     </small>
                                 @endif
                                 @if($cart->coupon_code)

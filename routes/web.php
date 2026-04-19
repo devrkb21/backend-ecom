@@ -57,6 +57,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Product Variants
         Route::post('products/{product}/variants', [ProductController::class, 'storeVariant'])->name('products.variants.store');
         Route::put('products/{product}/variants/{variant}', [ProductController::class, 'updateVariant'])->name('products.variants.update');
+        Route::put('products/{product}/variants-matrix', [ProductController::class, 'updateVariantMatrix'])->name('products.variants.matrix-update');
         Route::post('products/{product}/variants/generate', [ProductController::class, 'generateVariants'])->name('products.variants.generate');
         Route::put('products/{product}/variants-bulk', [ProductController::class, 'bulkUpdateVariants'])->name('products.variants.bulk-update');
         Route::delete('products/{product}/variants/{variant}', [ProductController::class, 'destroyVariant'])->name('products.variants.destroy');

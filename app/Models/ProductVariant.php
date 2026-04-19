@@ -12,6 +12,9 @@ class ProductVariant extends Model
         'product_id',
         'sku',
         'price_adjustment',
+        'purchase_price',
+        'regular_price',
+        'discounted_price',
         'stock_quantity',
         'image',
         'is_active',
@@ -19,6 +22,9 @@ class ProductVariant extends Model
 
     protected $casts = [
         'price_adjustment' => 'decimal:2',
+        'purchase_price' => 'decimal:2',
+        'regular_price' => 'decimal:2',
+        'discounted_price' => 'decimal:2',
         'is_active' => 'boolean',
     ];
 
@@ -45,17 +51,76 @@ class ProductVariant extends Model
     public function getImageUrlAttribute(): ?string
     {
         if ($this->image) {
-            return asset('storage/' . $this->image);
+            $normalized = ltrim((string) $this->image, '/');
+
+            if (str_starts_with($normalized, 'http://') || str_starts_with($normalized, 'https://')) {
+                return $this->image;
+            }
+
+            if (str_starts_with($normalized, 'media/') || str_starts_with($normalized, 'storage/')) {
+                return asset($normalized);
+            }
+
+            return asset('storage/' . $normalized);
         }
         return null;
     }
 
     /**
-     * Get the final price (base product price + adjustment)
+     * Get the variant purchase/cost price.
+     */
+    public function getPurchasePriceAttribute(): float
+    {
+        $storedPurchasePrice = $this->attributes['purchase_price'] ?? null;
+
+        if ($storedPurchasePrice !== null) {
+            return round(max(0, (float) $storedPurchasePrice), 2);
+        }
+
+        return round(max(0, (float) ($this->product?->buy_price ?? 0)), 2);
+    }
+
+    /**
+     * Get the variant regular price (base regular price + adjustment).
+     */
+    public function getRegularPriceAttribute(): float
+    {
+        $storedRegularPrice = $this->attributes['regular_price'] ?? null;
+        if ($storedRegularPrice !== null) {
+            return round(max(0, (float) $storedRegularPrice), 2);
+        }
+
+        $baseRegularPrice = (float) ($this->product?->regular_price ?? 0);
+
+        return round(max(0, $baseRegularPrice + (float) $this->price_adjustment), 2);
+    }
+
+    /**
+     * Get the variant discounted/current price (base sale or regular + adjustment).
+     */
+    public function getDiscountedPriceAttribute(): float
+    {
+        $storedDiscountedPrice = $this->attributes['discounted_price'] ?? null;
+        if ($storedDiscountedPrice !== null) {
+            return round(max(0, (float) $storedDiscountedPrice), 2);
+        }
+
+        $storedRegularPrice = $this->attributes['regular_price'] ?? null;
+        if ($storedRegularPrice !== null) {
+            return round(max(0, (float) $storedRegularPrice), 2);
+        }
+
+        $baseDiscountedPrice = (float) ($this->product?->sale_price ?? $this->product?->regular_price ?? 0);
+
+        return round(max(0, $baseDiscountedPrice + (float) $this->price_adjustment), 2);
+    }
+
+    /**
+     * Backward compatibility alias used by frontend/cart snapshots.
      */
     public function getFinalPriceAttribute(): float
     {
-        return $this->product->price + $this->price_adjustment;
+        return (float) $this->discounted_price;
     }
 
     /**
@@ -64,5 +129,32 @@ class ProductVariant extends Model
     public function getNameAttribute(): string
     {
         return $this->attributeValues->pluck('value')->implode(' / ');
+    }
+
+    public function hasStock(int $quantity = 1): bool
+    {
+        if (!Product::isStockEnabled()) {
+            return true;
+        }
+
+        return (int) $this->stock_quantity >= max(1, $quantity);
+    }
+
+    public function decrementStock(int $quantity): void
+    {
+        if (!Product::isStockEnabled()) {
+            return;
+        }
+
+        $this->decrement('stock_quantity', $quantity);
+    }
+
+    public function incrementStock(int $quantity): void
+    {
+        if (!Product::isStockEnabled()) {
+            return;
+        }
+
+        $this->increment('stock_quantity', $quantity);
     }
 }

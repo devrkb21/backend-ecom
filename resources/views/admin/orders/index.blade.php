@@ -36,6 +36,39 @@
             <span class="badge bg-secondary">Trash View</span>
         @endif
     </div>
+
+    <div class="card-body border-bottom">
+        <form action="{{ route('admin.orders.index') }}" method="GET" class="row g-2 align-items-center">
+            @if($activeView !== 'all')
+                <input type="hidden" name="view" value="{{ $activeView }}">
+            @endif
+
+            <div class="col-md-6 col-lg-5">
+                <input
+                    type="text"
+                    name="search"
+                    value="{{ request('search') }}"
+                    class="form-control form-control-sm"
+                    placeholder="Search by order #, customer name, or email"
+                >
+            </div>
+
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-search me-1"></i> Search
+                </button>
+            </div>
+
+            @if(request()->filled('search'))
+                <div class="col-auto">
+                    <a href="{{ route('admin.orders.index', $activeView !== 'all' ? ['view' => $activeView] : []) }}" class="btn btn-sm btn-outline-secondary">
+                        Clear
+                    </a>
+                </div>
+            @endif
+        </form>
+    </div>
+
     <form action="{{ route('admin.orders.bulk-action') }}" method="POST" id="bulkOrderForm">
         @csrf
         <input type="hidden" name="view" value="{{ $activeView }}">
@@ -84,23 +117,106 @@
                             <th>Actions</th>
                         </tr>
                     </thead>
+                    @php
+                        $guestCheckoutEmail = strtolower(trim((string) config('shop.guest_checkout_user_email', 'guest.checkout@innercollection.local')));
+                        $placeholderEmails = array_filter([
+                            $guestCheckoutEmail,
+                            'customer@local.invalid',
+                            'guest@local.invalid',
+                        ]);
+                        $firstNonEmptyValue = static function (array $candidates): string {
+                            foreach ($candidates as $candidate) {
+                                $value = trim((string) ($candidate ?? ''));
+                                if ($value !== '') {
+                                    return $value;
+                                }
+                            }
+
+                            return '';
+                        };
+                    @endphp
                     <tbody>
                         @forelse($orders as $order)
                             <tr>
+                                @php
+                                    $displayOrderNumber = $order->order_number ?? $order->id;
+                                @endphp
                                 <td class="text-center">
-                                    <input type="checkbox" class="form-check-input order-checkbox" name="order_ids[]" value="{{ $order->id }}" aria-label="Select order {{ $order->id }}">
+                                    <input type="checkbox" class="form-check-input order-checkbox" name="order_ids[]" value="{{ $order->id }}" aria-label="Select order {{ $displayOrderNumber }}">
                                 </td>
-                                <td><strong>#{{ $order->id }}</strong></td>
+                                <td><strong>#{{ $displayOrderNumber }}</strong></td>
                                 <td>
                                     @php
-                                        $customerName = $order->user?->name ?? $order->shipping_name ?? 'Guest Checkout';
+                                        $checkoutPayloadForCustomer = is_array($order->checkout_fields_payload) ? $order->checkout_fields_payload : [];
+                                        $rawUserName = trim((string) ($order->user?->name ?? ''));
+                                        $rawUserEmail = trim((string) ($order->user?->email ?? ''));
+                                        $isGuestCheckoutOrder = strtolower($rawUserEmail) === $guestCheckoutEmail || strtolower($rawUserName) === 'guest checkout';
+
+                                        $billingFullName = trim($firstNonEmptyValue([
+                                            $checkoutPayloadForCustomer['billing_first_name'] ?? null,
+                                        ]) . ' ' . $firstNonEmptyValue([
+                                            $checkoutPayloadForCustomer['billing_last_name'] ?? null,
+                                        ]));
+
+                                        if ($isGuestCheckoutOrder) {
+                                            $customerName = $firstNonEmptyValue([
+                                                $order->shipping_name,
+                                                $checkoutPayloadForCustomer['shipping_name'] ?? null,
+                                                $checkoutPayloadForCustomer['billing_name'] ?? null,
+                                                $billingFullName,
+                                                $rawUserName,
+                                            ]);
+                                        } else {
+                                            $customerName = $firstNonEmptyValue([
+                                                $rawUserName,
+                                                $order->shipping_name,
+                                                $checkoutPayloadForCustomer['shipping_name'] ?? null,
+                                            ]);
+                                        }
+
+                                        $customerEmailCandidates = $isGuestCheckoutOrder
+                                            ? [
+                                                $order->shipping_email,
+                                                $checkoutPayloadForCustomer['shipping_email'] ?? null,
+                                                $checkoutPayloadForCustomer['billing_email'] ?? null,
+                                            ]
+                                            : [
+                                                $rawUserEmail,
+                                                $order->shipping_email,
+                                                $checkoutPayloadForCustomer['shipping_email'] ?? null,
+                                                $checkoutPayloadForCustomer['billing_email'] ?? null,
+                                            ];
+
+                                        $customerEmail = '';
+                                        foreach ($customerEmailCandidates as $emailCandidate) {
+                                            $rawEmail = trim((string) ($emailCandidate ?? ''));
+                                            $normalizedEmail = strtolower($rawEmail);
+
+                                            if ($normalizedEmail === '' || in_array($normalizedEmail, $placeholderEmails, true)) {
+                                                continue;
+                                            }
+
+                                            if (filter_var($rawEmail, FILTER_VALIDATE_EMAIL)) {
+                                                $customerEmail = $rawEmail;
+                                                break;
+                                            }
+                                        }
+
+                                        if ($customerName === '') {
+                                            $customerName = 'Guest Checkout';
+                                        }
+
+                                        $showUserProfileLink = (bool) ($order->user && !$isGuestCheckoutOrder);
                                     @endphp
-                                    @if($order->user)
+                                    @if($showUserProfileLink)
                                         <a href="{{ route('admin.users.show', $order->user_id) }}" class="text-decoration-none">
                                             {{ $customerName }}
                                         </a>
                                     @else
                                         <span class="text-muted">{{ $customerName }}</span>
+                                    @endif
+                                    @if($customerEmail !== '')
+                                        <div class="small text-muted">{{ $customerEmail }}</div>
                                     @endif
                                 </td>
                                 <td class="text-center">{{ $order->items_count ?? $order->items->count() }}</td>

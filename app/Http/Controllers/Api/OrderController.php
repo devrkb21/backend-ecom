@@ -37,29 +37,51 @@ class OrderController extends Controller
             return $this->errorResponse('Unauthorized', 403);
         }
 
+        $order->loadMissing([
+            'items.product',
+            'items.variant.attributeValues.attribute',
+            'payment',
+            'user',
+            'trackingHistory',
+            'shippingDivision',
+            'shippingDistrict',
+            'shippingUpazila',
+            'shippingUnion',
+        ]);
+
         return $this->successResponse(new OrderResource($order));
     }
 
     public function showByNumber(Request $request, string $orderNumber): JsonResponse
     {
-        if (!preg_match('/^ORD-[0-9]{14}-[A-Z0-9]{4}$/', $orderNumber)) {
+        $normalizedOrderNumber = strtoupper(trim($orderNumber));
+
+        if (
+            $normalizedOrderNumber === ''
+            || strlen($normalizedOrderNumber) > 64
+            || !preg_match('/^[A-Z0-9][A-Z0-9._-]*$/', $normalizedOrderNumber)
+        ) {
             return $this->errorResponse('Order not found', 404);
         }
 
-        $order = $this->orderService->getOrderByNumber($orderNumber);
+        $order = $this->orderService->getOrderByNumber($normalizedOrderNumber);
 
         if (!$order) {
             return $this->errorResponse('Order not found', 404);
         }
 
-        return $this->successResponse([
-            'id' => $order->id,
-            'order_number' => $order->order_number,
-            'status' => $order->status,
-            'payment_status' => $order->payment_status,
-            'payment_method' => $order->payment_method,
-            'total' => (float) $order->total,
+        $order->loadMissing([
+            'items.product',
+            'items.variant.attributeValues.attribute',
+            'payment',
+            'trackingHistory',
+            'shippingDivision',
+            'shippingDistrict',
+            'shippingUpazila',
+            'shippingUnion',
         ]);
+
+        return $this->successResponse(new OrderResource($order));
     }
 
     public function paymentSummary(Request $request, int $id): JsonResponse
@@ -79,7 +101,17 @@ class OrderController extends Controller
                 }
             }
 
-            $order->loadMissing(['items.product', 'payment']);
+            $order->loadMissing([
+                'items.product',
+                'items.variant.attributeValues.attribute',
+                'payment',
+                'user',
+                'trackingHistory',
+                'shippingDivision',
+                'shippingDistrict',
+                'shippingUpazila',
+                'shippingUnion',
+            ]);
 
             return $this->successResponse(new OrderResource($order));
         } catch (ModelNotFoundException) {

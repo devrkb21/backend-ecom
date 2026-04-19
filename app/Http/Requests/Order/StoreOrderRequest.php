@@ -29,6 +29,7 @@ class StoreOrderRequest extends FormRequest
             'use_billing_address' => ['nullable', 'boolean'],
             'items' => [$isGuestCheckout ? 'required' : 'nullable', 'array', 'min:1'],
             'items.*.product_id' => [Rule::requiredIf($isGuestCheckout), 'integer', Rule::exists('products', 'id')],
+            'items.*.variant_id' => ['nullable', 'integer', Rule::exists('product_variants', 'id')],
             'items.*.quantity' => [Rule::requiredIf($isGuestCheckout), 'integer', 'min:1', 'max:100'],
             'coupon_code' => ['nullable', 'string', 'max:50'],
             'shipping_method' => ['required', 'string', function ($attribute, $value, $fail) {

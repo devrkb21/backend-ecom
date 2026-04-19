@@ -72,7 +72,10 @@ class ReconcileOrderUsersAndAddresses extends Command
                     continue;
                 }
 
-                $order->forceFill(['user_id' => $matchedUser->id])->save();
+                $order->forceFill([
+                    'user_id' => $matchedUser->id,
+                    'guest_access_token_hash' => null,
+                ])->save();
                 $updatedOrders++;
 
                 if ($this->createDefaultShippingAddressIfMissing($matchedUser, $order)) {

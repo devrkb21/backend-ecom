@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\Coupon;
 use App\Models\CouponUsage;
 use App\Models\Cart;
@@ -94,11 +95,23 @@ class OrderService
                         throw new \Exception('One or more cart items are no longer available.');
                     }
 
+                    $variant = $item->variant;
+
+                    if ($item->product_variant_id !== null && !$variant) {
+                        throw new \Exception('One or more cart item variants are no longer available.');
+                    }
+
+                    if ($variant && !$variant->is_active) {
+                        throw new \Exception("Selected variant is unavailable for product: {$item->product->name}");
+                    }
+
                     return [
                         'product' => $item->product,
+                        'variant' => $variant,
                         'product_id' => (int) $item->product_id,
+                        'product_variant_id' => $item->product_variant_id !== null ? (int) $item->product_variant_id : null,
                         'product_name' => $item->product->name,
-                        'product_sku' => $item->product->sku,
+                        'product_sku' => $variant?->sku ?: $item->product->sku,
                         'quantity' => (int) $item->quantity,
                         'price' => (float) $item->price,
                     ];
@@ -112,6 +125,7 @@ class OrderService
 
             $checkoutFields = $this->extractCheckoutFields($shippingData);
             $canonicalShipping = $this->deriveCanonicalShippingData($checkoutFields, $shippingData, $cart, null);
+            $checkoutFields = $this->applyBillingFallbackToCheckoutFields($checkoutFields, $canonicalShipping, $shippingData);
             $orderOwner = $this->resolveOrderOwner($authenticatedUser, $canonicalShipping);
 
             if (!$orderOwner && $isGuestCheckout) {
@@ -119,15 +133,24 @@ class OrderService
             }
 
             $orderOwnerId = $orderOwner?->id;
+            $stockEnabled = Product::isStockEnabled();
 
             // Validate stock for all items
-            foreach ($checkoutItems as $item) {
-                /** @var Product $product */
-                $product = $item['product'];
-                $quantity = (int) $item['quantity'];
+            if ($stockEnabled) {
+                foreach ($checkoutItems as $item) {
+                    /** @var Product $product */
+                    $product = $item['product'];
+                    /** @var ProductVariant|null $variant */
+                    $variant = $item['variant'] ?? null;
+                    $quantity = (int) $item['quantity'];
 
-                if (!$product->hasStock($quantity)) {
-                    throw new \Exception("Insufficient stock for product: {$product->name}");
+                    if ($variant instanceof ProductVariant) {
+                        if (!$variant->hasStock($quantity)) {
+                            throw new \Exception("Insufficient stock for variant of product: {$product->name}");
+                        }
+                    } elseif (!$product->hasStock($quantity)) {
+                        throw new \Exception("Insufficient stock for product: {$product->name}");
+                    }
                 }
             }
 
@@ -338,6 +361,7 @@ class OrderService
 
                 $items[] = [
                     'product_id' => (int) $item['product_id'],
+                    'product_variant_id' => $item['product_variant_id'] ?? null,
                     'product_name' => $item['product_name'],
                     'product_sku' => $item['product_sku'],
                     'quantity' => (int) $item['quantity'],
@@ -345,7 +369,13 @@ class OrderService
                 ];
 
                 // Decrement stock
-                $product->decrementStock((int) $item['quantity']);
+                if ($stockEnabled) {
+                    if (($item['variant'] ?? null) instanceof ProductVariant) {
+                        $item['variant']->decrementStock((int) $item['quantity']);
+                    } else {
+                        $product->decrementStock((int) $item['quantity']);
+                    }
+                }
             }
 
             // Create order with items
@@ -411,19 +441,29 @@ class OrderService
         }
 
         return DB::transaction(function () use ($abandonedCart, $rawItems) {
+            $stockEnabled = Product::isStockEnabled();
+
             $groupedItems = collect($rawItems)
                 ->map(function (array $item) {
                     return [
                         'product_id' => (int) ($item['product_id'] ?? 0),
+                        'product_variant_id' => isset($item['variant_id']) && $item['variant_id'] !== null
+                            ? (int) $item['variant_id']
+                            : null,
                         'quantity' => max(0, (int) ($item['quantity'] ?? 0)),
                         'price' => max(0, (float) ($item['price'] ?? 0)),
                     ];
                 })
                 ->filter(fn (array $item) => $item['product_id'] > 0 && $item['quantity'] > 0)
-                ->groupBy('product_id')
-                ->map(function (SupportCollection $items, int $productId) {
+                ->groupBy(function (array $item) {
+                    return $item['product_id'] . ':' . ($item['product_variant_id'] ?? 0);
+                })
+                ->map(function (SupportCollection $items, string $identity) {
+                    [$rawProductId, $rawVariantId] = array_pad(explode(':', $identity, 2), 2, '0');
+
                     return [
-                        'product_id' => (int) $productId,
+                        'product_id' => (int) $rawProductId,
+                        'product_variant_id' => ((int) $rawVariantId) > 0 ? (int) $rawVariantId : null,
                         'quantity' => (int) $items->sum('quantity'),
                         'price' => (float) ($items->last()['price'] ?? 0),
                     ];
@@ -439,11 +479,23 @@ class OrderService
                 ->get()
                 ->keyBy('id');
 
+            $variantIds = $groupedItems
+                ->pluck('product_variant_id')
+                ->filter(fn ($id) => $id !== null)
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+
+            $variants = empty($variantIds)
+                ? collect()
+                : ProductVariant::query()->whereIn('id', $variantIds)->get()->keyBy('id');
+
             $items = [];
             $computedSubtotal = 0.0;
 
             foreach ($groupedItems as $item) {
                 $productId = (int) ($item['product_id'] ?? 0);
+                $variantId = $item['product_variant_id'] !== null ? (int) $item['product_variant_id'] : null;
                 $quantity = (int) ($item['quantity'] ?? 0);
 
                 /** @var Product|null $product */
@@ -456,21 +508,47 @@ class OrderService
                     throw new \Exception("Recovered checkout product is inactive: {$product->name}");
                 }
 
-                if (!$product->hasStock($quantity)) {
+                /** @var ProductVariant|null $variant */
+                $variant = null;
+                if ($variantId !== null) {
+                    $variant = $variants->get($variantId);
+
+                    if (!$variant || (int) $variant->product_id !== $product->id) {
+                        throw new \Exception("Recovered checkout variant is invalid for product: {$product->name}");
+                    }
+
+                    if (!$variant->is_active) {
+                        throw new \Exception("Recovered checkout variant is inactive for product: {$product->name}");
+                    }
+
+                    if ($stockEnabled && !$variant->hasStock($quantity)) {
+                        throw new \Exception("Insufficient stock for recovered checkout variant: {$product->name}");
+                    }
+                } elseif ($stockEnabled && !$product->hasStock($quantity)) {
                     throw new \Exception("Insufficient stock for recovered checkout product: {$product->name}");
                 }
 
                 $unitPrice = (float) ($item['price'] ?? 0);
                 if ($unitPrice <= 0) {
-                    $unitPrice = (float) $product->current_price;
+                    $unitPrice = (float) $product->getPriceForQuantity($quantity);
+
+                    if ($variant instanceof ProductVariant) {
+                        $customDiscountedPrice = $variant->getRawOriginal('discounted_price');
+                        if ($customDiscountedPrice !== null) {
+                            $unitPrice = round(max(0, (float) $customDiscountedPrice), 2);
+                        } else {
+                            $unitPrice = round($unitPrice + (float) $variant->price_adjustment, 2);
+                        }
+                    }
                 }
 
                 $computedSubtotal += ($unitPrice * $quantity);
 
                 $items[] = [
                     'product_id' => $product->id,
+                    'product_variant_id' => $variant?->id,
                     'product_name' => $product->name,
-                    'product_sku' => $product->sku,
+                    'product_sku' => $variant?->sku ?: $product->sku,
                     'quantity' => $quantity,
                     'price' => $unitPrice,
                 ];
@@ -598,11 +676,24 @@ class OrderService
 
             $order = $this->orderRepository->createWithItems($orderData, $items);
 
-            foreach ($items as $item) {
-                /** @var Product|null $product */
-                $product = $products->get((int) $item['product_id']);
-                if ($product) {
-                    $product->decrementStock((int) $item['quantity']);
+            if ($stockEnabled) {
+                foreach ($items as $item) {
+                    $variantId = $item['product_variant_id'] ?? null;
+
+                    if ($variantId !== null) {
+                        /** @var ProductVariant|null $variant */
+                        $variant = $variants->get((int) $variantId);
+                        if ($variant) {
+                            $variant->decrementStock((int) $item['quantity']);
+                            continue;
+                        }
+                    }
+
+                    /** @var Product|null $product */
+                    $product = $products->get((int) $item['product_id']);
+                    if ($product) {
+                        $product->decrementStock((int) $item['quantity']);
+                    }
                 }
             }
 
@@ -946,6 +1037,65 @@ class OrderService
         return false;
     }
 
+    protected function applyBillingFallbackToCheckoutFields(array $checkoutFields, array $canonicalShipping, array $payload): array
+    {
+        $billingKeys = [
+            'billing_first_name',
+            'billing_last_name',
+            'billing_name',
+            'billing_email',
+            'billing_phone',
+            'billing_address_1',
+            'billing_address_2',
+            'billing_city',
+            'billing_state',
+            'billing_postcode',
+            'billing_country',
+        ];
+
+        $useBillingAddress = $this->toBooleanFlag($payload['use_billing_address'] ?? false);
+        $hasBillingInput = $this->hasAnyCheckoutValue($checkoutFields, $billingKeys);
+
+        $shippingName = trim((string) ($canonicalShipping['shipping_name'] ?? ''));
+        $nameParts = preg_split('/\s+/', $shippingName, 2) ?: [];
+
+        $fallbackValues = [
+            'billing_first_name' => $nameParts[0] ?? null,
+            'billing_last_name' => $nameParts[1] ?? null,
+            'billing_name' => $shippingName !== '' ? $shippingName : null,
+            'billing_email' => $canonicalShipping['shipping_email'] ?? null,
+            'billing_phone' => $canonicalShipping['shipping_phone'] ?? null,
+            'billing_address_1' => $canonicalShipping['shipping_address'] ?? null,
+            'billing_address_2' => $canonicalShipping['shipping_area'] ?? null,
+            'billing_city' => $canonicalShipping['shipping_city'] ?? null,
+            'billing_state' => $canonicalShipping['shipping_state'] ?? null,
+            'billing_postcode' => $canonicalShipping['shipping_zip'] ?? null,
+            'billing_country' => $canonicalShipping['shipping_country'] ?? null,
+        ];
+
+        foreach ($fallbackValues as $key => $fallbackValue) {
+            $normalizedFallback = trim((string) ($fallbackValue ?? ''));
+            if ($normalizedFallback === '') {
+                continue;
+            }
+
+            $existingValue = trim((string) ($checkoutFields[$key] ?? ''));
+
+            // If billing section is unchecked or empty, fully mirror shipping to billing.
+            if (!$useBillingAddress || !$hasBillingInput) {
+                $checkoutFields[$key] = $normalizedFallback;
+                continue;
+            }
+
+            // If billing section is used but partially filled, fill only missing billing values from shipping.
+            if ($existingValue === '') {
+                $checkoutFields[$key] = $normalizedFallback;
+            }
+        }
+
+        return $checkoutFields;
+    }
+
     protected function nullableString(mixed $value): ?string
     {
         if ($value === null) {
@@ -1029,13 +1179,23 @@ class OrderService
             throw new \Exception('Guest checkout requires at least one item.');
         }
 
+        $stockEnabled = Product::isStockEnabled();
+
         $groupedItems = collect($rawItems)
             ->groupBy(function (array $item) {
-                return (int) ($item['product_id'] ?? 0);
+                $productId = (int) ($item['product_id'] ?? 0);
+                $variantId = isset($item['variant_id']) && $item['variant_id'] !== null
+                    ? (int) $item['variant_id']
+                    : 0;
+
+                return $productId . ':' . $variantId;
             })
-            ->map(function (SupportCollection $group, int $productId) {
+            ->map(function (SupportCollection $group, string $groupKey) {
+                [$rawProductId, $rawVariantId] = array_pad(explode(':', $groupKey, 2), 2, '0');
+
                 return [
-                    'product_id' => $productId,
+                    'product_id' => (int) $rawProductId,
+                    'product_variant_id' => ((int) $rawVariantId) > 0 ? (int) $rawVariantId : null,
                     'quantity' => (int) $group->sum(function (array $item) {
                         return (int) ($item['quantity'] ?? 0);
                     }),
@@ -1043,8 +1203,9 @@ class OrderService
             })
             ->values();
 
-        return $groupedItems->map(function (array $item) {
+        return $groupedItems->map(function (array $item) use ($stockEnabled) {
             $productId = (int) ($item['product_id'] ?? 0);
+            $variantId = $item['product_variant_id'] !== null ? (int) $item['product_variant_id'] : null;
             $quantity = (int) ($item['quantity'] ?? 0);
 
             if ($productId <= 0) {
@@ -1062,14 +1223,49 @@ class OrderService
                 throw new \Exception("Selected product is unavailable: {$productId}");
             }
 
+            $variant = null;
+            if ($variantId !== null) {
+                $variant = $product->variants()->where('id', $variantId)->first();
+
+                if (!$variant) {
+                    throw new \Exception("Selected variant is invalid for product: {$product->name}");
+                }
+
+                if (!$variant->is_active) {
+                    throw new \Exception("Selected variant is unavailable for product: {$product->name}");
+                }
+            }
+
+            if ($stockEnabled) {
+                if ($variant instanceof ProductVariant) {
+                    if (!$variant->hasStock($quantity)) {
+                        throw new \Exception("Insufficient stock for variant of product: {$product->name}");
+                    }
+                } elseif (!$product->hasStock($quantity)) {
+                    throw new \Exception("Insufficient stock for product: {$product->name}");
+                }
+            }
+
+            $unitPrice = $product->getPriceForQuantity($quantity);
+            if ($variant instanceof ProductVariant) {
+                $customDiscountedPrice = $variant->getRawOriginal('discounted_price');
+                if ($customDiscountedPrice !== null) {
+                    $unitPrice = round(max(0, (float) $customDiscountedPrice), 2);
+                } else {
+                    $unitPrice = round((float) $unitPrice + (float) $variant->price_adjustment, 2);
+                }
+            }
+
             return [
                 'product' => $product,
+                'variant' => $variant,
                 'product_id' => $product->id,
+                'product_variant_id' => $variant?->id,
                 'product_name' => $product->name,
-                'product_sku' => $product->sku,
+                'product_sku' => $variant?->sku ?: $product->sku,
                 'quantity' => $quantity,
                 // Always use server-side pricing to prevent tampering.
-                'price' => (float) $product->current_price,
+                'price' => (float) $unitPrice,
             ];
         });
     }
@@ -1091,9 +1287,12 @@ class OrderService
         $previewCart->setRelation('items', $checkoutItems->map(function (array $item) {
             return (object) [
                 'product_id' => (int) $item['product_id'],
+                'product_variant_id' => $item['product_variant_id'] !== null ? (int) $item['product_variant_id'] : null,
+                'variant_id' => $item['product_variant_id'] !== null ? (int) $item['product_variant_id'] : null,
                 'quantity' => (int) $item['quantity'],
                 'price' => (float) $item['price'],
                 'product' => $item['product'],
+                'variant' => $item['variant'] ?? null,
             ];
         }));
 
@@ -1584,9 +1783,16 @@ class OrderService
         }
 
         // If cancelling, restore stock
-        if ($status === 'cancelled') {
+        if ($status === 'cancelled' && Product::isStockEnabled()) {
             foreach ($order->items as $item) {
-                $item->product->incrementStock($item->quantity);
+                if ($item->variant) {
+                    $item->variant->incrementStock((int) $item->quantity);
+                    continue;
+                }
+
+                if ($item->product) {
+                    $item->product->incrementStock((int) $item->quantity);
+                }
             }
         }
 

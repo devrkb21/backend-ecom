@@ -106,7 +106,7 @@
                             <td>
                                 @if($redemption->order_id)
                                     <a href="{{ route('admin.orders.show', $redemption->order_id) }}" class="btn btn-sm btn-outline-info">
-                                        #{{ $redemption->order_id }}
+                                        #{{ $redemption->order?->order_number ?? $redemption->order_id }}
                                     </a>
                                 @else
                                     -

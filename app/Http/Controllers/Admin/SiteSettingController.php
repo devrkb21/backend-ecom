@@ -55,6 +55,42 @@ class SiteSettingController extends Controller
                 'is_public' => true,
                 'sort_order' => 9,
             ],
+            [
+                'key' => 'product_grid_columns',
+                'value' => '5',
+                'type' => 'number',
+                'label' => 'Product Grid Columns',
+                'description' => 'Number of products shown per row in product grids (allowed: 3, 4, 5, 6).',
+                'is_public' => true,
+                'sort_order' => 13,
+            ],
+            [
+                'key' => 'order_number_prefix',
+                'value' => 'ORD',
+                'type' => 'text',
+                'label' => 'Order Number Prefix',
+                'description' => 'Prefix used at the start of each order number (letters, numbers, dash, underscore).',
+                'is_public' => false,
+                'sort_order' => 14,
+            ],
+            [
+                'key' => 'order_number_generation_mode',
+                'value' => 'timestamp_random',
+                'type' => 'text',
+                'label' => 'Order Number Generation Mode',
+                'description' => 'Choose how order numbers are generated.',
+                'is_public' => false,
+                'sort_order' => 15,
+            ],
+            [
+                'key' => 'stock_enabled',
+                'value' => '1',
+                'type' => 'boolean',
+                'label' => 'Enable Stock Tracking',
+                'description' => 'When disabled, stock is ignored across cart and checkout and stock inputs become optional.',
+                'is_public' => true,
+                'sort_order' => 16,
+            ],
         ];
 
         $created = false;
@@ -251,6 +287,16 @@ class SiteSettingController extends Controller
             ]);
         }
 
+        if ($group === 'general') {
+            $request->validate([
+                'settings.product_grid_columns' => 'nullable|integer|in:3,4,5,6',
+                'settings.order_number_prefix' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9_-]+$/'],
+                'settings.order_number_generation_mode' => ['nullable', 'string', 'in:timestamp_random,date_sequence,global_sequence'],
+            ]);
+
+            $this->ensureGeneralOrderSettingsExist();
+        }
+
         if ($group === 'checkout') {
             $this->ensureCheckoutSettingsExist();
         }
@@ -315,6 +361,54 @@ class SiteSettingController extends Controller
                 $rawValue = $request->input("settings.{$key}", 0);
                 $numericValue = is_numeric($rawValue) ? (float) $rawValue : 0.0;
                 $newValue = (string) max(0, min(100, $numericValue));
+
+                if ($newValue !== $setting->value) {
+                    $setting->value = $newValue;
+                    $setting->save();
+                    $updatedKeys[] = $key;
+                }
+            }
+            // Handle product grid columns as constrained enum values
+            elseif ($setting->group === 'general' && $setting->key === 'product_grid_columns') {
+                if (!$request->has("settings.{$key}")) {
+                    return;
+                }
+
+                $allowed = [3, 4, 5, 6];
+                $rawValue = (int) $request->input("settings.{$key}", 5);
+                $newValue = (string) (in_array($rawValue, $allowed, true) ? $rawValue : 5);
+
+                if ($newValue !== $setting->value) {
+                    $setting->value = $newValue;
+                    $setting->save();
+                    $updatedKeys[] = $key;
+                }
+            }
+            // Handle order number prefix
+            elseif ($setting->group === 'general' && $setting->key === 'order_number_prefix') {
+                if (!$request->has("settings.{$key}")) {
+                    return;
+                }
+
+                $rawValue = strtoupper(trim((string) $request->input("settings.{$key}", 'ORD')));
+                $sanitized = preg_replace('/[^A-Z0-9_-]/', '', $rawValue) ?? '';
+                $newValue = $sanitized !== '' ? substr($sanitized, 0, 20) : 'ORD';
+
+                if ($newValue !== $setting->value) {
+                    $setting->value = $newValue;
+                    $setting->save();
+                    $updatedKeys[] = $key;
+                }
+            }
+            // Handle order number generation mode
+            elseif ($setting->group === 'general' && $setting->key === 'order_number_generation_mode') {
+                if (!$request->has("settings.{$key}")) {
+                    return;
+                }
+
+                $allowedModes = ['timestamp_random', 'date_sequence', 'global_sequence'];
+                $rawValue = (string) $request->input("settings.{$key}", 'timestamp_random');
+                $newValue = in_array($rawValue, $allowedModes, true) ? $rawValue : 'timestamp_random';
 
                 if ($newValue !== $setting->value) {
                     $setting->value = $newValue;

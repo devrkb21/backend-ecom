@@ -100,6 +100,9 @@ class AbandonedCartController extends Controller
             'cart_items.*.product_sku' => 'nullable|string|max:150',
             'cart_items.*.product_image' => 'nullable|string|max:2048',
             'cart_items.*.variant_id' => 'nullable|integer|min:1',
+            'cart_items.*.variant_name' => 'nullable|string|max:255',
+            'cart_items.*.variant_sku' => 'nullable|string|max:150',
+            'cart_items.*.variant_attributes' => 'nullable|string|max:1000',
             'cart_items.*.quantity' => 'required_with:cart_items|integer|min:1|max:100',
             'cart_items.*.price' => 'nullable|numeric|min:0',
             'cart_items.*.subtotal' => 'nullable|numeric|min:0',
@@ -131,6 +134,9 @@ class AbandonedCartController extends Controller
                 'product_sku' => $item['product_sku'] ?? null,
                 'product_image' => $item['product_image'] ?? null,
                 'variant_id' => $item['variant_id'] ?? null,
+                'variant_name' => $item['variant_name'] ?? null,
+                'variant_sku' => $item['variant_sku'] ?? null,
+                'variant_attributes' => $item['variant_attributes'] ?? null,
                 'quantity' => $quantity,
                 'price' => $price,
                 'subtotal' => isset($item['subtotal']) ? (float) $item['subtotal'] : ($quantity * $price),
@@ -138,17 +144,43 @@ class AbandonedCartController extends Controller
         })->values();
 
         if ($userId) {
-            $cart = Cart::where('user_id', $userId)->with('items.product')->first();
+            $cart = Cart::where('user_id', $userId)
+                ->with(['items.product', 'items.variant.attributeValues.attribute'])
+                ->first();
         }
 
         if ($cart) {
             $cartItems = $cart->items->map(function ($item) {
+                $variant = $item->variant;
+                $variantName = $variant ? trim((string) $variant->name) : '';
+                $variantSku = $variant ? trim((string) ($variant->sku ?? '')) : '';
+
+                $variantAttributes = '';
+                if ($variant && $variant->relationLoaded('attributeValues')) {
+                    $variantAttributes = $variant->attributeValues
+                        ->map(function ($attributeValue) {
+                            $attributeName = trim((string) ($attributeValue->attribute?->name ?? ''));
+                            $value = trim((string) ($attributeValue->value ?? ''));
+
+                            if ($value === '') {
+                                return null;
+                            }
+
+                            return $attributeName !== '' ? "{$attributeName}: {$value}" : $value;
+                        })
+                        ->filter()
+                        ->implode(', ');
+                }
+
                 return [
                     'product_id' => $item->product_id,
                     'product_name' => $item->product?->name ?? 'Unknown Product',
                     'product_sku' => $item->product?->sku,
                     'product_image' => $item->product?->thumbnail,
                     'variant_id' => $item->product_variant_id,
+                    'variant_name' => $variantName !== '' ? $variantName : null,
+                    'variant_sku' => $variantSku !== '' ? $variantSku : null,
+                    'variant_attributes' => $variantAttributes !== '' ? $variantAttributes : null,
                     'quantity' => $item->quantity,
                     'price' => $item->price,
                     'subtotal' => $item->quantity * $item->price,

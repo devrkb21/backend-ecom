@@ -12,7 +12,10 @@
                     <a href="{{ route('admin.orders.index') }}" class="btn btn-sm btn-outline-secondary me-2">
                         <i class="bi bi-arrow-left"></i>
                     </a>
-                    <h6 class="mb-0 fw-semibold"><i class="bi bi-receipt me-2"></i>Order #{{ $order->id }}</h6>
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-receipt me-2"></i>Order #{{ $order->order_number ?? $order->id }}
+                        <small class="text-muted ms-2">ID: {{ $order->id }}</small>
+                    </h6>
                 </div>
                 @php
                     $headerStatusLabel = $order->statusConfig?->label ?? ucfirst(str_replace('_', ' ', $order->status));
@@ -27,15 +30,141 @@
                     <div class="col-md-6">
                         <h6 class="text-muted small text-uppercase mb-2">Customer Information</h6>
                         @php
-                            $customerName = $order->user?->name ?? $order->shipping_name ?? 'Guest Checkout';
-                            $customerEmail = $order->user?->email ?? $order->shipping_email ?? 'Not provided';
+                            $checkoutPayloadForCustomer = is_array($order->checkout_fields_payload) ? $order->checkout_fields_payload : [];
+
+                            $firstNonEmptyValue = static function (array $candidates): string {
+                                foreach ($candidates as $candidate) {
+                                    $value = trim((string) ($candidate ?? ''));
+                                    if ($value !== '') {
+                                        return $value;
+                                    }
+                                }
+
+                                return '';
+                            };
+
+                            $guestCheckoutEmail = strtolower(trim((string) config('shop.guest_checkout_user_email', 'guest.checkout@innercollection.local')));
+                            $placeholderEmails = array_filter([
+                                $guestCheckoutEmail,
+                                'customer@local.invalid',
+                                'guest@local.invalid',
+                            ]);
+
+                            $rawUserName = trim((string) ($order->user?->name ?? ''));
+                            $rawUserEmail = trim((string) ($order->user?->email ?? ''));
+                            $isGuestCheckoutOrder = strtolower($rawUserEmail) === $guestCheckoutEmail || strtolower($rawUserName) === 'guest checkout';
+
+                            $billingFullName = trim($firstNonEmptyValue([
+                                $checkoutPayloadForCustomer['billing_first_name'] ?? null,
+                            ]) . ' ' . $firstNonEmptyValue([
+                                $checkoutPayloadForCustomer['billing_last_name'] ?? null,
+                            ]));
+
+                            if ($isGuestCheckoutOrder) {
+                                $customerName = $firstNonEmptyValue([
+                                    $order->shipping_name,
+                                    $checkoutPayloadForCustomer['shipping_name'] ?? null,
+                                    $checkoutPayloadForCustomer['billing_name'] ?? null,
+                                    $billingFullName,
+                                    $rawUserName,
+                                ]);
+                            } else {
+                                $customerName = $firstNonEmptyValue([
+                                    $rawUserName,
+                                    $order->shipping_name,
+                                    $checkoutPayloadForCustomer['shipping_name'] ?? null,
+                                ]);
+                            }
+
+                            $customerEmailCandidates = $isGuestCheckoutOrder
+                                ? [
+                                    $order->shipping_email,
+                                    $checkoutPayloadForCustomer['shipping_email'] ?? null,
+                                    $checkoutPayloadForCustomer['billing_email'] ?? null,
+                                ]
+                                : [
+                                    $rawUserEmail,
+                                    $order->shipping_email,
+                                    $checkoutPayloadForCustomer['shipping_email'] ?? null,
+                                    $checkoutPayloadForCustomer['billing_email'] ?? null,
+                                ];
+
+                            $customerEmail = 'Not provided';
+                            foreach ($customerEmailCandidates as $emailCandidate) {
+                                $rawEmail = trim((string) ($emailCandidate ?? ''));
+                                $normalizedEmail = strtolower($rawEmail);
+                                if ($normalizedEmail === '' || in_array($normalizedEmail, $placeholderEmails, true)) {
+                                    continue;
+                                }
+
+                                if (filter_var($rawEmail, FILTER_VALIDATE_EMAIL)) {
+                                    $customerEmail = $rawEmail;
+                                    break;
+                                }
+                            }
+
+                            $customerPhone = $firstNonEmptyValue([
+                                $order->shipping_phone,
+                                $checkoutPayloadForCustomer['shipping_phone'] ?? null,
+                                $checkoutPayloadForCustomer['billing_phone'] ?? null,
+                                $order->user?->phone,
+                            ]);
+
+                            if ($customerName === '') {
+                                $customerName = 'Guest Checkout';
+                            }
                         @endphp
                         <p class="mb-1"><strong>{{ $customerName }}</strong></p>
                         <p class="mb-1">{{ $customerEmail }}</p>
+                        @if($customerPhone !== '')
+                            <p class="mb-0">{{ $customerPhone }}</p>
+                        @endif
                     </div>
                     <div class="col-md-6">
                         <h6 class="text-muted small text-uppercase mb-2">Shipping Address</h6>
-                        <p class="mb-0">{{ $order->shipping_address ?? 'Not provided' }}</p>
+                        @php
+                            $shippingAddress = trim((string) ($order->shipping_address ?? ''));
+                            $shippingLocationText = trim((string) ((is_array($order->checkout_fields_payload) ? ($order->checkout_fields_payload['shipping_location_text'] ?? null) : null) ?? ''));
+                            $shippingArea = trim((string) ((is_array($order->checkout_fields_payload) ? ($order->checkout_fields_payload['shipping_area'] ?? null) : null) ?? ''));
+                            $shippingHierarchy = implode(', ', array_filter([
+                                $order->shippingUnion?->name,
+                                $order->shippingUpazila?->name,
+                                $order->shippingDistrict?->name,
+                                $order->shippingDivision?->name,
+                            ]));
+                            $shippingCityStateZip = implode(', ', array_filter([
+                                $order->shipping_city,
+                                $order->shipping_state,
+                                $order->shipping_zip,
+                            ]));
+                            $shippingCountry = trim((string) ($order->shipping_country ?? ''));
+                        @endphp
+
+                        @if($shippingAddress !== '')
+                            <p class="mb-1">{{ $shippingAddress }}</p>
+                        @else
+                            <p class="mb-1 text-muted">Not provided</p>
+                        @endif
+
+                        @if($shippingLocationText !== '' && $shippingLocationText !== $shippingAddress)
+                            <p class="mb-1"><strong>Location:</strong> {{ $shippingLocationText }}</p>
+                        @endif
+
+                        @if($shippingArea !== '')
+                            <p class="mb-1"><strong>Area:</strong> {{ $shippingArea }}</p>
+                        @endif
+
+                        @if($shippingHierarchy !== '')
+                            <p class="mb-1"><strong>Division chain:</strong> {{ $shippingHierarchy }}</p>
+                        @endif
+
+                        @if($shippingCityStateZip !== '')
+                            <p class="mb-1">{{ $shippingCityStateZip }}</p>
+                        @endif
+
+                        @if($shippingCountry !== '')
+                            <p class="mb-0">{{ $shippingCountry }}</p>
+                        @endif
                     </div>
                 </div>
 
@@ -56,12 +185,59 @@
                             @foreach($order->items as $item)
                                 <tr>
                                     <td>
+                                        @php
+                                            $variantName = trim((string) ($item->variant?->name ?? ''));
+                                            $variantSku = trim((string) ($item->variant?->sku ?? ''));
+                                            $variantId = $item->product_variant_id ? (int) $item->product_variant_id : null;
+
+                                            if ($variantSku === '' && $variantId) {
+                                                $variantSku = trim((string) ($item->product_sku ?? ''));
+                                            }
+
+                                            $variantAttributeSummary = '';
+                                            if ($item->variant && $item->variant->relationLoaded('attributeValues')) {
+                                                $variantAttributeSummary = $item->variant->attributeValues
+                                                    ->map(function ($attributeValue) {
+                                                        $attributeName = trim((string) ($attributeValue->attribute?->name ?? ''));
+                                                        $value = trim((string) ($attributeValue->value ?? ''));
+
+                                                        if ($value === '') {
+                                                            return null;
+                                                        }
+
+                                                        return $attributeName !== '' ? "{$attributeName}: {$value}" : $value;
+                                                    })
+                                                    ->filter()
+                                                    ->implode(', ');
+                                            }
+
+                                            $variantLabel = $variantName !== ''
+                                                ? $variantName
+                                                : ($variantAttributeSummary !== ''
+                                                    ? $variantAttributeSummary
+                                                    : ($variantId ? ('Variant #' . $variantId) : ''));
+                                        @endphp
                                         @if($item->product)
                                             <a href="{{ route('admin.products.show', $item->product_id) }}" class="text-decoration-none">
                                                 {{ $item->product->name }}
                                             </a>
                                         @else
-                                            <span class="text-muted">Product Deleted</span>
+                                            <span class="text-muted">{{ $item->product_name ?: 'Product Deleted' }}</span>
+                                        @endif
+
+                                        @if($variantLabel !== '')
+                                            <br>
+                                            <small class="text-muted">
+                                                <span class="fw-semibold">Variant:</span> {{ $variantLabel }}
+                                            </small>
+                                        @endif
+
+                                        @if($variantAttributeSummary !== '' && $variantAttributeSummary !== $variantName)
+                                            <br><small class="text-muted">{{ $variantAttributeSummary }}</small>
+                                        @endif
+
+                                        @if($variantSku !== '')
+                                            <br><small class="text-muted">Variant SKU: {{ $variantSku }}</small>
                                         @endif
                                     </td>
                                     <td class="text-end">৳{{ number_format($item->price, 2) }}</td>
@@ -110,6 +286,79 @@
                     <hr>
                     <h6>Notes</h6>
                     <p class="text-muted">{{ $order->notes }}</p>
+                @endif
+
+                @php
+                    $rawCheckoutPayload = is_array($order->checkout_fields_payload) ? $order->checkout_fields_payload : [];
+                    $checkoutPayload = array_filter($rawCheckoutPayload, static function ($value) {
+                        if ($value === null) {
+                            return false;
+                        }
+
+                        return trim((string) $value) !== '';
+                    });
+
+                    $checkoutFieldLabels = [
+                        'shipping_name' => 'Shipping Name',
+                        'shipping_email' => 'Shipping Email',
+                        'shipping_phone' => 'Shipping Phone',
+                        'shipping_address' => 'Shipping Address',
+                        'shipping_location_text' => 'Shipping Location',
+                        'shipping_area' => 'Shipping Area',
+                        'shipping_division_id' => 'Shipping Division',
+                        'shipping_district_id' => 'Shipping District',
+                        'shipping_upazila_id' => 'Shipping Upazila',
+                        'shipping_union_id' => 'Shipping Union',
+                        'shipping_city' => 'Shipping City',
+                        'shipping_state' => 'Shipping State',
+                        'shipping_zip' => 'Shipping ZIP/Postal Code',
+                        'shipping_country' => 'Shipping Country',
+                        'billing_first_name' => 'Billing First Name',
+                        'billing_last_name' => 'Billing Last Name',
+                        'billing_name' => 'Billing Name',
+                        'billing_email' => 'Billing Email',
+                        'billing_phone' => 'Billing Phone',
+                        'billing_address_1' => 'Billing Address Line 1',
+                        'billing_address_2' => 'Billing Address Line 2',
+                        'billing_city' => 'Billing City',
+                        'billing_state' => 'Billing State',
+                        'billing_postcode' => 'Billing ZIP/Postal Code',
+                        'billing_country' => 'Billing Country',
+                        'order_notes' => 'Order Notes',
+                        'notes' => 'Notes',
+                    ];
+                @endphp
+
+                @if(!empty($checkoutPayload))
+                    <hr>
+                    <h6 class="mb-3 fw-semibold"><i class="bi bi-file-earmark-text me-2"></i>Checkout Details</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <tbody>
+                                @foreach($checkoutPayload as $fieldKey => $rawValue)
+                                    @php
+                                        $normalizedKey = strtolower(trim((string) $fieldKey));
+                                        $label = $checkoutFieldLabels[$normalizedKey] ?? ucwords(str_replace('_', ' ', $normalizedKey));
+                                        $displayValue = trim((string) $rawValue);
+
+                                        if ($normalizedKey === 'shipping_division_id' && $order->shippingDivision?->name) {
+                                            $displayValue = $order->shippingDivision->name;
+                                        } elseif ($normalizedKey === 'shipping_district_id' && $order->shippingDistrict?->name) {
+                                            $displayValue = $order->shippingDistrict->name;
+                                        } elseif ($normalizedKey === 'shipping_upazila_id' && $order->shippingUpazila?->name) {
+                                            $displayValue = $order->shippingUpazila->name;
+                                        } elseif ($normalizedKey === 'shipping_union_id' && $order->shippingUnion?->name) {
+                                            $displayValue = $order->shippingUnion->name;
+                                        }
+                                    @endphp
+                                    <tr>
+                                        <th class="text-muted" style="width: 35%;">{{ $label }}</th>
+                                        <td>{{ $displayValue }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 @endif
             </div>
         </div>

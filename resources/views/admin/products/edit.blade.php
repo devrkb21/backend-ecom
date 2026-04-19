@@ -4,9 +4,14 @@
 @section('page-title', 'Edit Product')
 
 @section('content')
+@php
+    $stockEnabled = $stockEnabled ?? true;
+    $isVariableProduct = (bool) old('is_variable', $product->isVariableProduct());
+@endphp
 <form action="{{ route('admin.products.update', $product) }}" method="POST" enctype="multipart/form-data">
     @csrf
     @method('PUT')
+    <input type="hidden" name="is_variable" id="is_variable" value="{{ $isVariableProduct ? 1 : 0 }}">
     <div class="row g-3">
         <div class="col-md-8">
             <div class="card mb-4">
@@ -184,7 +189,7 @@
         </div>
 
         <div class="col-md-4">
-            <div class="card mb-4">
+            <div class="card mb-4 {{ $isVariableProduct ? 'd-none' : '' }}" id="basePricingStockCard">
                 <div class="card-header">
                     <i class="bi bi-currency-dollar"></i> Pricing & Stock
                 </div>
@@ -193,7 +198,7 @@
                         <label for="regular_price" class="form-label">Regular Price <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">৳</span>
-                            <input type="number" step="0.01" min="0" class="form-control @error('regular_price') is-invalid @enderror" id="regular_price" name="regular_price" value="{{ old('regular_price', $product->regular_price) }}" required>
+                            <input type="number" step="0.01" min="0" class="form-control @error('regular_price') is-invalid @enderror" id="regular_price" name="regular_price" value="{{ old('regular_price', $product->regular_price) }}" @if(!$isVariableProduct) required @endif>
                         </div>
                         @error('regular_price')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
@@ -227,17 +232,46 @@
                     <hr>
 
                     <div class="mb-3">
-                        <label for="stock_quantity" class="form-label">Stock Quantity <span class="text-danger">*</span></label>
-                        <input type="number" min="0" class="form-control @error('stock_quantity') is-invalid @enderror" id="stock_quantity" name="stock_quantity" value="{{ old('stock_quantity', $product->stock_quantity) }}" required>
+                        <label for="stock_quantity" class="form-label">
+                            Stock Quantity
+                            @if($stockEnabled)
+                                <span class="text-danger">*</span>
+                            @endif
+                        </label>
+                        <input
+                            type="number"
+                            min="0"
+                            class="form-control @error('stock_quantity') is-invalid @enderror"
+                            id="stock_quantity"
+                            name="stock_quantity"
+                            value="{{ old('stock_quantity', $product->stock_quantity) }}"
+                            @if($stockEnabled && !$isVariableProduct) required @endif
+                        >
+                        @if(!$stockEnabled)
+                            <div class="form-text">Global stock tracking is disabled. This value is optional and ignored.</div>
+                        @endif
                         @error('stock_quantity')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
-                        @if($product->variants->isNotEmpty())
-                            <div class="form-text text-info">
-                                Total from variants: {{ $product->total_stock }}
-                            </div>
-                        @endif
                     </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 {{ $isVariableProduct ? '' : 'd-none' }}" id="variantManagedNoticeCard">
+                <div class="card-header">
+                    <i class="bi bi-diagram-3"></i> Variant Managed
+                </div>
+                <div class="card-body">
+                    <p class="mb-2 small text-muted">
+                        Pricing and stock are managed from variant rows only. Base product pricing/stock is hidden for variable products.
+                    </p>
+                    <p class="mb-0 small text-muted">
+                        @if($stockEnabled)
+                            Current total variant stock: {{ $product->total_stock }}
+                        @else
+                            Global stock tracking is disabled.
+                        @endif
+                    </p>
                 </div>
             </div>
 
@@ -373,130 +407,95 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-diagram-3 me-2"></i>Product Variants</span>
                 <div>
-                    <span class="badge bg-secondary me-2">{{ $product->variants->count() }} variant(s)</span>
-                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addVariantModal">
-                        <i class="bi bi-plus-circle me-1"></i> Add Variant
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#generateVariantsModal">
-                        <i class="bi bi-grid-3x3 me-1"></i> Generate All
-                    </button>
-                    @if($product->variants->isNotEmpty())
-                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#bulkEditModal">
-                        <i class="bi bi-pencil-square me-1"></i> Bulk Edit
-                    </button>
-                    @endif
+                    <span class="badge bg-secondary" id="variantCountBadge">{{ $product->variants->count() }} variant(s)</span>
                 </div>
             </div>
             <div class="card-body">
-                @if($product->variants->isNotEmpty())
-                    <form action="{{ route('admin.products.variants.bulk-update', $product) }}" method="POST" id="bulkEditForm">
-                        @csrf
-                        @method('PUT')
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th style="width: 5%;">
-                                            <input type="checkbox" class="form-check-input" id="selectAllVariants" onchange="toggleAllVariants(this)">
-                                        </th>
-                                        <th style="width: 60px;">Image</th>
-                                        <th>Attribute</th>
-                                        <th>SKU</th>
-                                        <th>Adjustment</th>
-                                        <th>Stock</th>
-                                        <th>Status</th>
-                                        <th class="text-end">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($product->variants as $variant)
-                                        <tr id="variant-row-{{ $variant->id }}">
-                                            <td>
-                                                <input type="checkbox" class="form-check-input variant-checkbox" name="selected_variants[]" value="{{ $variant->id }}">
-                                            </td>
-                                            <td>
-                                                @if($variant->image)
-                                                    <img src="{{ asset('storage/' . $variant->image) }}" alt="Variant" class="rounded" style="width: 45px; height: 45px; object-fit: cover;">
-                                                @else
-                                                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
-                                                        <i class="bi bi-image text-muted"></i>
-                                                    </div>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                <div class="d-flex flex-wrap gap-1">
-                                                    @foreach($variant->attributeValues as $attrValue)
-                                                        <span class="badge bg-light text-dark border">
-                                                            @if($attrValue->color_code)
-                                                                <span class="d-inline-block rounded-circle me-1" style="width: 12px; height: 12px; background-color: {{ $attrValue->color_code }}; border: 1px solid #ccc; vertical-align: middle;"></span>
-                                                            @endif
-                                                            <small class="text-muted">{{ $attrValue->attribute->name }}:</small> {{ $attrValue->value }}
-                                                        </span>
-                                                    @endforeach
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <code class="small">{{ $variant->sku ?? '-' }}</code>
-                                            </td>
-                                            <td>
-                                                @if($variant->price_adjustment > 0)
-                                                    <span class="text-success">+৳{{ number_format($variant->price_adjustment, 2) }}</span>
-                                                @elseif($variant->price_adjustment < 0)
-                                                    <span class="text-danger">-৳{{ number_format(abs($variant->price_adjustment), 2) }}</span>
-                                                @else
-                                                    <span class="text-muted">৳0</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                @if($variant->stock_quantity <= 0)
-                                                    <span class="badge bg-danger">Out of Stock</span>
-                                                @elseif($variant->stock_quantity <= 5)
-                                                    <span class="badge bg-warning text-dark">{{ $variant->stock_quantity }} left</span>
-                                                @else
-                                                    <span class="badge bg-success">{{ $variant->stock_quantity }}</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                <span class="badge {{ $variant->is_active ? 'bg-success' : 'bg-secondary' }}">
-                                                    {{ $variant->is_active ? 'Active' : 'Inactive' }}
-                                                </span>
-                                            </td>
-                                            <td class="text-end">
-                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="editVariant({{ $variant->id }}, {{ json_encode(array_merge($variant->toArray(), ['image_url' => $variant->image_url])) }})">
-                                                    <i class="bi bi-pencil"></i>
-                                                </button>
-                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteVariant({{ $variant->id }})">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                                <tfoot class="table-light">
-                                    <tr>
-                                        <td colspan="4" class="text-end"><strong>Total Stock:</strong></td>
-                                        <td colspan="3"><strong>{{ $product->variants->sum('stock_quantity') }}</strong></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                @php
+                    $variantAttributes = $product->variants
+                        ->flatMap(fn($variant) => $variant->attributeValues->map(fn($value) => $value->attribute))
+                        ->filter()
+                        ->unique('id')
+                        ->sortBy('id')
+                        ->values();
+                    $variantBasePurchasePrice = (float) ($product->buy_price ?? 0);
+                    $variantBaseRegularPrice = (float) $product->regular_price;
+                    $variantBaseDiscountPrice = (float) ($product->sale_price ?? $product->regular_price);
+
+                    $variantAttributeDefinitions = $attributes
+                        ->map(function ($attribute) {
+                            return [
+                                'id' => (int) $attribute->id,
+                                'name' => $attribute->name,
+                                'values' => $attribute->values
+                                    ->map(function ($value) {
+                                        return [
+                                            'id' => (int) $value->id,
+                                            'value' => $value->value,
+                                            'color_code' => $value->color_code,
+                                        ];
+                                    })
+                                    ->values()
+                                    ->all(),
+                            ];
+                        })
+                        ->values()
+                        ->all();
+
+                    $initialVariantGroups = $variantAttributes
+                        ->map(function ($attribute) use ($product) {
+                            $valueIds = $product->variants
+                                ->flatMap(function ($variant) use ($attribute) {
+                                    return $variant->attributeValues
+                                        ->where('attribute_id', $attribute->id)
+                                        ->pluck('id');
+                                })
+                                ->map(fn ($id) => (int) $id)
+                                ->unique()
+                                ->sort()
+                                ->values()
+                                ->all();
+
+                            return [
+                                'attribute_id' => (int) $attribute->id,
+                                'value_ids' => $valueIds,
+                            ];
+                        })
+                        ->values()
+                        ->all();
+                @endphp
+
+                <div class="variation-manager-panel rounded-3 p-3 mb-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h6 class="mb-0">Manage variation</h6>
+                            <p class="text-muted small mb-0">{{ $product->name }}</p>
                         </div>
+                        <small class="text-muted" id="variationAutoStatus">Select variation values to auto-add variants.</small>
+                    </div>
+
+                    <form action="{{ route('admin.products.variants.generate', $product) }}" method="POST" id="autoGenerateVariantForm">
+                        @csrf
+                        <input type="hidden" name="default_price_adjustment" value="0">
+                        <input type="hidden" name="default_stock" value="0">
+                        <input type="hidden" name="sku_prefix" value="{{ $product->sku }}">
+
+                        <div id="variationRowsContainer" class="d-flex flex-column gap-3"></div>
                     </form>
 
-                    {{-- Hidden delete form --}}
-                    <form id="deleteVariantForm" method="POST" style="display: none;">
-                        @csrf
-                        @method('DELETE')
-                    </form>
-                @else
-                    <div class="text-center py-5">
-                        <i class="bi bi-box text-muted" style="font-size: 3rem;"></i>
-                        <p class="text-muted mt-3 mb-0">No variants yet.</p>
-                        <p class="text-muted small">Add variants to offer different options like size, color, etc.</p>
-                        <button type="button" class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#generateVariantsModal">
-                            <i class="bi bi-grid-3x3 me-1"></i> Generate Variants
-                        </button>
-                    </div>
-                @endif
+                    <small class="text-muted d-block mt-2">New combinations are generated automatically after selecting variation values.</small>
+                </div>
+
+                <div id="variantMatrixContainer">
+                    @include('admin.products.partials.variant-matrix', [
+                        'product' => $product,
+                        'variantAttributes' => $variantAttributes,
+                        'variantBasePurchasePrice' => $variantBasePurchasePrice,
+                        'variantBaseRegularPrice' => $variantBaseRegularPrice,
+                        'variantBaseDiscountPrice' => $variantBaseDiscountPrice,
+                        'stockEnabled' => $stockEnabled,
+                    ])
+                </div>
             </div>
         </div>
     </div>
@@ -568,7 +567,10 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Stock Quantity (for each)</label>
-                            <input type="number" min="0" class="form-control" name="variant_stock_quantity" value="0">
+                            <input type="number" min="0" class="form-control" name="variant_stock_quantity" value="0" @if($stockEnabled) required @endif>
+                            @if(!$stockEnabled)
+                                <small class="text-muted">Stock tracking is disabled. This value is optional and ignored.</small>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -628,7 +630,10 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Stock Quantity</label>
-                            <input type="number" min="0" class="form-control" name="stock_quantity" id="edit_variant_stock">
+                            <input type="number" min="0" class="form-control" name="stock_quantity" id="edit_variant_stock" @if($stockEnabled) required @endif>
+                            @if(!$stockEnabled)
+                                <small class="text-muted">Stock tracking is disabled. This value is optional and ignored.</small>
+                            @endif
                         </div>
                         <div class="col-12">
                             <div class="form-check form-switch">
@@ -660,7 +665,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-muted mb-4">Select attribute values to create variants. Each selected value will create one variant.</p>
+                    <p class="text-muted mb-4">Select values per attribute to generate all possible variant combinations (e.g. Size: S,M and Color: Red,Blue = 4 variants).</p>
 
                     <div class="row g-4">
                         @foreach($attributes as $attribute)
@@ -679,7 +684,7 @@
                                                     <div class="form-check">
                                                         <input class="form-check-input variant-value-checkbox"
                                                                type="checkbox"
-                                                               name="attribute_values[]"
+                                                            name="attribute_groups[{{ $attribute->id }}][]"
                                                                value="{{ $value->id }}"
                                                                id="gen_val_{{ $value->id }}"
                                                                data-attribute="{{ $attribute->id }}"
@@ -712,7 +717,10 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">Default Stock per Variant</label>
-                            <input type="number" min="0" class="form-control" name="default_stock" value="10">
+                            <input type="number" min="0" class="form-control" name="default_stock" value="10" @if($stockEnabled) required @endif>
+                            @if(!$stockEnabled)
+                                <small class="text-muted">Stock tracking is disabled. This value is optional and ignored.</small>
+                            @endif
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">SKU Prefix</label>
@@ -765,12 +773,18 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Set Stock Quantity</label>
-                        <input type="number" min="0" class="form-control" name="bulk_stock_quantity" placeholder="Leave empty to keep current">
+                        <input type="number" min="0" class="form-control" name="bulk_stock_quantity" placeholder="Leave empty to keep current" @if(!$stockEnabled) disabled @endif>
+                        @if(!$stockEnabled)
+                            <small class="text-muted">Disabled because global stock tracking is off.</small>
+                        @endif
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Add Stock (increase by)</label>
-                        <input type="number" min="0" class="form-control" name="bulk_add_stock" placeholder="e.g., 10 to add 10 to each">
+                        <input type="number" min="0" class="form-control" name="bulk_add_stock" placeholder="e.g., 10 to add 10 to each" @if(!$stockEnabled) disabled @endif>
+                        @if(!$stockEnabled)
+                            <small class="text-muted">Disabled because global stock tracking is off.</small>
+                        @endif
                     </div>
 
                     <div class="mb-3">
@@ -810,8 +824,756 @@
 @include('admin.media.picker')
 @endsection
 
+@push('styles')
+<style>
+.variation-manager-panel {
+    border: 1px solid #dbe3ec;
+    background: linear-gradient(180deg, #fafcff 0%, #f7f9fc 100%);
+}
+
+.variation-manager-row {
+    border: 1px dashed #ced7e2;
+    border-radius: 0.5rem;
+    background-color: #ffffff;
+    padding: 0.75rem;
+}
+
+.variation-values-dropdown {
+    position: relative;
+}
+
+.variation-values-trigger {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid #ced7e2;
+    border-radius: 0.5rem;
+    background-color: #fff;
+    color: #64748b;
+    padding: 0.45rem 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.variation-values-trigger.dropdown-toggle::after {
+    display: none;
+}
+
+.variation-values-trigger-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.variation-values-trigger.has-selection {
+    color: #1f2937;
+}
+
+.variation-values-trigger:hover {
+    border-color: #b8c4d2;
+}
+
+.variation-values-trigger:focus,
+.variation-values-trigger.show {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+}
+
+.variation-values-trigger:disabled {
+    background-color: #edf1f5;
+    color: #9aa6b2;
+    cursor: not-allowed;
+}
+
+.variation-values-chevron {
+    font-size: 0.9rem;
+    transition: transform 0.2s ease;
+}
+
+.variation-values-dropdown.show .variation-values-chevron {
+    transform: rotate(180deg);
+}
+
+.variation-values-menu {
+    width: 100%;
+    padding: 0.45rem;
+    max-height: 220px;
+    overflow-y: auto;
+    border-color: #d9e1ea;
+}
+
+.variation-values-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.45rem;
+    border-radius: 0.4rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+
+.variation-values-option:hover {
+    background-color: #f1f5f9;
+}
+
+.variation-values-option .form-check-input {
+    margin-top: 0;
+}
+
+.variation-values-option-color {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    border: 1px solid #cfd6de;
+    flex-shrink: 0;
+}
+
+.variation-values-empty {
+    padding: 0.35rem 0.45rem;
+}
+
+.variation-value-chips .badge {
+    font-weight: 500;
+    font-size: 0.73rem;
+}
+
+.variant-matrix-table thead th {
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    white-space: nowrap;
+}
+
+@media (max-width: 992px) {
+    .variation-manager-row {
+        padding: 0.6rem;
+    }
+}
+</style>
+@endpush
+
 @push('scripts')
 <script>
+@if($attributes->isNotEmpty())
+const variantAttributeDefinitions = @json($variantAttributeDefinitions ?? []);
+const initialVariantGroups = @json($initialVariantGroups ?? []);
+const productStockEnabled = @json($stockEnabled);
+
+let variationAutoSubmitTimer = null;
+let variationAutoFormSubmitting = false;
+let lastAutoGeneratedSignature = '';
+
+function syncPricingStockVisibilityFromVariants() {
+    var basePricingCard = document.getElementById('basePricingStockCard');
+    var variantNoticeCard = document.getElementById('variantManagedNoticeCard');
+    var regularPriceInput = document.getElementById('regular_price');
+    var stockQuantityInput = document.getElementById('stock_quantity');
+    var variableFlagInput = document.getElementById('is_variable');
+
+    if (!basePricingCard || !variantNoticeCard) {
+        return;
+    }
+
+    var badge = document.getElementById('variantCountBadge');
+    var hasVariants = false;
+
+    if (badge) {
+        var countMatch = badge.textContent.match(/\d+/);
+        hasVariants = countMatch ? Number(countMatch[0]) > 0 : false;
+    }
+
+    var isVariableMode = hasVariants || (variableFlagInput && variableFlagInput.value === '1');
+
+    basePricingCard.classList.toggle('d-none', isVariableMode);
+    variantNoticeCard.classList.toggle('d-none', !isVariableMode);
+
+    if (regularPriceInput) {
+        regularPriceInput.required = !isVariableMode;
+    }
+
+    if (stockQuantityInput) {
+        stockQuantityInput.required = productStockEnabled && !isVariableMode;
+    }
+
+    if (variableFlagInput) {
+        variableFlagInput.value = isVariableMode ? '1' : '0';
+    }
+}
+
+function getVariationRows() {
+    return Array.from(document.querySelectorAll('.variation-manager-row'));
+}
+
+function findVariationAttributeDefinition(attributeId) {
+    return variantAttributeDefinitions.find(function(item) {
+        return String(item.id) === String(attributeId);
+    });
+}
+
+function getRowSelectedValueIds(row) {
+    var valuesSelect = row.querySelector('.variation-values-select');
+    if (!valuesSelect) {
+        return [];
+    }
+
+    return Array.from(valuesSelect.selectedOptions).map(function(option) {
+        return option.value;
+    });
+}
+
+function updateVariationValueTriggerLabel(row) {
+    var valuesSelect = row.querySelector('.variation-values-select');
+    var valuesTrigger = row.querySelector('.variation-values-trigger');
+    var triggerText = row.querySelector('.variation-values-trigger-text');
+
+    if (!valuesSelect || !valuesTrigger || !triggerText) {
+        return;
+    }
+
+    var selectedOptions = Array.from(valuesSelect.selectedOptions);
+    if (selectedOptions.length === 0) {
+        triggerText.textContent = 'Select...';
+        valuesTrigger.classList.remove('has-selection');
+        return;
+    }
+
+    valuesTrigger.classList.add('has-selection');
+
+    if (selectedOptions.length === 1) {
+        triggerText.textContent = selectedOptions[0].textContent;
+        return;
+    }
+
+    triggerText.textContent = selectedOptions.length + ' selected';
+}
+
+function renderVariationValueDropdownOptions(row, values, selectedIds) {
+    var optionsContainer = row.querySelector('.variation-values-options');
+    if (!optionsContainer) {
+        return;
+    }
+
+    optionsContainer.innerHTML = '';
+
+    if (!Array.isArray(values) || values.length === 0) {
+        var emptyState = document.createElement('div');
+        emptyState.className = 'variation-values-empty text-muted small';
+        emptyState.textContent = 'No values available.';
+        optionsContainer.appendChild(emptyState);
+        return;
+    }
+
+    values.forEach(function(value) {
+        var optionLabel = document.createElement('label');
+        optionLabel.className = 'variation-values-option';
+
+        var checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'form-check-input variation-value-checkbox';
+        checkbox.value = String(value.id);
+        checkbox.checked = selectedIds.has(String(value.id));
+        optionLabel.appendChild(checkbox);
+
+        if (value.color_code) {
+            var colorDot = document.createElement('span');
+            colorDot.className = 'variation-values-option-color';
+            colorDot.style.backgroundColor = value.color_code;
+            optionLabel.appendChild(colorDot);
+        }
+
+        var text = document.createElement('span');
+        text.textContent = value.value;
+        optionLabel.appendChild(text);
+
+        optionsContainer.appendChild(optionLabel);
+    });
+}
+
+function syncVariationValueSelectFromDropdown(row) {
+    var valuesSelect = row.querySelector('.variation-values-select');
+    if (!valuesSelect) {
+        return;
+    }
+
+    var selectedIds = new Set(
+        Array.from(row.querySelectorAll('.variation-value-checkbox:checked')).map(function(input) {
+            return String(input.value);
+        })
+    );
+
+    Array.from(valuesSelect.options).forEach(function(option) {
+        option.selected = selectedIds.has(String(option.value));
+    });
+}
+
+function setVariationAutoStatus(message, tone) {
+    var statusEl = document.getElementById('variationAutoStatus');
+    if (!statusEl) {
+        return;
+    }
+
+    statusEl.textContent = message;
+    statusEl.classList.remove('text-muted', 'text-primary', 'text-success', 'text-danger');
+
+    if (tone === 'primary') {
+        statusEl.classList.add('text-primary');
+    } else if (tone === 'success') {
+        statusEl.classList.add('text-success');
+    } else if (tone === 'danger') {
+        statusEl.classList.add('text-danger');
+    } else {
+        statusEl.classList.add('text-muted');
+    }
+}
+
+function renderVariationValueChips(row) {
+    var chipsContainer = row.querySelector('.variation-value-chips');
+    var valuesSelect = row.querySelector('.variation-values-select');
+
+    chipsContainer.innerHTML = '';
+
+    Array.from(valuesSelect.selectedOptions).forEach(function(option) {
+        var badge = document.createElement('span');
+        badge.className = 'badge bg-light text-dark border';
+
+        var colorCode = option.dataset.colorCode;
+        if (colorCode) {
+            var colorDot = document.createElement('span');
+            colorDot.className = 'd-inline-block rounded-circle me-1';
+            colorDot.style.width = '10px';
+            colorDot.style.height = '10px';
+            colorDot.style.backgroundColor = colorCode;
+            colorDot.style.border = '1px solid #ccc';
+            colorDot.style.verticalAlign = 'middle';
+            badge.appendChild(colorDot);
+        }
+
+        var textNode = document.createTextNode(option.textContent);
+        badge.appendChild(textNode);
+        chipsContainer.appendChild(badge);
+    });
+
+    updateVariationValueTriggerLabel(row);
+}
+
+function populateVariationValues(row, attributeId, selectedValueIds) {
+    var valuesSelect = row.querySelector('.variation-values-select');
+    var valuesTrigger = row.querySelector('.variation-values-trigger');
+    var normalizedSelectedIds = new Set((selectedValueIds || []).map(function(id) {
+        return String(id);
+    }));
+
+    valuesSelect.innerHTML = '';
+    valuesSelect.name = '';
+    valuesSelect.disabled = true;
+
+    if (valuesTrigger) {
+        valuesTrigger.disabled = true;
+    }
+
+    renderVariationValueDropdownOptions(row, [], new Set());
+
+    if (!attributeId) {
+        renderVariationValueChips(row);
+        return;
+    }
+
+    var attribute = findVariationAttributeDefinition(attributeId);
+    if (!attribute) {
+        renderVariationValueChips(row);
+        return;
+    }
+
+    valuesSelect.name = 'attribute_groups[' + attribute.id + '][]';
+    valuesSelect.disabled = attribute.values.length === 0;
+
+    if (valuesTrigger) {
+        valuesTrigger.disabled = attribute.values.length === 0;
+    }
+
+    attribute.values.forEach(function(value) {
+        var option = document.createElement('option');
+        option.value = String(value.id);
+        option.textContent = value.value;
+        option.dataset.colorCode = value.color_code || '';
+
+        if (normalizedSelectedIds.has(String(value.id))) {
+            option.selected = true;
+        }
+
+        valuesSelect.appendChild(option);
+    });
+
+    renderVariationValueDropdownOptions(row, attribute.values, normalizedSelectedIds);
+
+    renderVariationValueChips(row);
+}
+
+function refreshVariationAttributeSelections() {
+    var rows = getVariationRows();
+    var selectedAttributeIds = rows
+        .map(function(row) {
+            return row.querySelector('.variation-attribute-select').value;
+        })
+        .filter(function(value) {
+            return value !== '';
+        });
+
+    rows.forEach(function(row) {
+        var select = row.querySelector('.variation-attribute-select');
+        var currentValue = select.value;
+
+        Array.from(select.options).forEach(function(option) {
+            if (!option.value) {
+                option.disabled = false;
+                return;
+            }
+
+            option.disabled = option.value !== currentValue && selectedAttributeIds.includes(option.value);
+        });
+    });
+}
+
+function refreshVariationRowButtons() {
+    var rows = getVariationRows();
+
+    rows.forEach(function(row, index) {
+        var addButton = row.querySelector('.variation-add-row');
+        var removeButton = row.querySelector('.variation-remove-row');
+
+        addButton.classList.toggle('d-none', index !== 0);
+        removeButton.classList.toggle('d-none', index === 0);
+    });
+}
+
+function ensureTrailingEmptyVariationRow() {
+    var rows = getVariationRows();
+    if (rows.length === 0) {
+        createVariationRow();
+        return;
+    }
+
+    var selectedAttributeCount = 0;
+    var hasEmptyRow = false;
+
+    rows.forEach(function(row) {
+        var attributeId = row.querySelector('.variation-attribute-select').value;
+        var selectedValuesCount = getRowSelectedValueIds(row).length;
+
+        if (!attributeId && selectedValuesCount === 0) {
+            hasEmptyRow = true;
+            return;
+        }
+
+        if (attributeId) {
+            selectedAttributeCount++;
+        }
+    });
+
+    if (selectedAttributeCount < variantAttributeDefinitions.length && !hasEmptyRow) {
+        createVariationRow();
+    }
+}
+
+function buildVariationSignature(grouped) {
+    return Object.keys(grouped)
+        .sort(function(a, b) {
+            return Number(a) - Number(b);
+        })
+        .map(function(attributeId) {
+            var values = grouped[attributeId].slice().sort(function(a, b) {
+                return Number(a) - Number(b);
+            });
+            return attributeId + ':' + values.join(',');
+        })
+        .join('|');
+}
+
+function collectVariationGroupState() {
+    var grouped = {};
+    var hasIncompleteRow = false;
+
+    getVariationRows().forEach(function(row) {
+        var attributeSelect = row.querySelector('.variation-attribute-select');
+        var valuesSelect = row.querySelector('.variation-values-select');
+        var attributeId = attributeSelect.value;
+        var selectedValues = getRowSelectedValueIds(row);
+
+        valuesSelect.name = '';
+
+        if (!attributeId && selectedValues.length === 0) {
+            return;
+        }
+
+        if (!attributeId || selectedValues.length === 0) {
+            hasIncompleteRow = true;
+            return;
+        }
+
+        valuesSelect.name = 'attribute_groups[' + attributeId + '][]';
+
+        if (!grouped[attributeId]) {
+            grouped[attributeId] = [];
+        }
+
+        selectedValues.forEach(function(valueId) {
+            if (!grouped[attributeId].includes(valueId)) {
+                grouped[attributeId].push(valueId);
+            }
+        });
+    });
+
+    Object.keys(grouped).forEach(function(attributeId) {
+        grouped[attributeId].sort(function(a, b) {
+            return Number(a) - Number(b);
+        });
+    });
+
+    var signature = buildVariationSignature(grouped);
+
+    return {
+        grouped: grouped,
+        hasIncompleteRow: hasIncompleteRow,
+        groupsCount: Object.keys(grouped).length,
+        signature: signature,
+    };
+}
+
+function updateVariantMatrixFromPayload(payload) {
+    if (payload && payload.matrix_html) {
+        var matrixContainer = document.getElementById('variantMatrixContainer');
+        if (matrixContainer) {
+            matrixContainer.innerHTML = payload.matrix_html;
+        }
+    }
+
+    if (payload && typeof payload.variant_count !== 'undefined') {
+        var countBadge = document.getElementById('variantCountBadge');
+        if (countBadge) {
+            countBadge.textContent = payload.variant_count + ' variant(s)';
+        }
+    }
+
+    syncPricingStockVisibilityFromVariants();
+}
+
+function queueAutoGenerateVariants() {
+    if (variationAutoFormSubmitting) {
+        return;
+    }
+
+    clearTimeout(variationAutoSubmitTimer);
+    variationAutoSubmitTimer = setTimeout(function() {
+        autoGenerateVariantsFromSelection();
+    }, 700);
+}
+
+async function autoGenerateVariantsFromSelection() {
+    if (variationAutoFormSubmitting) {
+        return;
+    }
+
+    var form = document.getElementById('autoGenerateVariantForm');
+    if (!form) {
+        return;
+    }
+
+    var state = collectVariationGroupState();
+
+    if (state.groupsCount === 0) {
+        setVariationAutoStatus('Select variation values to auto-add variants.', 'muted');
+        return;
+    }
+
+    if (state.hasIncompleteRow) {
+        setVariationAutoStatus('Select at least one value for each chosen variation name.', 'danger');
+        return;
+    }
+
+    if (state.signature === lastAutoGeneratedSignature) {
+        return;
+    }
+
+    variationAutoFormSubmitting = true;
+    setVariationAutoStatus('Adding new variant combinations...', 'primary');
+
+    try {
+        var formData = new FormData(form);
+        var response = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: formData,
+        });
+
+        var payload = await response.json();
+
+        if (!response.ok) {
+            throw new Error(payload.message || 'Failed to generate variants.');
+        }
+
+        updateVariantMatrixFromPayload(payload);
+
+        lastAutoGeneratedSignature = state.signature;
+
+        var changedCount = Number(payload.changed_count || 0);
+        if (changedCount > 0) {
+            setVariationAutoStatus(payload.message || 'Variants synced successfully.', 'success');
+            return;
+        }
+
+        setVariationAutoStatus(payload.message || 'No new combinations were created.', 'muted');
+    } catch (error) {
+        setVariationAutoStatus(error.message || 'Could not auto-add variants right now.', 'danger');
+    } finally {
+        variationAutoFormSubmitting = false;
+    }
+}
+
+function bindVariationRowEvents(row) {
+    var attributeSelect = row.querySelector('.variation-attribute-select');
+    var valuesSelect = row.querySelector('.variation-values-select');
+    var valuesOptions = row.querySelector('.variation-values-options');
+    var addButton = row.querySelector('.variation-add-row');
+    var removeButton = row.querySelector('.variation-remove-row');
+
+    attributeSelect.addEventListener('change', function() {
+        populateVariationValues(row, attributeSelect.value, []);
+        ensureTrailingEmptyVariationRow();
+        refreshVariationAttributeSelections();
+        refreshVariationRowButtons();
+        setVariationAutoStatus('Variation updated. Auto-adding combinations...', 'primary');
+        queueAutoGenerateVariants();
+    });
+
+    valuesSelect.addEventListener('change', function() {
+        renderVariationValueChips(row);
+        ensureTrailingEmptyVariationRow();
+        refreshVariationAttributeSelections();
+        refreshVariationRowButtons();
+        setVariationAutoStatus('Variation values selected. Auto-adding combinations...', 'primary');
+        queueAutoGenerateVariants();
+    });
+
+    if (valuesOptions) {
+        valuesOptions.addEventListener('change', function(event) {
+            if (!event.target.classList.contains('variation-value-checkbox')) {
+                return;
+            }
+
+            syncVariationValueSelectFromDropdown(row);
+            valuesSelect.dispatchEvent(new Event('change'));
+        });
+    }
+
+    addButton.addEventListener('click', function() {
+        createVariationRow();
+        refreshVariationAttributeSelections();
+        refreshVariationRowButtons();
+    });
+
+    removeButton.addEventListener('click', function() {
+        row.remove();
+        if (getVariationRows().length === 0) {
+            createVariationRow();
+        }
+        refreshVariationAttributeSelections();
+        refreshVariationRowButtons();
+        setVariationAutoStatus('Variation row removed. Update selections to auto-add variants.', 'muted');
+    });
+}
+
+function createVariationRow(seed) {
+    var rowSeed = seed || { attribute_id: '', value_ids: [] };
+    var container = document.getElementById('variationRowsContainer');
+    if (!container) {
+        return;
+    }
+
+    var row = document.createElement('div');
+    row.className = 'row g-2 align-items-start variation-manager-row';
+
+    row.innerHTML = [
+        '<div class="col-md-4">',
+        '  <label class="form-label fw-semibold mb-1">Variation Name</label>',
+        '  <select class="form-select variation-attribute-select"></select>',
+        '</div>',
+        '<div class="col-md-7">',
+        '  <label class="form-label fw-semibold mb-1">Variation value</label>',
+        '  <div class="dropdown variation-values-dropdown">',
+        '      <button class="btn variation-values-trigger dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" disabled>',
+        '          <span class="variation-values-trigger-text">Select...</span>',
+        '          <i class="bi bi-chevron-down variation-values-chevron"></i>',
+        '      </button>',
+        '      <div class="dropdown-menu variation-values-menu">',
+        '          <div class="variation-values-options"></div>',
+        '      </div>',
+        '      <select class="variation-values-select d-none" multiple disabled></select>',
+        '  </div>',
+        '  <div class="variation-value-chips mt-2 d-flex flex-wrap gap-1"></div>',
+        '</div>',
+        '<div class="col-md-1 d-flex gap-2 pt-md-4">',
+        '  <button type="button" class="btn btn-success btn-sm variation-add-row" title="Add variation"><i class="bi bi-plus"></i></button>',
+        '  <button type="button" class="btn btn-outline-danger btn-sm variation-remove-row" title="Remove variation"><i class="bi bi-dash"></i></button>',
+        '</div>'
+    ].join('');
+
+    var attributeSelect = row.querySelector('.variation-attribute-select');
+    var placeholderOption = document.createElement('option');
+    placeholderOption.value = '';
+    placeholderOption.textContent = 'Select variation name';
+    attributeSelect.appendChild(placeholderOption);
+
+    variantAttributeDefinitions.forEach(function(attribute) {
+        var option = document.createElement('option');
+        option.value = String(attribute.id);
+        option.textContent = attribute.name;
+        attributeSelect.appendChild(option);
+    });
+
+    if (rowSeed.attribute_id) {
+        attributeSelect.value = String(rowSeed.attribute_id);
+    }
+
+    container.appendChild(row);
+    populateVariationValues(row, attributeSelect.value, rowSeed.value_ids || []);
+    bindVariationRowEvents(row);
+}
+
+function initializeVariationManager() {
+    var container = document.getElementById('variationRowsContainer');
+    if (!container) {
+        return;
+    }
+
+    container.innerHTML = '';
+
+    if (Array.isArray(initialVariantGroups) && initialVariantGroups.length > 0) {
+        initialVariantGroups.forEach(function(group) {
+            createVariationRow(group);
+        });
+    } else {
+        createVariationRow();
+    }
+
+    refreshVariationAttributeSelections();
+    refreshVariationRowButtons();
+    setVariationAutoStatus('Select variation values to auto-add variants.', 'muted');
+
+    var initialState = collectVariationGroupState();
+    lastAutoGeneratedSignature = initialState.signature;
+
+    syncPricingStockVisibilityFromVariants();
+}
+
+initializeVariationManager();
+@endif
+
 // Handle primary image selection from media library
 function handlePrimaryImageSelect(media) {
     const preview = document.getElementById('primary-image-preview');
@@ -990,6 +1752,40 @@ function deleteVariant(id) {
     }
 }
 
+function submitBulkDeleteSelectedVariants() {
+    var selectedIds = Array.from(document.querySelectorAll('.variant-checkbox:checked')).map(function(cb) {
+        return cb.value;
+    });
+
+    if (selectedIds.length === 0) {
+        alert('Select at least one variant to delete.');
+        return;
+    }
+
+    if (!confirm('Delete ' + selectedIds.length + ' selected variant(s)? This action cannot be undone.')) {
+        return;
+    }
+
+    var form = document.getElementById('bulkDeleteVariantsForm');
+    if (!form) {
+        return;
+    }
+
+    form.querySelectorAll('input[name="variant_ids[]"]').forEach(function(input) {
+        input.remove();
+    });
+
+    selectedIds.forEach(function(id) {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'variant_ids[]';
+        input.value = id;
+        form.appendChild(input);
+    });
+
+    form.submit();
+}
+
 // Toggle all variants selection
 function toggleAllVariants(checkbox) {
     var checkboxes = document.querySelectorAll('.variant-checkbox');
@@ -1004,13 +1800,29 @@ function updateBulkEditCount() {
     var checkedCount = document.querySelectorAll('.variant-checkbox:checked').length;
     var countEl = document.getElementById('bulkEditCount');
     var submitBtn = document.getElementById('bulkEditSubmit');
+    var bulkDeleteBtn = document.getElementById('bulkDeleteVariantsBtn');
+    var allVariantCheckboxes = document.querySelectorAll('.variant-checkbox');
+    var selectAllCheckbox = document.getElementById('selectAllVariants');
 
-    if (checkedCount > 0) {
-        countEl.textContent = checkedCount + ' variant(s) selected';
-        submitBtn.disabled = false;
-    } else {
-        countEl.textContent = 'Select variants from the table first';
-        submitBtn.disabled = true;
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = allVariantCheckboxes.length > 0 && checkedCount === allVariantCheckboxes.length;
+        selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < allVariantCheckboxes.length;
+    }
+
+    if (countEl) {
+        if (checkedCount > 0) {
+            countEl.textContent = checkedCount + ' variant(s) selected';
+        } else {
+            countEl.textContent = 'Select variants from the table first';
+        }
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = checkedCount === 0;
+    }
+
+    if (bulkDeleteBtn) {
+        bulkDeleteBtn.disabled = checkedCount === 0;
     }
 }
 
@@ -1071,20 +1883,48 @@ function selectAllValues(attributeId) {
     updateVariantPreview();
 }
 
-// Update variant preview count - each selected value = 1 variant
+// Update variant preview count using Cartesian combinations across selected attributes.
 function updateVariantPreview() {
-    var checkedCount = document.querySelectorAll('.variant-value-checkbox:checked').length;
+    var groupedCounts = {};
+
+    document.querySelectorAll('.variant-value-checkbox:checked').forEach(function(cb) {
+        var attributeId = cb.getAttribute('data-attribute');
+        groupedCounts[attributeId] = (groupedCounts[attributeId] || 0) + 1;
+    });
+
+    var attributeIds = Object.keys(groupedCounts);
+    var combinationCount = 0;
+
+    if (attributeIds.length > 0) {
+        combinationCount = attributeIds.reduce(function(total, attributeId) {
+            return total * groupedCounts[attributeId];
+        }, 1);
+    }
 
     var previewEl = document.getElementById('variant-count');
     var generateBtn = document.getElementById('generateBtn');
 
-    if (checkedCount > 0) {
-        previewEl.textContent = 'This will generate ' + checkedCount + ' variant(s) - one for each selected value';
+    if (combinationCount > 0) {
+        var breakdown = attributeIds
+            .map(function(attributeId) {
+                return groupedCounts[attributeId] + ' value(s)';
+            })
+            .join(' × ');
+
+        previewEl.textContent = 'This will generate ' + combinationCount + ' variant combination(s) from ' + attributeIds.length + ' attribute(s) (' + breakdown + ').';
         generateBtn.disabled = false;
     } else {
         previewEl.textContent = 'Select attribute values above to preview variants';
         generateBtn.disabled = true;
     }
 }
+
+document.getElementById('generateVariantsModal').addEventListener('hidden.bs.modal', function() {
+    document.querySelectorAll('.variant-value-checkbox').forEach(function(cb) {
+        cb.checked = false;
+    });
+
+    updateVariantPreview();
+});
 </script>
 @endpush

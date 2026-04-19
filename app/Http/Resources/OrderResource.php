@@ -15,6 +15,9 @@ class OrderResource extends JsonResource
         $discountAmount = (float) ($this->discount_amount ?? 0);
         $total = (float) $this->total;
         $paymentCharge = max(0, round($total - ($subtotal + $tax + $shipping - $discountAmount), 2));
+        $checkoutFieldsPayload = is_array($this->checkout_fields_payload) ? $this->checkout_fields_payload : [];
+        $shippingLocationText = $this->extractCheckoutFieldValue($checkoutFieldsPayload, ['shipping_location_text', 'location_text']);
+        $shippingArea = $this->extractCheckoutFieldValue($checkoutFieldsPayload, ['shipping_area', 'area', 'address_line_2', 'billing_address_2']);
 
         return [
             'id' => $this->id,
@@ -35,6 +38,8 @@ class OrderResource extends JsonResource
             'shipping_email' => $this->shipping_email,
             'shipping_phone' => $this->shipping_phone,
             'shipping_address' => $this->shipping_address,
+            'shipping_location_text' => $shippingLocationText,
+            'shipping_area' => $shippingArea,
             'shipping_division_id' => $this->shipping_division_id,
             'shipping_district_id' => $this->shipping_district_id,
             'shipping_upazila_id' => $this->shipping_upazila_id,
@@ -48,7 +53,7 @@ class OrderResource extends JsonResource
             'shipping_upazila' => $this->whenLoaded('shippingUpazila', fn () => $this->shippingUpazila?->name),
             'shipping_union' => $this->whenLoaded('shippingUnion', fn () => $this->shippingUnion?->name),
             'notes' => $this->notes,
-            'checkout_fields_payload' => $this->checkout_fields_payload,
+            'checkout_fields_payload' => $checkoutFieldsPayload,
             // Tracking info
             'tracking_number' => $this->tracking_number,
             'carrier' => $this->carrier,
@@ -67,5 +72,28 @@ class OrderResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
+    }
+
+    private function extractCheckoutFieldValue(array $payload, array $keys): ?string
+    {
+        foreach ($keys as $key) {
+            if (!array_key_exists($key, $payload)) {
+                continue;
+            }
+
+            $value = $payload[$key];
+
+            if ($value === null) {
+                continue;
+            }
+
+            $normalized = trim((string) $value);
+
+            if ($normalized !== '') {
+                return $normalized;
+            }
+        }
+
+        return null;
     }
 }

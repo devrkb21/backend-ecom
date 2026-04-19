@@ -119,6 +119,52 @@ class PaymentGateway extends Model
      */
     public function getIconHtml(): string
     {
+        $configuredIcon = trim((string) ($this->icon ?? ''));
+
+        if ($configuredIcon !== '') {
+            // Render Bootstrap icon classes from admin settings, e.g. "bi-credit-card" or "bi bi-credit-card".
+            if (str_contains($configuredIcon, 'bi-') || str_starts_with($configuredIcon, 'bi ')) {
+                $className = trim(preg_replace('/\s+/', ' ', $configuredIcon));
+
+                if (str_starts_with($className, 'bi-')) {
+                    $className = 'bi ' . $className;
+                }
+
+                return '<i class="' . e($className) . '"></i>';
+            }
+
+            // Render image-based icons when admin sets URL or relative storage path.
+            if (
+                str_starts_with($configuredIcon, 'http://')
+                || str_starts_with($configuredIcon, 'https://')
+                || str_starts_with($configuredIcon, 'data:image/')
+                || str_starts_with($configuredIcon, 'media/')
+                || str_starts_with($configuredIcon, '/storage/')
+                || str_starts_with($configuredIcon, 'storage/')
+                || preg_match('/\.(svg|png|jpe?g|webp|gif)(\?.*)?$/i', $configuredIcon)
+            ) {
+                $iconPath = $configuredIcon;
+
+                if (
+                    !str_starts_with($iconPath, 'http://')
+                    && !str_starts_with($iconPath, 'https://')
+                    && !str_starts_with($iconPath, '/storage/')
+                    && !str_starts_with($iconPath, 'data:image/')
+                ) {
+                    $normalizedPath = ltrim($iconPath, '/');
+
+                    if (str_starts_with($normalizedPath, 'media/') || str_starts_with($normalizedPath, 'storage/')) {
+                        $iconPath = asset($normalizedPath);
+                    } else {
+                        $iconPath = asset('storage/' . $normalizedPath);
+                    }
+                }
+
+                $src = e($iconPath);
+                return '<img src="' . $src . '" alt="' . e($this->name) . '" style="width:1.5rem;height:1.5rem;object-fit:contain;" loading="lazy">';
+            }
+        }
+
         $icons = [
             'cod' => '<i class="bi bi-cash-coin text-success"></i>',
             'stripe' => '<i class="bi bi-credit-card text-primary"></i>',

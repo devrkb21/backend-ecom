@@ -195,7 +195,7 @@ class WishlistController extends Controller
         $cartService = app(\App\Services\CartService::class);
         
         try {
-            $cartService->addItem(
+            $cartService->addToCart(
                 $request->user()->id,
                 $wishlist->product_id,
                 1,

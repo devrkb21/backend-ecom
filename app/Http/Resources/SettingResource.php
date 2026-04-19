@@ -4,7 +4,6 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class SettingResource extends JsonResource
 {
@@ -14,7 +13,10 @@ class SettingResource extends JsonResource
 
         // Convert image paths to full URLs
         if ($this->type === 'image' && $value) {
-            $value = Storage::disk('public')->url($value);
+            $normalized = ltrim((string) $value, '/');
+            $value = (str_starts_with($normalized, 'media/') || str_starts_with($normalized, 'storage/'))
+                ? asset($normalized)
+                : asset('storage/' . $normalized);
         }
 
         // Cast value based on type

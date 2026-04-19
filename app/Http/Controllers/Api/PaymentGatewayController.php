@@ -88,19 +88,20 @@ class PaymentGatewayController extends Controller
     {
         $extraCharge = (float) $gateway->getSetting('extra_charge', 0);
         $chargeType = $gateway->getSetting('extra_charge_type', 'fixed');
+        $customLabel = trim((string) $gateway->getSetting('extra_charge_label', ''));
 
         if ($extraCharge <= 0) {
             return null;
         }
 
-        $label = "{$gateway->name} gateway charge";
+        $label = $customLabel !== '' ? $customLabel : "{$gateway->name} gateway charge";
 
         if ($chargeType === 'percentage') {
             return [
                 'type' => 'percentage',
                 'value' => $extraCharge,
                 'calculated' => round($amount * ($extraCharge / 100), 2),
-                'label' => "{$extraCharge}% {$label}",
+                'label' => $label,
             ];
         }
 

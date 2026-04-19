@@ -251,12 +251,20 @@ class Product extends Model
 
     public function getTotalStockAttribute(): int
     {
-        // Only sum variant stock if variants are loaded and exist
-        if ($this->relationLoaded('variants') && $this->variants->count() > 0) {
-            return $this->variants->sum('stock_quantity');
+        // Variant products should always use aggregate variant stock.
+        if ($this->relationLoaded('variants')) {
+            if ($this->variants->isNotEmpty()) {
+                return (int) $this->variants->sum('stock_quantity');
+            }
+
+            return (int) ($this->stock_quantity ?? 0);
         }
-        // Fall back to base product stock
-        return $this->stock_quantity ?? 0;
+
+        if ($this->variants()->exists()) {
+            return (int) $this->variants()->sum('stock_quantity');
+        }
+
+        return (int) ($this->stock_quantity ?? 0);
     }
 
     public function scopeActive($query)
@@ -271,21 +279,181 @@ class Product extends Model
 
     public function scopeInStock($query)
     {
-        return $query->where('stock_quantity', '>', 0);
+        if (!self::isStockEnabled()) {
+            return $query;
+        }
+
+        return $query->where(function ($q) {
+            $q->whereHas('variants', function ($variantQuery) {
+                $variantQuery
+                    ->where('is_active', true)
+                    ->where('stock_quantity', '>', 0);
+            })->orWhere(function ($simpleQuery) {
+                $simpleQuery
+                    ->whereDoesntHave('variants')
+                    ->where('stock_quantity', '>', 0);
+            });
+        });
+    }
+
+    public static function isStockEnabled(): bool
+    {
+        return (bool) Setting::getValue('general', 'stock_enabled', true);
+    }
+
+    public function hasActiveVariants(): bool
+    {
+        if ($this->relationLoaded('variants')) {
+            return $this->variants->where('is_active', true)->isNotEmpty();
+        }
+
+        return $this->variants()->where('is_active', true)->exists();
+    }
+
+    public function isVariableProduct(): bool
+    {
+        $explicitFlag = data_get($this->meta_data, 'is_variable');
+        if ($explicitFlag !== null) {
+            return (bool) $explicitFlag;
+        }
+
+        if ($this->relationLoaded('variants')) {
+            return $this->variants->isNotEmpty();
+        }
+
+        return $this->variants()->exists();
+    }
+
+    public function getDefaultVariantId(): ?int
+    {
+        $raw = data_get($this->meta_data, 'default_variant_id');
+        $defaultVariantId = is_numeric($raw) ? (int) $raw : 0;
+
+        return $defaultVariantId > 0 ? $defaultVariantId : null;
+    }
+
+    public function resolveGlobalPricingSnapshot(): array
+    {
+        $baseRegularPrice = round((float) $this->regular_price, 2);
+        $baseCurrentPrice = round((float) ($this->sale_price ?? $this->regular_price), 2);
+        $baseSalePrice = $this->sale_price !== null ? round((float) $this->sale_price, 2) : null;
+
+        $activeVariants = $this->getActiveVariantsForPricing();
+
+        if ($activeVariants->isEmpty()) {
+            return [
+                'regular_price' => $baseRegularPrice,
+                'sale_price' => $baseSalePrice,
+                'current_price' => $baseCurrentPrice,
+                'is_on_sale' => $baseSalePrice !== null && $baseSalePrice < $baseRegularPrice,
+                'default_variant_id' => null,
+                'has_price_range' => false,
+                'price_range_min' => $baseCurrentPrice,
+                'price_range_max' => $baseCurrentPrice,
+            ];
+        }
+
+        $resolveVariantCurrentPrice = static function ($variant): float {
+            return round(max(0, (float) ($variant->discounted_price ?? $variant->regular_price ?? 0)), 2);
+        };
+
+        $defaultVariantId = $this->getDefaultVariantId();
+        $defaultVariant = $defaultVariantId
+            ? $activeVariants->firstWhere('id', $defaultVariantId)
+            : null;
+
+        $selectedVariant = $defaultVariant ?: $activeVariants
+            ->sortBy(fn ($variant) => $resolveVariantCurrentPrice($variant))
+            ->first();
+
+        $selectedRegularPrice = round(max(0, (float) ($selectedVariant->regular_price ?? 0)), 2);
+        $selectedCurrentPrice = $resolveVariantCurrentPrice($selectedVariant);
+
+        if ($selectedRegularPrice <= 0) {
+            $selectedRegularPrice = $selectedCurrentPrice;
+        }
+
+        $minCurrentPrice = round((float) ($activeVariants->min(fn ($variant) => $resolveVariantCurrentPrice($variant)) ?? $selectedCurrentPrice), 2);
+        $maxCurrentPrice = round((float) ($activeVariants->max(fn ($variant) => $resolveVariantCurrentPrice($variant)) ?? $selectedCurrentPrice), 2);
+
+        $salePrice = $selectedCurrentPrice < $selectedRegularPrice
+            ? $selectedCurrentPrice
+            : null;
+
+        return [
+            'regular_price' => $selectedRegularPrice,
+            'sale_price' => $salePrice,
+            'current_price' => $selectedCurrentPrice,
+            'is_on_sale' => $salePrice !== null,
+            'default_variant_id' => (int) ($selectedVariant->id ?? 0) ?: null,
+            'has_price_range' => abs($maxCurrentPrice - $minCurrentPrice) > 0.0001,
+            'price_range_min' => $minCurrentPrice,
+            'price_range_max' => $maxCurrentPrice,
+        ];
+    }
+
+    private function getActiveVariantsForPricing()
+    {
+        if ($this->relationLoaded('variants')) {
+            return $this->variants->where('is_active', true)->values();
+        }
+
+        return $this->variants()
+            ->where('is_active', true)
+            ->get(['id', 'product_id', 'regular_price', 'discounted_price', 'price_adjustment', 'stock_quantity', 'is_active']);
+    }
+
+    public function getActiveVariantStockQuantity(): int
+    {
+        if ($this->relationLoaded('variants')) {
+            return (int) $this->variants
+                ->where('is_active', true)
+                ->sum('stock_quantity');
+        }
+
+        return (int) $this->variants()
+            ->where('is_active', true)
+            ->sum('stock_quantity');
     }
 
     public function hasStock(int $quantity = 1): bool
     {
-        return $this->stock_quantity >= $quantity;
+        if (!self::isStockEnabled()) {
+            return true;
+        }
+
+        $quantity = max(1, $quantity);
+
+        if ($this->hasActiveVariants()) {
+            return $this->getActiveVariantStockQuantity() >= $quantity;
+        }
+
+        return (int) $this->stock_quantity >= $quantity;
     }
 
     public function decrementStock(int $quantity): void
     {
+        if (!self::isStockEnabled()) {
+            return;
+        }
+
+        if ($this->hasActiveVariants()) {
+            return;
+        }
+
         $this->decrement('stock_quantity', $quantity);
     }
 
     public function incrementStock(int $quantity): void
     {
+        if (!self::isStockEnabled()) {
+            return;
+        }
+
+        if ($this->hasActiveVariants()) {
+            return;
+        }
+
         $this->increment('stock_quantity', $quantity);
     }
 }

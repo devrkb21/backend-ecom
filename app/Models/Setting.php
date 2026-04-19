@@ -101,13 +101,23 @@ class Setting extends Model
      */
     protected static function castValue(mixed $value, string $type): mixed
     {
+        $resolveImageUrl = static function (string $path): string {
+            $normalized = ltrim($path, '/');
+
+            if (str_starts_with($normalized, 'media/') || str_starts_with($normalized, 'storage/')) {
+                return asset($normalized);
+            }
+
+            return asset('storage/' . $normalized);
+        };
+
         return match ($type) {
             'boolean' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
             'number', 'integer' => (int) $value,
             'float', 'decimal' => (float) $value,
             'json', 'array' => is_string($value) ? json_decode($value, true) : $value,
             'image' => is_string($value) && $value !== '' && !str_starts_with($value, 'http')
-                ? \Illuminate\Support\Facades\Storage::disk('public')->url($value)
+                ? $resolveImageUrl($value)
                 : $value,
             default => $value,
         };

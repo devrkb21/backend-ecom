@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Cache;
 class ProductService
 {
     protected const CACHE_KEY = 'products.v2';
+    protected const CACHE_VERSION_KEY = 'products.v2.version';
     protected const CACHE_TTL = 3600; // 1 hour
 
     public function __construct(
@@ -19,7 +20,7 @@ class ProductService
 
     public function getAllProducts(int $perPage = 15): LengthAwarePaginator
     {
-        $cacheKey = self::CACHE_KEY . ".page.{$perPage}." . request()->get('page', 1);
+        $cacheKey = $this->versionedKey("page.{$perPage}." . request()->get('page', 1));
         
         return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($perPage) {
             return $this->productRepository->getActivePaginated($perPage);
@@ -28,7 +29,7 @@ class ProductService
 
     public function getFeaturedProducts(): Collection
     {
-        return Cache::remember(self::CACHE_KEY . '.featured', self::CACHE_TTL, function () {
+        return Cache::remember($this->versionedKey('featured'), self::CACHE_TTL, function () {
             return $this->productRepository->getFeatured();
         });
     }
@@ -50,14 +51,14 @@ class ProductService
 
     public function getNewProducts(): Collection
     {
-        return Cache::remember(self::CACHE_KEY . '.new', self::CACHE_TTL, function () {
+        return Cache::remember($this->versionedKey('new'), self::CACHE_TTL, function () {
             return $this->productRepository->getNew();
         });
     }
 
     public function getBestsellers(): Collection
     {
-        return Cache::remember(self::CACHE_KEY . '.bestsellers', self::CACHE_TTL, function () {
+        return Cache::remember($this->versionedKey('bestsellers'), self::CACHE_TTL, function () {
             return $this->productRepository->getBestsellers();
         });
     }
@@ -65,7 +66,7 @@ class ProductService
     public function getProductsByCategory(int $categoryId, int $perPage = 15): LengthAwarePaginator
     {
         $page = request()->get('page', 1);
-        $cacheKey = self::CACHE_KEY . ".category.{$categoryId}.{$perPage}.{$page}";
+        $cacheKey = $this->versionedKey("category.{$categoryId}.{$perPage}.{$page}");
         
         return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($categoryId, $perPage) {
             return $this->productRepository->getByCategoryPaginated($categoryId, $perPage);
@@ -113,23 +114,18 @@ class ProductService
 
     protected function clearCache(): void
     {
-        // Clear all product-related cache
-        $keys = Cache::get(self::CACHE_KEY . '.keys', []);
-        foreach ($keys as $key) {
-            Cache::forget($key);
+        if (Cache::has(self::CACHE_VERSION_KEY)) {
+            Cache::increment(self::CACHE_VERSION_KEY);
+            return;
         }
-        Cache::forget(self::CACHE_KEY . '.featured');
-        
-        // Use Redis KEYS command to clear paginated caches (if using Redis)
-        try {
-            $redis = Cache::getRedis();
-            $pattern = config('cache.prefix') . ':' . self::CACHE_KEY . '*';
-            $keys = $redis->keys($pattern);
-            foreach ($keys as $key) {
-                $redis->del($key);
-            }
-        } catch (\Exception $e) {
-            // Fallback: Cache will expire naturally
-        }
+
+        Cache::forever(self::CACHE_VERSION_KEY, 2);
+    }
+
+    protected function versionedKey(string $suffix): string
+    {
+        $version = (int) Cache::get(self::CACHE_VERSION_KEY, 1);
+
+        return self::CACHE_KEY . ".v{$version}.{$suffix}";
     }
 }

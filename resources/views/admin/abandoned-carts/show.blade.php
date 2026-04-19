@@ -290,6 +290,18 @@
                                 @foreach($abandonedCart->cart_items as $item)
                                 <tr>
                                     <td>
+                                        @php
+                                            $variantName = trim((string) ($item['variant_name'] ?? ''));
+                                            $variantAttributes = trim((string) ($item['variant_attributes'] ?? ''));
+                                            $variantSku = trim((string) ($item['variant_sku'] ?? ''));
+                                            $variantId = !empty($item['variant_id']) ? (int) $item['variant_id'] : null;
+
+                                            $variantLabel = $variantName !== ''
+                                                ? $variantName
+                                                : ($variantAttributes !== ''
+                                                    ? $variantAttributes
+                                                    : ($variantId ? ('Variant #' . $variantId) : ''));
+                                        @endphp
                                         <div class="d-flex align-items-center">
                                             @if(!empty($item['product_image']))
                                             <img src="{{ $item['product_image'] }}" alt="" class="rounded me-2" style="width: 40px; height: 40px; object-fit: cover;">
@@ -298,6 +310,18 @@
                                                 <strong>{{ $item['product_name'] ?? 'Unknown Product' }}</strong>
                                                 @if(!empty($item['product_sku']))
                                                 <br><small class="text-muted">SKU: {{ $item['product_sku'] }}</small>
+                                                @endif
+
+                                                @if($variantLabel !== '')
+                                                    <br><small class="text-info"><strong>Variant:</strong> {{ $variantLabel }}</small>
+                                                @endif
+
+                                                @if($variantAttributes !== '' && $variantAttributes !== $variantName)
+                                                    <br><small class="text-muted">{{ $variantAttributes }}</small>
+                                                @endif
+
+                                                @if($variantSku !== '')
+                                                    <br><small class="text-muted">Variant SKU: {{ $variantSku }}</small>
                                                 @endif
                                             </div>
                                         </div>

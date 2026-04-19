@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Traits\Auditable;
+use Illuminate\Support\Str;
 
 class Order extends Model
 {
@@ -79,10 +80,103 @@ class Order extends Model
 
     public static function generateOrderNumber(): string
     {
-        $prefix = 'ORD';
-        $timestamp = now()->format('YmdHis');
-        $random = strtoupper(substr(uniqid(), -4));
-        return "{$prefix}-{$timestamp}-{$random}";
+        $prefix = static::resolveOrderNumberPrefix();
+        $mode = static::resolveOrderNumberGenerationMode();
+
+        return match ($mode) {
+            'date_sequence' => static::generateSequentialOrderNumber($prefix, true),
+            'global_sequence' => static::generateSequentialOrderNumber($prefix, false),
+            default => static::generateTimestampRandomOrderNumber($prefix),
+        };
+    }
+
+    protected static function resolveOrderNumberPrefix(): string
+    {
+        $rawPrefix = (string) Setting::getValue('general', 'order_number_prefix', 'ORD');
+        $normalizedPrefix = strtoupper(trim($rawPrefix));
+        $sanitizedPrefix = preg_replace('/[^A-Z0-9_-]/', '', $normalizedPrefix) ?? '';
+
+        if ($sanitizedPrefix === '') {
+            return 'ORD';
+        }
+
+        return substr($sanitizedPrefix, 0, 20);
+    }
+
+    protected static function resolveOrderNumberGenerationMode(): string
+    {
+        $rawMode = (string) Setting::getValue('general', 'order_number_generation_mode', 'timestamp_random');
+        $allowedModes = ['timestamp_random', 'date_sequence', 'global_sequence'];
+
+        return in_array($rawMode, $allowedModes, true) ? $rawMode : 'timestamp_random';
+    }
+
+    protected static function generateTimestampRandomOrderNumber(string $prefix): string
+    {
+        for ($attempt = 0; $attempt < 20; $attempt++) {
+            $candidate = sprintf(
+                '%s-%s-%s',
+                $prefix,
+                now()->format('YmdHis'),
+                strtoupper(Str::random(4))
+            );
+
+            if (!static::query()->where('order_number', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        return sprintf('%s-%s-%s', $prefix, now()->format('YmdHis'), strtoupper(Str::random(6)));
+    }
+
+    protected static function generateSequentialOrderNumber(string $prefix, bool $isDaily): string
+    {
+        $basePrefix = $isDaily ? sprintf('%s-%s', $prefix, now()->format('Ymd')) : $prefix;
+        $startingSequence = static::resolveStartingSequenceForPrefix($basePrefix);
+
+        for ($attempt = 0; $attempt < 200; $attempt++) {
+            $candidate = sprintf(
+                '%s-%s',
+                $basePrefix,
+                str_pad((string) ($startingSequence + $attempt), 8, '0', STR_PAD_LEFT)
+            );
+
+            if (!static::query()->where('order_number', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        // Fallback to random format if sequence retries are exhausted.
+        return static::generateTimestampRandomOrderNumber($prefix);
+    }
+
+    protected static function resolveStartingSequenceForPrefix(string $basePrefix): int
+    {
+        $orderNumbers = static::query()
+            ->where('order_number', 'like', $basePrefix . '-%')
+            ->orderByDesc('id')
+            ->limit(300)
+            ->pluck('order_number');
+
+        $maxSequence = 0;
+
+        foreach ($orderNumbers as $orderNumber) {
+            if (!is_string($orderNumber)) {
+                continue;
+            }
+
+            if (!str_starts_with($orderNumber, $basePrefix . '-')) {
+                continue;
+            }
+
+            $suffix = substr($orderNumber, strlen($basePrefix) + 1);
+
+            if ($suffix !== '' && ctype_digit($suffix)) {
+                $maxSequence = max($maxSequence, (int) $suffix);
+            }
+        }
+
+        return $maxSequence + 1;
     }
 
     // ==================== RELATIONSHIPS ====================
@@ -100,6 +194,11 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function itemsWithVariant(): HasMany
+    {
+        return $this->hasMany(OrderItem::class)->with(['variant.attributeValues.attribute']);
     }
 
     public function payment(): HasOne
