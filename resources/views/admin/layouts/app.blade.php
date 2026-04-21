@@ -192,6 +192,43 @@
         .table td {
             vertical-align: middle;
         }
+        .content-wrapper .table-responsive,
+        .content-wrapper .admin-table-scroll {
+            width: 100%;
+            overflow-x: auto;
+            scrollbar-width: thin;
+        }
+        .content-wrapper .table-responsive > .table,
+        .content-wrapper .admin-table-scroll > .table {
+            width: max-content;
+            min-width: 0;
+            table-layout: auto;
+        }
+        .content-wrapper .admin-table-scroll > .table.admin-table-compact > :not(caption) > * > * {
+            padding: 0.45rem 0.35rem;
+            white-space: nowrap;
+        }
+        .content-wrapper .admin-table-scroll > .table.admin-table-compact td > .form-control,
+        .content-wrapper .admin-table-scroll > .table.admin-table-compact td > .form-select {
+            width: auto;
+            min-width: 78px;
+            max-width: 160px;
+            display: inline-block;
+        }
+        .content-wrapper .admin-table-scroll > .table.admin-table-compact td > textarea.form-control {
+            min-width: 180px;
+            max-width: 320px;
+            width: 100%;
+        }
+        .content-wrapper .admin-table-scroll > .table.admin-table-compact td .input-group {
+            width: auto;
+            min-width: 110px;
+            max-width: 170px;
+        }
+        .content-wrapper .admin-table-scroll > .table.admin-table-compact td .input-group .form-control {
+            min-width: 72px;
+            max-width: 120px;
+        }
         .badge-status-pending { background-color: #ffc107; color: #000; }
         .badge-status-processing { background-color: #17a2b8; }
         .badge-status-shipped { background-color: #6f42c1; }
@@ -200,6 +237,27 @@
         .badge-status-completed { background-color: #28a745; }
         .badge-status-failed { background-color: #dc3545; }
         .badge-status-refunded { background-color: #6c757d; }
+        #adminAjaxProgress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            z-index: 1200;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.18s ease;
+        }
+        #adminAjaxProgress.is-active {
+            opacity: 1;
+        }
+        #adminAjaxProgress .admin-ajax-progress-bar {
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, #0d6efd, #20c997);
+            box-shadow: 0 0 10px rgba(13, 110, 253, 0.35);
+            transition: width 0.22s ease-out;
+        }
         .stat-card .card-body {
             padding: 1.25rem;
         }
@@ -575,36 +633,198 @@
 
         <!-- Content -->
         <div class="content-wrapper">
-            @if(session('success'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="bi bi-check-circle me-2"></i>{{ session('success') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            @endif
-
-            @if(session('error'))
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="bi bi-exclamation-circle me-2"></i>{{ session('error') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            @endif
-
-            @if($errors->any())
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <ul class="mb-0">
-                        @foreach($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            @endif
-
             @yield('content')
         </div>
     </div>
 
+    <div id="adminAjaxProgress" aria-hidden="true">
+        <div class="admin-ajax-progress-bar"></div>
+    </div>
+
+    <div id="adminToastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;"></div>
+
+    <script>
+        window.__adminFlashToasts = window.__adminFlashToasts || [];
+
+        @if(session('success'))
+            window.__adminFlashToasts.push({
+                type: 'success',
+                message: @json(session('success')),
+            });
+        @endif
+
+        @if(session('error'))
+            window.__adminFlashToasts.push({
+                type: 'danger',
+                message: @json(session('error')),
+            });
+        @endif
+
+        @if(session('info'))
+            window.__adminFlashToasts.push({
+                type: 'info',
+                message: @json(session('info')),
+            });
+        @endif
+
+        @if($errors->any())
+            window.__adminFlashToasts.push({
+                type: 'danger',
+                message: @json($errors->first()),
+            });
+        @endif
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        (function () {
+            function markCompactAdminTable(table) {
+                if (!table) {
+                    return;
+                }
+
+                const headerColumnCount = table.querySelectorAll('thead th').length;
+                const firstRowColumnCount = table.querySelectorAll('tr:first-child > th, tr:first-child > td').length;
+                const effectiveColumnCount = headerColumnCount || firstRowColumnCount;
+                const hasInlineControls = Boolean(table.querySelector('td .form-control, td .form-select, td .input-group'));
+
+                if (effectiveColumnCount >= 7 || hasInlineControls) {
+                    table.classList.add('admin-table-compact');
+                    return;
+                }
+
+                table.classList.remove('admin-table-compact');
+            }
+
+            function ensureAdminTableScroll(root) {
+                const scope = root && typeof root.querySelectorAll === 'function' ? root : document;
+
+                scope.querySelectorAll('.content-wrapper .table-responsive').forEach(function (wrapper) {
+                    wrapper.classList.add('admin-table-scroll');
+
+                    const table = wrapper.querySelector(':scope > table.table');
+                    if (table) {
+                        markCompactAdminTable(table);
+                    }
+                });
+
+                scope.querySelectorAll('.content-wrapper table.table').forEach(function (table) {
+                    const parent = table.parentElement;
+                    if (!parent) {
+                        return;
+                    }
+
+                    if (parent.classList.contains('table-responsive')) {
+                        parent.classList.add('admin-table-scroll');
+                        markCompactAdminTable(table);
+                        return;
+                    }
+
+                    if (table.closest('[data-no-table-scroll="1"]')) {
+                        return;
+                    }
+
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'table-responsive admin-table-scroll';
+                    parent.insertBefore(wrapper, table);
+                    wrapper.appendChild(table);
+                    markCompactAdminTable(table);
+                });
+            }
+
+            window.ensureAdminTableScroll = ensureAdminTableScroll;
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function () {
+                    ensureAdminTableScroll(document);
+                });
+            } else {
+                ensureAdminTableScroll(document);
+            }
+
+            const iconMap = {
+                success: 'bi-check-circle',
+                danger: 'bi-exclamation-circle',
+                warning: 'bi-exclamation-triangle',
+                info: 'bi-info-circle',
+                primary: 'bi-bell',
+            };
+
+            const bgMap = {
+                success: 'text-bg-success',
+                danger: 'text-bg-danger',
+                warning: 'text-bg-warning',
+                info: 'text-bg-info',
+                primary: 'text-bg-primary',
+            };
+
+            window.showAdminToast = function (message, type = 'info', options = {}) {
+                if (!message) {
+                    return;
+                }
+
+                const container = document.getElementById('adminToastContainer');
+                if (!container || typeof bootstrap === 'undefined') {
+                    return;
+                }
+
+                const resolvedType = bgMap[type] ? type : 'info';
+                const iconClass = iconMap[resolvedType] || iconMap.info;
+                const colorClass = bgMap[resolvedType] || bgMap.info;
+                const delay = Number(options.delay || 4500);
+
+                const toastEl = document.createElement('div');
+                toastEl.className = 'toast align-items-center border-0 ' + colorClass;
+                toastEl.setAttribute('role', 'status');
+                toastEl.setAttribute('aria-live', 'polite');
+                toastEl.setAttribute('aria-atomic', 'true');
+
+                toastEl.innerHTML = [
+                    '<div class="d-flex">',
+                    '  <div class="toast-body d-flex align-items-center gap-2">',
+                    '    <i class="bi ' + iconClass + '"></i>',
+                    '    <span></span>',
+                    '  </div>',
+                    '  <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>',
+                    '</div>'
+                ].join('');
+
+                const textNode = toastEl.querySelector('.toast-body span');
+                if (textNode) {
+                    textNode.textContent = String(message);
+                }
+
+                container.appendChild(toastEl);
+
+                const toast = new bootstrap.Toast(toastEl, {
+                    autohide: options.autohide !== false,
+                    delay: Number.isNaN(delay) ? 4500 : delay,
+                });
+
+                toastEl.addEventListener('hidden.bs.toast', function () {
+                    toastEl.remove();
+                });
+
+                toast.show();
+            };
+
+            document.addEventListener('DOMContentLoaded', function () {
+                if (!Array.isArray(window.__adminFlashToasts)) {
+                    return;
+                }
+
+                window.__adminFlashToasts.forEach(function (item) {
+                    if (!item || !item.message) {
+                        return;
+                    }
+
+                    window.showAdminToast(item.message, item.type || 'info');
+                });
+
+                window.__adminFlashToasts = [];
+            });
+        })();
+    </script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const sidebar = document.querySelector('.sidebar');
@@ -856,6 +1076,566 @@
                 toggle.addEventListener('change', () => syncToggleSection(toggle));
             });
         });
+    </script>
+    <script>
+        (function () {
+            const excludedFormIds = new Set([
+                'productEditForm',
+                'autoGenerateVariantForm',
+                'addVariantForm',
+                'editVariantForm',
+                'generateVariantsForm',
+                'bulkEditModalForm',
+                'variantMatrixForm',
+                'bulkDeleteVariantsForm',
+                'deleteVariantForm',
+            ]);
+
+            const ajaxProgressRoot = document.getElementById('adminAjaxProgress');
+            const ajaxProgressBar = ajaxProgressRoot
+                ? ajaxProgressRoot.querySelector('.admin-ajax-progress-bar')
+                : null;
+            let ajaxInFlightCount = 0;
+            let ajaxProgressTick = null;
+            let ajaxProgressHideTimer = null;
+            let ajaxProgressValue = 0;
+
+            function startAjaxProgress() {
+                ajaxInFlightCount += 1;
+
+                if (!ajaxProgressRoot || !ajaxProgressBar || ajaxInFlightCount > 1) {
+                    return;
+                }
+
+                if (ajaxProgressHideTimer) {
+                    clearTimeout(ajaxProgressHideTimer);
+                    ajaxProgressHideTimer = null;
+                }
+
+                if (ajaxProgressTick) {
+                    clearInterval(ajaxProgressTick);
+                    ajaxProgressTick = null;
+                }
+
+                ajaxProgressValue = 12;
+                ajaxProgressRoot.classList.add('is-active');
+                ajaxProgressBar.style.width = ajaxProgressValue + '%';
+
+                ajaxProgressTick = window.setInterval(function () {
+                    if (ajaxProgressValue >= 90) {
+                        return;
+                    }
+
+                    const remaining = 90 - ajaxProgressValue;
+                    ajaxProgressValue = Math.min(90, ajaxProgressValue + Math.max(1.5, remaining * 0.14));
+                    ajaxProgressBar.style.width = ajaxProgressValue.toFixed(2) + '%';
+                }, 180);
+            }
+
+            function finishAjaxProgress() {
+                if (ajaxInFlightCount > 0) {
+                    ajaxInFlightCount -= 1;
+                } else {
+                    ajaxInFlightCount = 0;
+                }
+
+                if (!ajaxProgressRoot || !ajaxProgressBar || ajaxInFlightCount > 0) {
+                    return;
+                }
+
+                if (ajaxProgressTick) {
+                    clearInterval(ajaxProgressTick);
+                    ajaxProgressTick = null;
+                }
+
+                ajaxProgressValue = 100;
+                ajaxProgressBar.style.width = '100%';
+
+                ajaxProgressHideTimer = window.setTimeout(function () {
+                    ajaxProgressRoot.classList.remove('is-active');
+                    ajaxProgressBar.style.width = '0%';
+                    ajaxProgressValue = 0;
+                }, 180);
+            }
+
+            function showToast(message, type) {
+                if (!message) {
+                    return;
+                }
+
+                if (typeof window.showAdminToast === 'function') {
+                    window.showAdminToast(message, type || 'info');
+                    return;
+                }
+
+                window.alert(message);
+            }
+
+            function firstErrorMessage(errors, fallback) {
+                if (!errors || typeof errors !== 'object') {
+                    return fallback || 'Validation failed.';
+                }
+
+                const firstKey = Object.keys(errors)[0];
+                if (!firstKey) {
+                    return fallback || 'Validation failed.';
+                }
+
+                const value = errors[firstKey];
+                if (Array.isArray(value) && value.length > 0) {
+                    return String(value[0]);
+                }
+
+                if (typeof value === 'string' && value.trim() !== '') {
+                    return value;
+                }
+
+                return fallback || 'Validation failed.';
+            }
+
+            function clearAjaxValidationErrors(form) {
+                if (!form) {
+                    return;
+                }
+
+                form.querySelectorAll('.ajax-invalid-feedback').forEach(function (node) {
+                    node.remove();
+                });
+
+                Array.from(form.elements || []).forEach(function (element) {
+                    if (!element || !('classList' in element)) {
+                        return;
+                    }
+
+                    element.classList.remove('is-invalid');
+                    element.removeAttribute('aria-invalid');
+                });
+            }
+
+            function dotToBracket(path) {
+                if (!path || path.indexOf('.') === -1) {
+                    return path;
+                }
+
+                const segments = path.split('.');
+                let output = segments[0];
+
+                for (let i = 1; i < segments.length; i += 1) {
+                    output += '[' + segments[i] + ']';
+                }
+
+                return output;
+            }
+
+            function findFormControlsByKey(form, key) {
+                if (!form || !key) {
+                    return [];
+                }
+
+                const normalized = dotToBracket(key);
+                const candidates = [key, normalized];
+
+                return Array.from(form.elements || []).filter(function (element) {
+                    return element && typeof element.name === 'string' && candidates.includes(element.name);
+                });
+            }
+
+            function insertFieldErrorMessage(targetControl, message) {
+                if (!targetControl || !message) {
+                    return;
+                }
+
+                const feedback = document.createElement('div');
+                feedback.className = 'invalid-feedback d-block ajax-invalid-feedback';
+                feedback.textContent = String(message);
+
+                const inputGroup = targetControl.closest('.input-group');
+                if (inputGroup && inputGroup.parentElement) {
+                    inputGroup.insertAdjacentElement('afterend', feedback);
+                    return;
+                }
+
+                targetControl.insertAdjacentElement('afterend', feedback);
+            }
+
+            function renderAjaxValidationErrors(form, errors) {
+                if (!form || !errors || typeof errors !== 'object') {
+                    return;
+                }
+
+                clearAjaxValidationErrors(form);
+
+                Object.keys(errors).forEach(function (key) {
+                    const controls = findFormControlsByKey(form, key);
+                    if (controls.length === 0) {
+                        return;
+                    }
+
+                    const rawMessages = errors[key];
+                    const message = Array.isArray(rawMessages)
+                        ? (rawMessages[0] || '')
+                        : (rawMessages || '');
+
+                    controls.forEach(function (control) {
+                        if (!control || !('classList' in control)) {
+                            return;
+                        }
+
+                        control.classList.add('is-invalid');
+                        control.setAttribute('aria-invalid', 'true');
+                    });
+
+                    insertFieldErrorMessage(controls[controls.length - 1], message);
+                });
+            }
+
+            window.clearAjaxValidationErrors = clearAjaxValidationErrors;
+            window.renderAjaxValidationErrors = renderAjaxValidationErrors;
+
+            function resolveLoadingLabel(label) {
+                const normalized = String(label || '').replace(/\s+/g, ' ').trim();
+                if (!normalized) {
+                    return 'Processing...';
+                }
+
+                if (normalized.endsWith('...')) {
+                    return normalized;
+                }
+
+                return normalized + '...';
+            }
+
+            function setSubmittingState(form, isSubmitting, submitter) {
+                const submitControls = Array.from(form.querySelectorAll('button[type="submit"], input[type="submit"]'));
+                const explicitSubmitter = submitter && submitControls.includes(submitter)
+                    ? submitter
+                    : null;
+                const activeSubmitter = explicitSubmitter || submitControls.find(function (control) {
+                    return !control.disabled;
+                }) || submitControls[0] || null;
+
+                submitControls.forEach(function (control) {
+                    if (isSubmitting) {
+                        control.dataset.ajaxWasDisabled = control.disabled ? '1' : '0';
+
+                        if (activeSubmitter && control === activeSubmitter) {
+                            if (control.tagName === 'BUTTON') {
+                                if (typeof control.dataset.ajaxOriginalHtml === 'undefined') {
+                                    control.dataset.ajaxOriginalHtml = control.innerHTML;
+                                }
+
+                                const loadingLabel = control.getAttribute('data-loading-text')
+                                    || resolveLoadingLabel(control.textContent);
+                                control.textContent = loadingLabel;
+                            } else if (control.tagName === 'INPUT') {
+                                if (typeof control.dataset.ajaxOriginalValue === 'undefined') {
+                                    control.dataset.ajaxOriginalValue = control.value;
+                                }
+
+                                const loadingLabel = control.getAttribute('data-loading-text')
+                                    || resolveLoadingLabel(control.value);
+                                control.value = loadingLabel;
+                            }
+                        }
+
+                        control.disabled = true;
+                        return;
+                    }
+
+                    if (typeof control.dataset.ajaxOriginalHtml !== 'undefined') {
+                        control.innerHTML = control.dataset.ajaxOriginalHtml;
+                        delete control.dataset.ajaxOriginalHtml;
+                    }
+
+                    if (typeof control.dataset.ajaxOriginalValue !== 'undefined') {
+                        control.value = control.dataset.ajaxOriginalValue;
+                        delete control.dataset.ajaxOriginalValue;
+                    }
+
+                    if (control.dataset.ajaxWasDisabled !== '1') {
+                        control.disabled = false;
+                    }
+
+                    delete control.dataset.ajaxWasDisabled;
+                });
+            }
+
+            async function parseResponse(response) {
+                const contentDisposition = (response.headers.get('content-disposition') || '').toLowerCase();
+                const contentType = (response.headers.get('content-type') || '').toLowerCase();
+
+                if (contentDisposition.includes('attachment')) {
+                    return {
+                        kind: 'attachment',
+                    };
+                }
+
+                if (contentType.includes('application/json')) {
+                    try {
+                        const payload = await response.json();
+                        return {
+                            kind: 'json',
+                            payload: payload || {},
+                        };
+                    } catch (error) {
+                        return {
+                            kind: 'json',
+                            payload: {},
+                        };
+                    }
+                }
+
+                const html = await response.text();
+                return {
+                    kind: 'html',
+                    html: html || '',
+                };
+            }
+
+            function replaceDocument(html, nextUrl, historyMode) {
+                if (!html) {
+                    return;
+                }
+
+                if (nextUrl) {
+                    const currentUrl = window.location.href;
+                    if (historyMode === 'replace') {
+                        window.history.replaceState({}, '', nextUrl);
+                    } else if (currentUrl !== nextUrl) {
+                        window.history.pushState({}, '', nextUrl);
+                    }
+                }
+
+                document.open();
+                document.write(html);
+                document.close();
+            }
+
+            function shouldSkipLink(anchor, event) {
+                if (!anchor) {
+                    return true;
+                }
+
+                if (event.defaultPrevented || event.button !== 0) {
+                    return true;
+                }
+
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                    return true;
+                }
+
+                if (anchor.dataset.noAdminAjax === '1' || anchor.dataset.noAjax === '1') {
+                    return true;
+                }
+
+                if (anchor.hasAttribute('download') || anchor.getAttribute('target') === '_blank') {
+                    return true;
+                }
+
+                if (anchor.hasAttribute('data-bs-toggle') || anchor.hasAttribute('data-bs-target')) {
+                    return true;
+                }
+
+                const rawHref = anchor.getAttribute('href') || '';
+                if (rawHref === '' || rawHref === '#' || rawHref.startsWith('javascript:') || rawHref.startsWith('mailto:') || rawHref.startsWith('tel:')) {
+                    return true;
+                }
+
+                let url;
+                try {
+                    url = new URL(anchor.href, window.location.origin);
+                } catch (error) {
+                    return true;
+                }
+
+                if (url.origin !== window.location.origin) {
+                    return true;
+                }
+
+                return false;
+            }
+
+            async function visitUrl(url, historyMode) {
+                startAjaxProgress();
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'text/html,application/xhtml+xml',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                    });
+
+                    const parsed = await parseResponse(response);
+
+                    if (parsed.kind === 'attachment') {
+                        window.location.href = response.url || url;
+                        return;
+                    }
+
+                    if (parsed.kind === 'html') {
+                        replaceDocument(parsed.html, response.url || url, historyMode || 'push');
+                        return;
+                    }
+
+                    const payload = parsed.payload || {};
+                    if (!response.ok || payload.success === false) {
+                        const message = payload.message || firstErrorMessage(payload.errors, 'Unable to load page.');
+                        showToast(message, 'danger');
+                        return;
+                    }
+
+                    if (payload.redirect_url || payload.redirect_to || payload.url) {
+                        await visitUrl(payload.redirect_url || payload.redirect_to || payload.url, historyMode || 'push');
+                        return;
+                    }
+
+                    if (payload.message) {
+                        showToast(payload.message, 'info');
+                    }
+                } finally {
+                    finishAjaxProgress();
+                }
+            }
+
+            async function handleGlobalFormSubmit(event) {
+                if (event.defaultPrevented) {
+                    return;
+                }
+
+                const form = event.target;
+                if (!(form instanceof HTMLFormElement)) {
+                    return;
+                }
+
+                if (form.dataset.noAdminAjax === '1' || form.dataset.noAjax === '1' || form.dataset.ajax === 'false') {
+                    return;
+                }
+
+                if (form.closest('[data-no-admin-ajax-scope="1"]')) {
+                    return;
+                }
+
+                if (excludedFormIds.has(form.id)) {
+                    return;
+                }
+
+                if ((form.getAttribute('target') || '').toLowerCase() === '_blank') {
+                    return;
+                }
+
+                const method = (form.getAttribute('method') || 'GET').toUpperCase();
+                const action = form.getAttribute('action') || window.location.href;
+                const submitter = event.submitter instanceof HTMLElement ? event.submitter : null;
+
+                event.preventDefault();
+                clearAjaxValidationErrors(form);
+                setSubmittingState(form, true, submitter);
+
+                let startedProgress = false;
+
+                try {
+                    if (method === 'GET') {
+                        const query = new URLSearchParams(new FormData(form)).toString();
+                        const targetUrl = query ? (action + (action.includes('?') ? '&' : '?') + query) : action;
+                        await visitUrl(targetUrl, 'push');
+                        return;
+                    }
+
+                    const formData = new FormData(form);
+                    startAjaxProgress();
+                    startedProgress = true;
+
+                    const response = await fetch(action, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json, text/html;q=0.9',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                        body: formData,
+                    });
+
+                    const parsed = await parseResponse(response);
+
+                    if (parsed.kind === 'html') {
+                        const mode = response.url && response.url !== window.location.href ? 'push' : 'replace';
+                        replaceDocument(parsed.html, response.url || action, mode);
+                        return;
+                    }
+
+                    const payload = parsed.payload || {};
+
+                    if (response.status === 422 || payload.errors) {
+                        renderAjaxValidationErrors(form, payload.errors || {});
+                        showToast(payload.message || firstErrorMessage(payload.errors, 'Please fix the highlighted fields.'), 'danger');
+                        return;
+                    }
+
+                    if (!response.ok || payload.success === false) {
+                        showToast(payload.message || firstErrorMessage(payload.errors, 'Request failed.'), 'danger');
+                        return;
+                    }
+
+                    const redirectUrl = payload.redirect_url || payload.redirect_to || payload.url || null;
+                    if (redirectUrl) {
+                        await visitUrl(redirectUrl, 'push');
+                        return;
+                    }
+
+                    if (payload.message) {
+                        showToast(payload.message, 'success');
+                    }
+
+                    document.dispatchEvent(new CustomEvent('admin:ajax-success', {
+                        detail: {
+                            formId: form.id || null,
+                            action: action,
+                            payload: payload,
+                        },
+                    }));
+                } catch (error) {
+                    showToast('Network error. Please try again.', 'danger');
+                } finally {
+                    if (startedProgress) {
+                        finishAjaxProgress();
+                    }
+
+                    setSubmittingState(form, false, submitter);
+                }
+            }
+
+            function bindGlobalAjax() {
+                if (window.__adminGlobalAjaxBound) {
+                    return;
+                }
+
+                window.__adminGlobalAjaxBound = true;
+
+                document.addEventListener('submit', handleGlobalFormSubmit);
+
+                document.addEventListener('click', function (event) {
+                    const anchor = event.target.closest('a[href]');
+                    if (shouldSkipLink(anchor, event)) {
+                        return;
+                    }
+
+                    event.preventDefault();
+
+                    visitUrl(anchor.href, 'push').catch(function () {
+                        showToast('Unable to open that page right now.', 'danger');
+                    });
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', bindGlobalAjax);
+            } else {
+                bindGlobalAjax();
+            }
+        })();
     </script>
     @stack('scripts')
 </body>

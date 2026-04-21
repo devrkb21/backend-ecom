@@ -22,7 +22,8 @@
             </div>
             <div class="col-auto ms-auto">
                 <a href="{{ route('admin.analytics.export', ['type' => 'sales', 'period' => $period]) }}" 
-                   class="btn btn-sm btn-outline-success">
+                   class="btn btn-sm btn-outline-success"
+                   data-no-admin-ajax="1">
                     <i class="bi bi-download me-1"></i> Export CSV
                 </a>
             </div>

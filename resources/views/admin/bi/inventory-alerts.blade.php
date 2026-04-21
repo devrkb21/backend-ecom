@@ -22,7 +22,7 @@
             <p class="text-muted mb-0">Stock levels and inventory insights</p>
         </div>
         <div>
-            <a href="{{ route('admin.bi.export-inventory', ['threshold' => $threshold]) }}" class="btn btn-success">
+            <a href="{{ route('admin.bi.export-inventory', ['threshold' => $threshold]) }}" class="btn btn-success" data-no-admin-ajax="1">
                 <i class="fas fa-download"></i> Export Report
             </a>
         </div>

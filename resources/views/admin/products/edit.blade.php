@@ -8,7 +8,7 @@
     $stockEnabled = $stockEnabled ?? true;
     $isVariableProduct = (bool) old('is_variable', $product->isVariableProduct());
 @endphp
-<form action="{{ route('admin.products.update', $product) }}" method="POST" enctype="multipart/form-data">
+<form action="{{ route('admin.products.update', $product) }}" method="POST" enctype="multipart/form-data" id="productEditForm" data-no-admin-ajax="1">
     @csrf
     @method('PUT')
     <input type="hidden" name="is_variable" id="is_variable" value="{{ $isVariableProduct ? 1 : 0 }}">
@@ -152,12 +152,15 @@
                                         <div class="position-relative border rounded overflow-hidden" style="padding-top: 100%;">
                                             <img src="{{ $image->url }}" alt="Gallery" class="position-absolute top-0 start-0 w-100 h-100" style="object-fit: cover;">
                                             <div class="position-absolute bottom-0 start-0 end-0 p-1 bg-dark bg-opacity-75 d-flex gap-1">
-                                                <form action="{{ route('admin.products.images.primary', [$product, $image]) }}" method="POST" class="flex-grow-1">
-                                                    @csrf
-                                                    <button type="submit" class="btn btn-outline-light btn-sm w-100 py-0" style="font-size: 9px;" title="Set as Primary">
-                                                        <i class="bi bi-star"></i>
-                                                    </button>
-                                                </form>
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-outline-light btn-sm w-100 py-0 js-set-primary-image-btn"
+                                                    style="font-size: 9px;"
+                                                    title="Set as Primary"
+                                                    data-primary-url="{{ route('admin.products.images.primary', [$product, $image]) }}"
+                                                >
+                                                    <i class="bi bi-star"></i>
+                                                </button>
                                                 <div class="form-check form-check-inline m-0">
                                                     <input type="checkbox" class="form-check-input" name="delete_images[]" value="{{ $image->id }}" id="del-{{ $image->id }}" style="width: 14px; height: 14px;">
                                                     <label class="form-check-label text-white" for="del-{{ $image->id }}" style="font-size: 9px;">Del</label>
@@ -474,7 +477,7 @@
                         <small class="text-muted" id="variationAutoStatus">Select variation values to auto-add variants.</small>
                     </div>
 
-                    <form action="{{ route('admin.products.variants.generate', $product) }}" method="POST" id="autoGenerateVariantForm">
+                    <form action="{{ route('admin.products.variants.generate', $product) }}" method="POST" id="autoGenerateVariantForm" data-no-admin-ajax="1">
                         @csrf
                         <input type="hidden" name="default_price_adjustment" value="0">
                         <input type="hidden" name="default_stock" value="0">
@@ -505,7 +508,7 @@
 <div class="modal fade" id="addVariantModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form action="{{ route('admin.products.variants.store', $product) }}" method="POST">
+            <form action="{{ route('admin.products.variants.store', $product) }}" method="POST" id="addVariantForm" data-no-admin-ajax="1">
                 @csrf
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Add Variant(s)</h5>
@@ -589,7 +592,7 @@
 <div class="modal fade" id="editVariantModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form id="editVariantForm" method="POST" enctype="multipart/form-data">
+            <form id="editVariantForm" method="POST" enctype="multipart/form-data" data-no-admin-ajax="1">
                 @csrf
                 @method('PUT')
                 <div class="modal-header">
@@ -658,7 +661,7 @@
 <div class="modal fade" id="generateVariantsModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form action="{{ route('admin.products.variants.generate', $product) }}" method="POST">
+            <form action="{{ route('admin.products.variants.generate', $product) }}" method="POST" id="generateVariantsForm" data-no-admin-ajax="1">
                 @csrf
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="bi bi-grid-3x3 me-2"></i>Generate Variants</h5>
@@ -748,7 +751,7 @@
 <div class="modal fade" id="bulkEditModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="{{ route('admin.products.variants.bulk-update', $product) }}" method="POST" id="bulkEditModalForm">
+            <form action="{{ route('admin.products.variants.bulk-update', $product) }}" method="POST" id="bulkEditModalForm" data-no-admin-ajax="1">
                 @csrf
                 @method('PUT')
                 <div class="modal-header">
@@ -944,6 +947,22 @@
     text-transform: uppercase;
     font-size: 0.72rem;
     white-space: nowrap;
+}
+
+.variant-copy-column,
+.variant-copy-cell {
+    width: 42px;
+    min-width: 42px;
+    text-align: center;
+}
+
+.variant-copy-field-btn {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 @media (max-width: 992px) {
@@ -1574,6 +1593,149 @@ function initializeVariationManager() {
 initializeVariationManager();
 @endif
 
+const variantDestroyUrlTemplate = @json(route('admin.products.variants.destroy', [$product, '__VARIANT_ID__']));
+const bulkVariantUpdateUrl = @json(route('admin.products.variants.bulk-update', $product));
+
+function resolveVariantDestroyUrl(variantId) {
+    return variantDestroyUrlTemplate.replace('__VARIANT_ID__', String(variantId));
+}
+
+function notify(message, type) {
+    if (!message) {
+        return;
+    }
+
+    if (typeof window.showAdminToast === 'function') {
+        window.showAdminToast(message, type || 'info');
+        return;
+    }
+
+    alert(message);
+}
+
+function getCsrfToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+}
+
+function createMethodFormData(method) {
+    var formData = new FormData();
+    var csrfToken = getCsrfToken();
+
+    if (csrfToken) {
+        formData.append('_token', csrfToken);
+    }
+
+    if (method && method.toUpperCase() !== 'POST') {
+        formData.append('_method', method.toUpperCase());
+    }
+
+    return formData;
+}
+
+async function parseAjaxPayload(response) {
+    var contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+        return response.json();
+    }
+
+    var text = await response.text();
+    return text ? { message: text } : {};
+}
+
+function extractAjaxErrorMessage(payload, fallbackMessage) {
+    if (payload && typeof payload.message === 'string' && payload.message.trim() !== '') {
+        return payload.message;
+    }
+
+    if (payload && payload.errors && typeof payload.errors === 'object') {
+        var firstKey = Object.keys(payload.errors)[0];
+        if (firstKey) {
+            var firstError = payload.errors[firstKey];
+            if (Array.isArray(firstError) && firstError.length > 0) {
+                return firstError[0];
+            }
+            if (typeof firstError === 'string' && firstError.trim() !== '') {
+                return firstError;
+            }
+        }
+    }
+
+    return fallbackMessage || 'Request failed. Please try again.';
+}
+
+async function requestJson(url, formData) {
+    var response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': getCsrfToken(),
+        },
+        credentials: 'same-origin',
+        body: formData,
+    });
+
+    var payload = await parseAjaxPayload(response);
+
+    if (!response.ok || (payload && payload.success === false)) {
+        var error = new Error(extractAjaxErrorMessage(payload, 'Request failed.'));
+        error.payload = payload;
+        error.status = response.status;
+        throw error;
+    }
+
+    return payload || {};
+}
+
+async function submitAjaxForm(form) {
+    var formData = new FormData(form);
+    if (!formData.has('_token')) {
+        var csrfToken = getCsrfToken();
+        if (csrfToken) {
+            formData.append('_token', csrfToken);
+        }
+    }
+
+    return requestJson(form.action, formData);
+}
+
+function setFormSubmitting(form, isSubmitting) {
+    var submitButtons = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+
+    submitButtons.forEach(function(button) {
+        if (isSubmitting) {
+            button.dataset.ajaxWasDisabled = button.disabled ? '1' : '0';
+            button.disabled = true;
+            return;
+        }
+
+        if (button.dataset.ajaxWasDisabled !== '1') {
+            button.disabled = false;
+        }
+        delete button.dataset.ajaxWasDisabled;
+    });
+}
+
+function hideModal(modalId) {
+    var modalElement = document.getElementById(modalId);
+    if (!modalElement || typeof bootstrap === 'undefined') {
+        return;
+    }
+
+    var instance = bootstrap.Modal.getInstance(modalElement);
+    if (instance) {
+        instance.hide();
+    }
+}
+
+function clearGalleryPendingSelections() {
+    var selectedGallery = document.getElementById('selected-gallery-images');
+    if (selectedGallery) {
+        selectedGallery.innerHTML = '';
+    }
+}
+
 // Handle primary image selection from media library
 function handlePrimaryImageSelect(media) {
     const preview = document.getElementById('primary-image-preview');
@@ -1632,6 +1794,27 @@ function openVariantMediaPicker() {
         preview.innerHTML = '<img src="' + media.url + '" alt="Variant" class="w-100 h-100" style="object-fit: cover;">';
         document.getElementById('edit_variant_image_path').value = media.path;
         document.getElementById('remove_variant_image').checked = false;
+    });
+}
+
+function openVariantMatrixImagePicker(variantId) {
+    if (typeof openMediaPicker !== 'function') {
+        return;
+    }
+
+    var inputId = 'variant-image-input-' + variantId;
+    var imageBox = document.getElementById('variant-row-image-box-' + variantId);
+
+    openMediaPicker(inputId, false, function(media) {
+        var targetInput = document.getElementById(inputId);
+        if (targetInput) {
+            targetInput.value = media.path || '';
+        }
+
+        if (imageBox) {
+            imageBox.classList.remove('bg-light');
+            imageBox.innerHTML = '<img src="' + media.url + '" alt="Variant" class="w-100 h-100" style="object-fit: cover;">';
+        }
     });
 }
 
@@ -1744,15 +1927,22 @@ document.getElementById('addVariantModal').addEventListener('hidden.bs.modal', f
 });
 
 // Delete variant
-function deleteVariant(id) {
-    if (confirm('Delete this variant?')) {
-        var form = document.getElementById('deleteVariantForm');
-        form.action = '/admin/products/{{ $product->id }}/variants/' + id;
-        form.submit();
+async function deleteVariant(id) {
+    if (!confirm('Delete this variant?')) {
+        return;
+    }
+
+    try {
+        var payload = await requestJson(resolveVariantDestroyUrl(id), createMethodFormData('DELETE'));
+        updateVariantMatrixFromPayload(payload);
+        updateBulkEditCount();
+        notify(payload.message || 'Variant deleted successfully.', 'success');
+    } catch (error) {
+        notify(error.message || 'Failed to delete variant.', 'danger');
     }
 }
 
-function submitBulkDeleteSelectedVariants() {
+async function submitBulkDeleteSelectedVariants() {
     var selectedIds = Array.from(document.querySelectorAll('.variant-checkbox:checked')).map(function(cb) {
         return cb.value;
     });
@@ -1766,24 +1956,60 @@ function submitBulkDeleteSelectedVariants() {
         return;
     }
 
-    var form = document.getElementById('bulkDeleteVariantsForm');
-    if (!form) {
+    var formData = createMethodFormData('PUT');
+    formData.append('bulk_delete', '1');
+    selectedIds.forEach(function(id) {
+        formData.append('variant_ids[]', id);
+    });
+
+    try {
+        var payload = await requestJson(bulkVariantUpdateUrl, formData);
+        updateVariantMatrixFromPayload(payload);
+        updateBulkEditCount();
+        notify(payload.message || 'Selected variants deleted successfully.', 'success');
+    } catch (error) {
+        notify(error.message || 'Failed to delete selected variants.', 'danger');
+    }
+}
+
+function copyVariantFieldFromRow(triggerButton, fieldName) {
+    if (!fieldName) {
         return;
     }
 
-    form.querySelectorAll('input[name="variant_ids[]"]').forEach(function(input) {
-        input.remove();
+    var matrixForm = document.getElementById('variantMatrixForm');
+    if (!matrixForm) {
+        return;
+    }
+
+    var sourceRow = triggerButton ? triggerButton.closest('tr') : matrixForm.querySelector('tbody tr');
+    if (!sourceRow) {
+        return;
+    }
+
+    var sourceInput = sourceRow.querySelector('input[name$="[' + fieldName + ']"]');
+    if (!sourceInput) {
+        return;
+    }
+
+    var targetRows = Array.from(matrixForm.querySelectorAll('tbody tr')).filter(function(row) {
+        return row !== sourceRow;
     });
 
-    selectedIds.forEach(function(id) {
-        var input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'variant_ids[]';
-        input.value = id;
-        form.appendChild(input);
-    });
+    if (targetRows.length === 0) {
+        return;
+    }
 
-    form.submit();
+    targetRows.forEach(function(row) {
+        var targetInput = row.querySelector('input[name$="[' + fieldName + ']"]');
+        if (!targetInput) {
+            return;
+        }
+
+        targetInput.value = sourceInput.value;
+        targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+        targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
 }
 
 // Toggle all variants selection
@@ -1925,6 +2151,127 @@ document.getElementById('generateVariantsModal').addEventListener('hidden.bs.mod
     });
 
     updateVariantPreview();
+});
+
+document.addEventListener('click', async function(event) {
+    var primaryButton = event.target.closest('.js-set-primary-image-btn');
+    if (!primaryButton) {
+        return;
+    }
+
+    event.preventDefault();
+
+    var primaryUrl = primaryButton.getAttribute('data-primary-url');
+    if (!primaryUrl) {
+        notify('Primary image route is missing.', 'danger');
+        return;
+    }
+
+    primaryButton.disabled = true;
+
+    try {
+        var payload = await requestJson(primaryUrl, createMethodFormData('POST'));
+
+        var preview = document.getElementById('primary-image-preview');
+        var primaryUrlFromPayload = payload.primary_image && payload.primary_image.url ? payload.primary_image.url : '';
+
+        if (!primaryUrlFromPayload) {
+            var galleryCard = primaryButton.closest('[id^="gallery-image-"]');
+            var galleryImage = galleryCard ? galleryCard.querySelector('img') : null;
+            primaryUrlFromPayload = galleryImage ? galleryImage.getAttribute('src') : '';
+        }
+
+        if (preview && primaryUrlFromPayload) {
+            preview.innerHTML = '<img src="' + primaryUrlFromPayload + '" alt="Primary" class="w-100 h-100" style="object-fit: cover;">';
+        }
+
+        var removePrimaryCheckbox = document.getElementById('remove_primary');
+        if (removePrimaryCheckbox) {
+            removePrimaryCheckbox.checked = false;
+        }
+
+        notify(payload.message || 'Primary image updated.', 'success');
+    } catch (error) {
+        notify(error.message || 'Failed to update primary image.', 'danger');
+    } finally {
+        primaryButton.disabled = false;
+    }
+});
+
+document.addEventListener('submit', async function(event) {
+    var form = event.target;
+    if (!(form instanceof HTMLFormElement)) {
+        return;
+    }
+
+    var shouldHandle = [
+        'productEditForm',
+        'addVariantForm',
+        'editVariantForm',
+        'generateVariantsForm',
+        'bulkEditModalForm',
+        'variantMatrixForm',
+    ].includes(form.id);
+
+    if (!shouldHandle) {
+        return;
+    }
+
+    event.preventDefault();
+
+    if (typeof window.clearAjaxValidationErrors === 'function') {
+        window.clearAjaxValidationErrors(form);
+    }
+
+    setFormSubmitting(form, true);
+
+    try {
+        var payload = await submitAjaxForm(form);
+
+        if (form.id === 'productEditForm') {
+            clearGalleryPendingSelections();
+
+            document.querySelectorAll('input[name="delete_images[]"]:checked').forEach(function(checkbox) {
+                checkbox.checked = false;
+            });
+
+            var removePrimaryCheckbox = document.getElementById('remove_primary');
+            if (removePrimaryCheckbox) {
+                removePrimaryCheckbox.checked = false;
+            }
+
+            notify(payload.message || 'Product updated successfully.', 'success');
+            return;
+        }
+
+        if (form.id === 'addVariantForm') {
+            hideModal('addVariantModal');
+        }
+
+        if (form.id === 'editVariantForm') {
+            hideModal('editVariantModal');
+        }
+
+        if (form.id === 'generateVariantsForm') {
+            hideModal('generateVariantsModal');
+        }
+
+        if (form.id === 'bulkEditModalForm') {
+            hideModal('bulkEditModal');
+        }
+
+        updateVariantMatrixFromPayload(payload);
+        updateBulkEditCount();
+        notify(payload.message || 'Saved successfully.', 'success');
+    } catch (error) {
+        if (error && error.status === 422 && error.payload && error.payload.errors && typeof window.renderAjaxValidationErrors === 'function') {
+            window.renderAjaxValidationErrors(form, error.payload.errors);
+        }
+
+        notify(error.message || 'Failed to save changes.', 'danger');
+    } finally {
+        setFormSubmitting(form, false);
+    }
 });
 </script>
 @endpush

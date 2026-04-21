@@ -160,6 +160,7 @@ class ProductController extends Controller
 
     public function update(UpdateProductRequest $request, Product $product)
     {
+        $isJsonRequest = $this->isJsonRequest($request);
         $data = $this->prepareProductData($request->validated(), $request, $product);
 
         DB::transaction(function () use ($data, $request, $product) {
@@ -224,6 +225,13 @@ class ProductController extends Controller
 
         $this->clearFrontendProductCache();
 
+        if ($isJsonRequest) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Product updated successfully.',
+            ]);
+        }
+
         return redirect()
             ->route('admin.products.index')
             ->with('success', 'Product updated successfully.');
@@ -249,6 +257,7 @@ class ProductController extends Controller
     // Variant management
     public function storeVariant(Request $request, Product $product)
     {
+        $isJsonRequest = $this->isJsonRequest($request);
         $stockEnabled = Product::isStockEnabled();
 
         $request->validate([
@@ -273,6 +282,13 @@ class ProductController extends Controller
         }
 
         if (empty($attributeGroups)) {
+            if ($isJsonRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please select at least one attribute value.',
+                ], 422);
+            }
+
             return redirect()
                 ->route('admin.products.edit', $product)
                 ->with('error', 'Please select at least one attribute value.');
@@ -295,6 +311,13 @@ class ProductController extends Controller
             $this->syncProductBaseStockFromVariants($product);
             $this->clearFrontendProductCache();
         } catch (\Throwable $exception) {
+            if ($isJsonRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $exception->getMessage(),
+                ], 422);
+            }
+
             return redirect()
                 ->route('admin.products.edit', $product)
                 ->with('error', $exception->getMessage());
@@ -305,9 +328,24 @@ class ProductController extends Controller
             if ($skipped > 0) {
                 $message .= " {$skipped} existing combination(s) skipped.";
             }
+
+            if ($isJsonRequest) {
+                return $this->variantMutationJsonResponse($product, $message, [
+                    'created' => $created,
+                    'skipped' => $skipped,
+                ]);
+            }
+
             return redirect()
                 ->route('admin.products.edit', $product)
                 ->with('success', $message);
+        }
+
+        if ($isJsonRequest) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No variants were created. Selected combinations may already exist.',
+            ], 422);
         }
 
         return redirect()
@@ -315,11 +353,21 @@ class ProductController extends Controller
             ->with('error', 'No variants were created. Selected combinations may already exist.');
     }
 
-    public function destroyVariant(Product $product, ProductVariant $variant)
+    public function destroyVariant(Request $request, Product $product, ProductVariant $variant)
     {
+        if ((int) $variant->product_id !== (int) $product->id) {
+            abort(404);
+        }
+
         $variant->delete();
         $this->syncProductBaseStockFromVariants($product);
         $this->clearFrontendProductCache();
+
+        if ($this->isJsonRequest($request)) {
+            return $this->variantMutationJsonResponse($product, 'Variant deleted successfully.', [
+                'deleted' => 1,
+            ]);
+        }
 
         return redirect()
             ->route('admin.products.edit', $product)
@@ -328,10 +376,18 @@ class ProductController extends Controller
 
     public function bulkUpdateVariants(Request $request, Product $product)
     {
+        $isJsonRequest = $this->isJsonRequest($request);
         $stockEnabled = Product::isStockEnabled();
         $variantIds = $request->input('variant_ids', []);
 
         if (empty($variantIds)) {
+            if ($isJsonRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No variants selected.',
+                ], 422);
+            }
+
             return redirect()
                 ->route('admin.products.edit', $product)
                 ->with('error', 'No variants selected.');
@@ -342,6 +398,13 @@ class ProductController extends Controller
             $deleted = $product->variants()->whereIn('id', $variantIds)->delete();
             $this->syncProductBaseStockFromVariants($product);
             $this->clearFrontendProductCache();
+
+            if ($isJsonRequest) {
+                return $this->variantMutationJsonResponse($product, "{$deleted} variant(s) deleted successfully.", [
+                    'deleted' => $deleted,
+                ]);
+            }
+
             return redirect()
                 ->route('admin.products.edit', $product)
                 ->with('success', "{$deleted} variant(s) deleted successfully.");
@@ -382,9 +445,21 @@ class ProductController extends Controller
         $this->clearFrontendProductCache();
 
         if ($updated > 0) {
+            if ($isJsonRequest) {
+                return $this->variantMutationJsonResponse($product, "{$updated} variant(s) updated successfully.", [
+                    'updated' => $updated,
+                ]);
+            }
+
             return redirect()
                 ->route('admin.products.edit', $product)
                 ->with('success', "{$updated} variant(s) updated successfully.");
+        }
+
+        if ($isJsonRequest) {
+            return $this->variantMutationJsonResponse($product, 'No changes were made.', [
+                'updated' => 0,
+            ]);
         }
 
         return redirect()
@@ -394,6 +469,10 @@ class ProductController extends Controller
 
     public function updateVariant(Request $request, Product $product, ProductVariant $variant)
     {
+        if ((int) $variant->product_id !== (int) $product->id) {
+            abort(404);
+        }
+
         $stockEnabled = Product::isStockEnabled();
 
         $request->validate([
@@ -438,6 +517,12 @@ class ProductController extends Controller
         $this->syncProductBaseStockFromVariants($product);
         $this->clearFrontendProductCache();
 
+        if ($this->isJsonRequest($request)) {
+            return $this->variantMutationJsonResponse($product, 'Variant updated successfully.', [
+                'variant_id' => $variant->id,
+            ]);
+        }
+
         return redirect()
             ->route('admin.products.edit', $product)
             ->with('success', 'Variant updated successfully.');
@@ -445,6 +530,7 @@ class ProductController extends Controller
 
     public function updateVariantMatrix(Request $request, Product $product)
     {
+        $isJsonRequest = $this->isJsonRequest($request);
         $stockEnabled = Product::isStockEnabled();
 
         $request->validate([
@@ -452,6 +538,7 @@ class ProductController extends Controller
             'variants' => ['required', 'array', 'min:1'],
             'variants.*.id' => ['required', 'integer', 'distinct', 'exists:product_variants,id'],
             'variants.*.sku' => ['required', 'string', 'max:100'],
+            'variants.*.image' => ['nullable', 'string', 'max:2048'],
             'variants.*.purchase_price' => ['required', 'numeric', 'min:0'],
             'variants.*.regular_price' => ['required', 'numeric', 'min:0'],
             'variants.*.discounted_price' => ['nullable', 'numeric', 'min:0'],
@@ -473,9 +560,12 @@ class ProductController extends Controller
                 ? null
                 : round((float) $discountedPriceInput, 2);
 
+            $imagePathInput = trim((string) ($row['image'] ?? ''));
+
             return [
                 'id' => (int) ($row['id'] ?? 0),
                 'sku' => trim((string) ($row['sku'] ?? '')),
+                'image' => $imagePathInput === '' ? null : $imagePathInput,
                 'purchase_price' => round((float) ($row['purchase_price'] ?? 0), 2),
                 'regular_price' => $regularPrice,
                 'discounted_price' => $discountedPrice,
@@ -485,8 +575,16 @@ class ProductController extends Controller
         })->values();
 
         if ($rows->contains(fn (array $row) => $row['id'] <= 0 || $row['sku'] === '')) {
+            if ($isJsonRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Each variant row must include a valid SKU.',
+                ], 422);
+            }
+
             return redirect()
                 ->route('admin.products.edit', $product)
+                ->withInput()
                 ->with('error', 'Each variant row must include a valid SKU.');
         }
 
@@ -496,14 +594,30 @@ class ProductController extends Controller
             ->all();
 
         if (count($normalizedSkus) !== count(array_unique($normalizedSkus))) {
+            if ($isJsonRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Duplicate SKU found in the submitted rows.',
+                ], 422);
+            }
+
             return redirect()
                 ->route('admin.products.edit', $product)
+                ->withInput()
                 ->with('error', 'Duplicate SKU found in the submitted rows.');
         }
 
         if ($rows->contains(fn (array $row) => $row['discounted_price'] !== null && $row['discounted_price'] > $row['regular_price'])) {
+            if ($isJsonRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Discounted price cannot be greater than regular price.',
+                ], 422);
+            }
+
             return redirect()
                 ->route('admin.products.edit', $product)
+                ->withInput()
                 ->with('error', 'Discounted price cannot be greater than regular price.');
         }
 
@@ -516,14 +630,30 @@ class ProductController extends Controller
             $defaultRow = $rows->first(fn (array $row) => $row['id'] === $requestedDefaultVariantId);
 
             if (!$defaultRow) {
+                if ($isJsonRequest) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Selected base variant does not belong to this product.',
+                    ], 422);
+                }
+
                 return redirect()
                     ->route('admin.products.edit', $product)
+                    ->withInput()
                     ->with('error', 'Selected base variant does not belong to this product.');
             }
 
             if (!$defaultRow['is_active']) {
+                if ($isJsonRequest) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Base variant must be active. Please enable the selected variant first.',
+                    ], 422);
+                }
+
                 return redirect()
                     ->route('admin.products.edit', $product)
+                    ->withInput()
                     ->with('error', 'Base variant must be active. Please enable the selected variant first.');
             }
         }
@@ -536,8 +666,16 @@ class ProductController extends Controller
             ->keyBy('id');
 
         if ($variants->count() !== count($variantIds)) {
+            if ($isJsonRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'One or more variants do not belong to this product.',
+                ], 422);
+            }
+
             return redirect()
                 ->route('admin.products.edit', $product)
+                ->withInput()
                 ->with('error', 'One or more variants do not belong to this product.');
         }
 
@@ -565,6 +703,7 @@ class ProductController extends Controller
 
                     $updateData = [
                         'sku' => $sku,
+                        'image' => $row['image'],
                         'purchase_price' => $row['purchase_price'],
                         'regular_price' => $row['regular_price'],
                         'discounted_price' => $row['discounted_price'],
@@ -585,9 +724,21 @@ class ProductController extends Controller
             $this->syncProductBaseStockFromVariants($product);
             $this->clearFrontendProductCache();
         } catch (\Throwable $exception) {
+            if ($isJsonRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $exception->getMessage(),
+                ], 422);
+            }
+
             return redirect()
                 ->route('admin.products.edit', $product)
+                ->withInput()
                 ->with('error', $exception->getMessage());
+        }
+
+        if ($isJsonRequest) {
+            return $this->variantMutationJsonResponse($product, 'Variant matrix updated successfully.');
         }
 
         return redirect()
@@ -731,8 +882,12 @@ class ProductController extends Controller
     }
 
     // Image management
-    public function setPrimaryImage(Product $product, ProductImage $image)
+    public function setPrimaryImage(Request $request, Product $product, ProductImage $image)
     {
+        if ((int) $image->product_id !== (int) $product->id) {
+            abort(404);
+        }
+
         // Remove primary from all images
         $product->images()->update(['is_primary' => false]);
 
@@ -740,20 +895,65 @@ class ProductController extends Controller
         $image->update(['is_primary' => true]);
         $this->clearFrontendProductCache();
 
+        if ($this->isJsonRequest($request)) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Primary image updated.',
+                'primary_image' => [
+                    'id' => $image->id,
+                    'image' => $image->image,
+                    'url' => $image->url,
+                ],
+            ]);
+        }
+
         return redirect()
             ->route('admin.products.edit', $product)
             ->with('success', 'Primary image updated.');
     }
 
-    public function destroyImage(Product $product, ProductImage $image)
+    public function destroyImage(Request $request, Product $product, ProductImage $image)
     {
-        Storage::disk('public')->delete($image->image);
+        if ((int) $image->product_id !== (int) $product->id) {
+            abort(404);
+        }
+
+        if (!str_starts_with($image->image, 'media/')) {
+            Storage::disk('public')->delete($image->image);
+        }
+
+        $deletedImageId = $image->id;
         $image->delete();
         $this->clearFrontendProductCache();
+
+        if ($this->isJsonRequest($request)) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Image deleted successfully.',
+                'deleted_image_id' => $deletedImageId,
+            ]);
+        }
 
         return redirect()
             ->route('admin.products.edit', $product)
             ->with('success', 'Image deleted successfully.');
+    }
+
+    private function isJsonRequest(Request $request): bool
+    {
+        return $request->expectsJson() || $request->ajax();
+    }
+
+    private function variantMutationJsonResponse(Product $product, string $message, array $extra = [], int $status = 200)
+    {
+        $viewData = $this->buildVariantMatrixViewData($product);
+
+        return response()->json(array_merge([
+            'success' => true,
+            'message' => $message,
+            'variant_count' => $viewData['product']->variants->count(),
+            'matrix_html' => view('admin.products.partials.variant-matrix', $viewData)->render(),
+        ], $extra), $status);
     }
 
     private function prepareProductData(array $data, Request $request, ?Product $product = null): array

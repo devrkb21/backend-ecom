@@ -299,7 +299,7 @@
 </div>
 
 <!-- Delete Image Form (Hidden) -->
-<form id="delete-image-form" method="POST" style="display: none;">
+<form id="delete-image-form" method="POST" style="display: none;" data-no-admin-ajax="1">
     @csrf
     @method('DELETE')
 </form>

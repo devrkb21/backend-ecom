@@ -130,7 +130,7 @@
             <h1 class="h4 mb-1">Abandoned Carts</h1>
             <p class="text-muted mb-0">Track and recover incomplete checkouts</p>
         </div>
-        <a href="{{ route('admin.abandoned-carts.export', request()->query()) }}" class="btn btn-sm btn-outline-secondary">
+        <a href="{{ route('admin.abandoned-carts.export', request()->query()) }}" class="btn btn-sm btn-outline-secondary" data-no-admin-ajax="1">
             <i class="fas fa-download me-1"></i> Export CSV
         </a>
     </div>
