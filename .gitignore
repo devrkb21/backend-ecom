@@ -37,6 +37,7 @@ Thumbs.db
 /bootstrap/cache/*.php
 
 # Public uploads (keep the directory, ignore contents)
+/public/media
 /public/storage
 /public/hot
 /storage/app/public/*

@@ -41,7 +41,7 @@
                     <a href="{{ route('admin.loyalty.members.index') }}" class="btn btn-sm btn-outline-secondary me-2">
                         <i class="bi bi-x"></i>
                     </a>
-                    <a href="{{ route('admin.loyalty.members.export') }}?{{ http_build_query(request()->all()) }}" class="btn btn-sm btn-outline-success">
+                    <a href="{{ route('admin.loyalty.members.export') }}?{{ http_build_query(request()->all()) }}" class="btn btn-sm btn-outline-success" data-no-admin-ajax="1">
                         <i class="bi bi-download"></i> Export
                     </a>
                 </div>

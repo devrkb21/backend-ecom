@@ -11,11 +11,14 @@
     $variantBaseRegularPrice = $variantBaseRegularPrice ?? (float) $product->regular_price;
     $variantBaseDiscountPrice = $variantBaseDiscountPrice ?? (float) ($product->sale_price ?? $product->regular_price);
     $stockEnabled = $stockEnabled ?? true;
-    $selectedDefaultVariantId = $product->getDefaultVariantId();
+    $submittedVariantRows = collect(old('variants', []))
+        ->filter(fn($row) => is_array($row) && array_key_exists('id', $row))
+        ->keyBy(fn($row) => (string) $row['id']);
+    $selectedDefaultVariantId = old('default_variant_id', $product->getDefaultVariantId());
 @endphp
 
 @if($product->variants->isNotEmpty())
-    <form action="{{ route('admin.products.variants.matrix-update', $product) }}" method="POST" id="variantMatrixForm">
+    <form action="{{ route('admin.products.variants.matrix-update', $product) }}" method="POST" id="variantMatrixForm" data-no-admin-ajax="1">
         @csrf
         @method('PUT')
         <div class="table-responsive variant-matrix-table">
@@ -38,9 +41,13 @@
                             <th>{{ $variantAttribute->name }}</th>
                         @endforeach
                         <th style="min-width: 120px;">Purchase Price</th>
+                        <th class="variant-copy-column"></th>
                         <th style="min-width: 120px;">Regular Price</th>
+                        <th class="variant-copy-column"></th>
                         <th style="min-width: 140px;">Discounted Price</th>
+                        <th class="variant-copy-column"></th>
                         <th>Stock @if($stockEnabled)<span class="text-danger">*</span>@endif</th>
+                        <th class="variant-copy-column"></th>
                         <th>Status</th>
                         <th class="text-end">Actions</th>
                     </tr>
@@ -49,12 +56,46 @@
                     @foreach($product->variants as $index => $variant)
                         @php
                             $attributeValueMap = $variant->attributeValues->keyBy(fn($value) => (int) $value->attribute_id);
+                            $submittedVariant = (array) ($submittedVariantRows->get((string) $variant->id) ?? []);
                             $variantPurchasePrice = (float) $variant->purchase_price;
                             $variantRegularPrice = (float) $variant->regular_price;
                             $variantDiscountedRaw = $variant->getRawOriginal('discounted_price');
                             $variantDiscountedPrice = $variantDiscountedRaw !== null
                                 ? (float) $variantDiscountedRaw
                                 : null;
+
+                            $variantSkuInput = array_key_exists('sku', $submittedVariant)
+                                ? (string) $submittedVariant['sku']
+                                : (string) $variant->sku;
+                            $variantPurchasePriceInput = array_key_exists('purchase_price', $submittedVariant)
+                                ? (string) $submittedVariant['purchase_price']
+                                : number_format($variantPurchasePrice, 2, '.', '');
+                            $variantRegularPriceInput = array_key_exists('regular_price', $submittedVariant)
+                                ? (string) $submittedVariant['regular_price']
+                                : number_format($variantRegularPrice, 2, '.', '');
+                            $variantDiscountedPriceInput = array_key_exists('discounted_price', $submittedVariant)
+                                ? (string) $submittedVariant['discounted_price']
+                                : ($variantDiscountedPrice !== null ? number_format($variantDiscountedPrice, 2, '.', '') : '');
+                            $variantStockInput = array_key_exists('stock_quantity', $submittedVariant)
+                                ? (string) $submittedVariant['stock_quantity']
+                                : (string) $variant->stock_quantity;
+                            $variantIsActiveInput = array_key_exists('is_active', $submittedVariant)
+                                ? filter_var($submittedVariant['is_active'], FILTER_VALIDATE_BOOLEAN)
+                                : (bool) $variant->is_active;
+
+                            $variantImageInput = array_key_exists('image', $submittedVariant)
+                                ? trim((string) $submittedVariant['image'])
+                                : trim((string) ($variant->image ?? ''));
+                            $variantImagePath = ltrim($variantImageInput, '/');
+                            $variantImageUrl = '';
+
+                            if ($variantImagePath !== '') {
+                                $variantImageUrl = (str_starts_with($variantImagePath, 'http://') || str_starts_with($variantImagePath, 'https://'))
+                                    ? $variantImageInput
+                                    : ((str_starts_with($variantImagePath, 'media/') || str_starts_with($variantImagePath, 'storage/'))
+                                        ? asset($variantImagePath)
+                                        : asset('storage/' . $variantImagePath));
+                            }
                         @endphp
                         <tr id="variant-row-{{ $variant->id }}">
                             <td>
@@ -70,21 +111,26 @@
                                 <input type="hidden" name="variants[{{ $index }}][id]" value="{{ $variant->id }}">
                             </td>
                             <td>
-                                @if($variant->image)
-                                    @php
-                                        $variantImagePath = ltrim((string) $variant->image, '/');
-                                        $variantImageUrl = (str_starts_with($variantImagePath, 'http://') || str_starts_with($variantImagePath, 'https://'))
-                                            ? $variant->image
-                                            : ((str_starts_with($variantImagePath, 'media/') || str_starts_with($variantImagePath, 'storage/'))
-                                                ? asset($variantImagePath)
-                                                : asset('storage/' . $variantImagePath));
-                                    @endphp
-                                    <img src="{{ $variantImageUrl }}" alt="Variant" class="rounded" style="width: 45px; height: 45px; object-fit: cover;">
-                                @else
-                                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
-                                        <i class="bi bi-image text-muted"></i>
+                                <input
+                                    type="hidden"
+                                    name="variants[{{ $index }}][image]"
+                                    id="variant-image-input-{{ $variant->id }}"
+                                    value="{{ $variantImageInput }}"
+                                >
+                                <button
+                                    type="button"
+                                    class="btn p-0 border-0 bg-transparent"
+                                    onclick="openVariantMatrixImagePicker({{ $variant->id }})"
+                                    title="Select variant image from media library"
+                                >
+                                    <div id="variant-row-image-box-{{ $variant->id }}" class="rounded d-flex align-items-center justify-content-center {{ $variantImageUrl ? '' : 'bg-light' }}" style="width: 45px; height: 45px; overflow: hidden;">
+                                        @if($variantImageUrl)
+                                            <img src="{{ $variantImageUrl }}" alt="Variant" class="w-100 h-100" style="object-fit: cover;">
+                                        @else
+                                            <i class="bi bi-image text-muted"></i>
+                                        @endif
                                     </div>
-                                @endif
+                                </button>
                             </td>
                             <td>
                                 <div class="fw-semibold">{{ $product->name }}</div>
@@ -101,7 +147,7 @@
                                     type="text"
                                     class="form-control form-control-sm"
                                     name="variants[{{ $index }}][sku]"
-                                    value="{{ $variant->sku }}"
+                                    value="{{ $variantSkuInput }}"
                                     required
                                 >
                             </td>
@@ -131,10 +177,22 @@
                                         step="0.01"
                                         class="form-control"
                                         name="variants[{{ $index }}][purchase_price]"
-                                        value="{{ number_format($variantPurchasePrice, 2, '.', '') }}"
+                                        value="{{ $variantPurchasePriceInput }}"
                                         required
                                     >
                                 </div>
+                            </td>
+                            <td class="variant-copy-cell align-middle">
+                                @if($index === 0)
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-secondary btn-sm variant-copy-field-btn"
+                                        onclick="copyVariantFieldFromRow(this, 'purchase_price')"
+                                        title="Copy Purchase Price to all rows"
+                                    >
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                @endif
                             </td>
                             <td>
                                 <div class="input-group input-group-sm">
@@ -145,10 +203,22 @@
                                         step="0.01"
                                         class="form-control"
                                         name="variants[{{ $index }}][regular_price]"
-                                        value="{{ number_format($variantRegularPrice, 2, '.', '') }}"
+                                        value="{{ $variantRegularPriceInput }}"
                                         required
                                     >
                                 </div>
+                            </td>
+                            <td class="variant-copy-cell align-middle">
+                                @if($index === 0)
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-secondary btn-sm variant-copy-field-btn"
+                                        onclick="copyVariantFieldFromRow(this, 'regular_price')"
+                                        title="Copy Regular Price to all rows"
+                                    >
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                @endif
                             </td>
                             <td>
                                 <div class="input-group input-group-sm">
@@ -159,10 +229,22 @@
                                         step="0.01"
                                         class="form-control"
                                         name="variants[{{ $index }}][discounted_price]"
-                                        value="{{ $variantDiscountedPrice !== null ? number_format($variantDiscountedPrice, 2, '.', '') : '' }}"
+                                        value="{{ $variantDiscountedPriceInput }}"
                                         placeholder="Optional"
                                     >
                                 </div>
+                            </td>
+                            <td class="variant-copy-cell align-middle">
+                                @if($index === 0)
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-secondary btn-sm variant-copy-field-btn"
+                                        onclick="copyVariantFieldFromRow(this, 'discounted_price')"
+                                        title="Copy Discounted Price to all rows"
+                                    >
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                @endif
                             </td>
                             <td>
                                 <input
@@ -170,9 +252,21 @@
                                     min="0"
                                     class="form-control form-control-sm"
                                     name="variants[{{ $index }}][stock_quantity]"
-                                    value="{{ $variant->stock_quantity }}"
+                                    value="{{ $variantStockInput }}"
                                     @if($stockEnabled) required @endif
                                 >
+                            </td>
+                            <td class="variant-copy-cell align-middle">
+                                @if($index === 0)
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-secondary btn-sm variant-copy-field-btn"
+                                        onclick="copyVariantFieldFromRow(this, 'stock_quantity')"
+                                        title="Copy Stock to all rows"
+                                    >
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                @endif
                             </td>
                             <td>
                                 <input type="hidden" name="variants[{{ $index }}][is_active]" value="0">
@@ -182,7 +276,7 @@
                                         class="form-check-input"
                                         name="variants[{{ $index }}][is_active]"
                                         value="1"
-                                        {{ $variant->is_active ? 'checked' : '' }}
+                                        {{ $variantIsActiveInput ? 'checked' : '' }}
                                     >
                                 </div>
                             </td>
@@ -199,9 +293,9 @@
                 </tbody>
                 <tfoot class="table-light">
                     <tr>
-                        <td colspan="{{ 8 + $variantAttributes->count() }}" class="text-end"><strong>Total Stock:</strong></td>
+                        <td colspan="{{ 11 + $variantAttributes->count() }}" class="text-end"><strong>Total Stock:</strong></td>
                         <td><strong>{{ $product->variants->sum('stock_quantity') }}</strong></td>
-                        <td colspan="2"></td>
+                        <td colspan="3"></td>
                     </tr>
                 </tfoot>
             </table>
@@ -254,12 +348,12 @@
     </div>
 @endif
 
-<form id="deleteVariantForm" method="POST" style="display: none;">
+<form id="deleteVariantForm" method="POST" style="display: none;" data-no-admin-ajax="1">
     @csrf
     @method('DELETE')
 </form>
 
-<form id="bulkDeleteVariantsForm" action="{{ route('admin.products.variants.bulk-update', $product) }}" method="POST" class="d-none">
+<form id="bulkDeleteVariantsForm" action="{{ route('admin.products.variants.bulk-update', $product) }}" method="POST" class="d-none" data-no-admin-ajax="1">
     @csrf
     @method('PUT')
     <input type="hidden" name="bulk_delete" value="1">

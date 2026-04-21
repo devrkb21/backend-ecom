@@ -13,7 +13,7 @@
     </div>
     <div class="card-body">
         {{-- Upload Form --}}
-        <form id="upload-form" action="{{ route('admin.media.upload') }}" method="POST" enctype="multipart/form-data" class="d-none">
+        <form id="upload-form" action="{{ route('admin.media.upload') }}" method="POST" enctype="multipart/form-data" class="d-none" data-no-admin-ajax="1">
             @csrf
             <input type="file" id="media-upload-input" name="files[]" multiple accept="image/*" onchange="this.form.submit()">
         </form>

@@ -38,7 +38,7 @@
                 <a href="?period=quarter" class="btn btn-{{ $period == 'quarter' ? 'primary' : 'outline-primary' }} btn-sm">Quarter</a>
                 <a href="?period=year" class="btn btn-{{ $period == 'year' ? 'primary' : 'outline-primary' }} btn-sm">Year</a>
             </div>
-            <a href="{{ route('admin.bi.export-customers') }}" class="btn btn-success btn-sm">
+            <a href="{{ route('admin.bi.export-customers') }}" class="btn btn-success btn-sm" data-no-admin-ajax="1">
                 <i class="fas fa-download"></i> Export
             </a>
         </div>
