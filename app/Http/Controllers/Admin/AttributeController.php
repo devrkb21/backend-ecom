@@ -10,9 +10,10 @@ use Illuminate\Support\Str;
 
 class AttributeController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $attributes = ProductAttribute::with('values')->orderBy('name')->get();
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
+        $attributes = ProductAttribute::with('values')->orderBy('name')->paginate($perPage)->withQueryString();
         return view('admin.attributes.index', compact('attributes'));
     }
 

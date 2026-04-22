@@ -60,7 +60,8 @@ class CouponController extends Controller
             }
         }
 
-        $coupons = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
+        $coupons = $query->orderBy('created_at', 'desc')->paginate($perPage)->withQueryString();
 
         return view('admin.coupons.index', compact('coupons'));
     }
@@ -127,11 +128,14 @@ class CouponController extends Controller
     /**
      * Display the specified coupon
      */
-    public function show(Coupon $coupon)
+    public function show(Request $request, Coupon $coupon)
     {
         $coupon->load(['usages.user', 'usages.order']);
+
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
+        $usages = $coupon->usages()->with(['user', 'order'])->latest()->paginate($perPage)->withQueryString();
         
-        return view('admin.coupons.show', compact('coupon'));
+        return view('admin.coupons.show', compact('coupon', 'usages'));
     }
 
     /**

@@ -55,7 +55,8 @@ class ReviewController extends Controller
             });
         }
 
-        $reviews = $query->latest()->paginate(15)->withQueryString();
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
+        $reviews = $query->latest()->paginate($perPage)->withQueryString();
         $products = Product::orderBy('name')->get(['id', 'name']);
 
         // Stats

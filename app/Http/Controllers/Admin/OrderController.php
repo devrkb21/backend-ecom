@@ -66,7 +66,8 @@ class OrderController extends Controller
             });
         }
 
-        $orders = $query->paginate(15)->withQueryString();
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
+        $orders = $query->paginate($perPage)->withQueryString();
 
         $filterCounts = ['all' => Order::query()->count()];
         foreach ($statusKeys as $statusKey) {

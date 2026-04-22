@@ -88,7 +88,8 @@ class LoyaltyController extends Controller
      */
     public function rewards()
     {
-        $rewards = LoyaltyReward::orderBy('points_required')->paginate(15);
+        $perPage = in_array((int) request()->input('per_page'), [20, 50, 100], true) ? (int) request()->input('per_page') : 20;
+        $rewards = LoyaltyReward::orderBy('points_required')->paginate($perPage)->withQueryString();
 
         return view('admin.loyalty.rewards.index', compact('rewards'));
     }
@@ -254,7 +255,8 @@ class LoyaltyController extends Controller
             $query->where('loyalty_tier', $request->tier);
         }
 
-        $members = $query->orderBy('lifetime_points', 'desc')->paginate(20);
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
+        $members = $query->orderBy('lifetime_points', 'desc')->paginate($perPage)->withQueryString();
 
         $tiers = LoyaltyTier::orderBy('min_points')->get();
 
@@ -267,7 +269,8 @@ class LoyaltyController extends Controller
 
         $transactions = LoyaltyTransaction::where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         return view('admin.loyalty.members.show', [
             'member' => $user,
@@ -312,7 +315,8 @@ class LoyaltyController extends Controller
             $query->where('status', $request->status);
         }
 
-        $redemptions = $query->orderBy('created_at', 'desc')->paginate(20);
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
+        $redemptions = $query->orderBy('created_at', 'desc')->paginate($perPage)->withQueryString();
         
         $rewards = LoyaltyReward::orderBy('name')->get();
 
@@ -346,7 +350,8 @@ class LoyaltyController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        $transactions = $query->orderBy('created_at', 'desc')->paginate(50);
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
+        $transactions = $query->orderBy('created_at', 'desc')->paginate($perPage)->withQueryString();
 
         return view('admin.loyalty.transactions', compact('transactions'));
     }

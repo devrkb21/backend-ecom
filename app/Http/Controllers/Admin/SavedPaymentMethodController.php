@@ -26,7 +26,8 @@ class SavedPaymentMethodController extends Controller
             });
         }
 
-        $methods = $query->paginate(20)->withQueryString();
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
+        $methods = $query->paginate($perPage)->withQueryString();
 
         return view('admin.payments.saved-methods', compact('methods', 'search'));
     }

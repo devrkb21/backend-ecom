@@ -25,7 +25,7 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th style="width: 44px;">
+                        <th style="width: 36px;">
                             <input
                                 type="checkbox"
                                 class="form-check-input"
@@ -33,21 +33,17 @@
                                 onchange="toggleAllVariants(this)"
                             >
                         </th>
-                        <th style="width: 60px;">SL</th>
-                        <th style="width: 60px;">Image</th>
-                        <th style="min-width: 180px;">Name</th>
+                        <th style="width: 40px;">SL</th>
+                        <th style="width: 50px;">Image</th>
+                        <th style="min-width: 130px;">Name</th>
                         <th>SKU</th>
                         @foreach($variantAttributes as $variantAttribute)
                             <th>{{ $variantAttribute->name }}</th>
                         @endforeach
-                        <th style="min-width: 120px;">Purchase Price</th>
-                        <th class="variant-copy-column"></th>
-                        <th style="min-width: 120px;">Regular Price</th>
-                        <th class="variant-copy-column"></th>
-                        <th style="min-width: 140px;">Discounted Price</th>
-                        <th class="variant-copy-column"></th>
-                        <th>Stock @if($stockEnabled)<span class="text-danger">*</span>@endif</th>
-                        <th class="variant-copy-column"></th>
+                        <th class="text-center" style="line-height: 1.1; font-size: 0.8rem;">Purchase<br>Price</th>
+                        <th class="text-center" style="line-height: 1.1; font-size: 0.8rem;">Regular<br>Price</th>
+                        <th class="text-center" style="line-height: 1.1; font-size: 0.8rem;">Discount<br>Price</th>
+                        <th class="text-center" style="line-height: 1.1; font-size: 0.8rem;">Stock @if($stockEnabled)<span class="text-danger">*</span>@endif</th>
                         <th>Status</th>
                         <th class="text-end">Actions</th>
                     </tr>
@@ -97,7 +93,7 @@
                                         : asset('storage/' . $variantImagePath));
                             }
                         @endphp
-                        <tr id="variant-row-{{ $variant->id }}">
+                        <tr id="variant-row-{{ $variant->id }}" data-variant-row>
                             <td>
                                 <input
                                     type="checkbox"
@@ -123,7 +119,7 @@
                                     onclick="openVariantMatrixImagePicker({{ $variant->id }})"
                                     title="Select variant image from media library"
                                 >
-                                    <div id="variant-row-image-box-{{ $variant->id }}" class="rounded d-flex align-items-center justify-content-center {{ $variantImageUrl ? '' : 'bg-light' }}" style="width: 45px; height: 45px; overflow: hidden;">
+                                    <div id="variant-row-image-box-{{ $variant->id }}" class="rounded d-flex align-items-center justify-content-center {{ $variantImageUrl ? '' : 'bg-light' }}" style="width: 36px; height: 36px; overflow: hidden;">
                                         @if($variantImageUrl)
                                             <img src="{{ $variantImageUrl }}" alt="Variant" class="w-100 h-100" style="object-fit: cover;">
                                         @else
@@ -180,19 +176,19 @@
                                         value="{{ $variantPurchasePriceInput }}"
                                         required
                                     >
+                                    @if($index === 0)
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-secondary variant-copy-field-btn flex-shrink-0"
+                                            onclick="copyVariantFieldFromRow(this, 'purchase_price')"
+                                            title="Copy Purchase Price to all rows"
+                                        >
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    @else
+                                        <div class="variant-copy-placeholder" style="width: 24px; flex-shrink: 0; border-left: 1px solid transparent;"></div>
+                                    @endif
                                 </div>
-                            </td>
-                            <td class="variant-copy-cell align-middle">
-                                @if($index === 0)
-                                    <button
-                                        type="button"
-                                        class="btn btn-outline-secondary btn-sm variant-copy-field-btn"
-                                        onclick="copyVariantFieldFromRow(this, 'purchase_price')"
-                                        title="Copy Purchase Price to all rows"
-                                    >
-                                        <i class="bi bi-check-lg"></i>
-                                    </button>
-                                @endif
                             </td>
                             <td>
                                 <div class="input-group input-group-sm">
@@ -206,19 +202,19 @@
                                         value="{{ $variantRegularPriceInput }}"
                                         required
                                     >
+                                    @if($index === 0)
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-secondary variant-copy-field-btn flex-shrink-0"
+                                            onclick="copyVariantFieldFromRow(this, 'regular_price')"
+                                            title="Copy Regular Price to all rows"
+                                        >
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    @else
+                                        <div class="variant-copy-placeholder" style="width: 24px; flex-shrink: 0; border-left: 1px solid transparent;"></div>
+                                    @endif
                                 </div>
-                            </td>
-                            <td class="variant-copy-cell align-middle">
-                                @if($index === 0)
-                                    <button
-                                        type="button"
-                                        class="btn btn-outline-secondary btn-sm variant-copy-field-btn"
-                                        onclick="copyVariantFieldFromRow(this, 'regular_price')"
-                                        title="Copy Regular Price to all rows"
-                                    >
-                                        <i class="bi bi-check-lg"></i>
-                                    </button>
-                                @endif
                             </td>
                             <td>
                                 <div class="input-group input-group-sm">
@@ -232,41 +228,43 @@
                                         value="{{ $variantDiscountedPriceInput }}"
                                         placeholder="Optional"
                                     >
+                                    @if($index === 0)
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-secondary variant-copy-field-btn flex-shrink-0"
+                                            onclick="copyVariantFieldFromRow(this, 'discounted_price')"
+                                            title="Copy Discounted Price to all rows"
+                                        >
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    @else
+                                        <div class="variant-copy-placeholder" style="width: 24px; flex-shrink: 0; border-left: 1px solid transparent;"></div>
+                                    @endif
                                 </div>
                             </td>
-                            <td class="variant-copy-cell align-middle">
-                                @if($index === 0)
-                                    <button
-                                        type="button"
-                                        class="btn btn-outline-secondary btn-sm variant-copy-field-btn"
-                                        onclick="copyVariantFieldFromRow(this, 'discounted_price')"
-                                        title="Copy Discounted Price to all rows"
-                                    >
-                                        <i class="bi bi-check-lg"></i>
-                                    </button>
-                                @endif
-                            </td>
                             <td>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    class="form-control form-control-sm"
-                                    name="variants[{{ $index }}][stock_quantity]"
-                                    value="{{ $variantStockInput }}"
-                                    @if($stockEnabled) required @endif
-                                >
-                            </td>
-                            <td class="variant-copy-cell align-middle">
-                                @if($index === 0)
-                                    <button
-                                        type="button"
-                                        class="btn btn-outline-secondary btn-sm variant-copy-field-btn"
-                                        onclick="copyVariantFieldFromRow(this, 'stock_quantity')"
-                                        title="Copy Stock to all rows"
+                                <div class="input-group input-group-sm">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        class="form-control"
+                                        name="variants[{{ $index }}][stock_quantity]"
+                                        value="{{ $variantStockInput }}"
+                                        @if($stockEnabled) required @endif
                                     >
-                                        <i class="bi bi-check-lg"></i>
-                                    </button>
-                                @endif
+                                    @if($index === 0)
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-secondary variant-copy-field-btn flex-shrink-0"
+                                            onclick="copyVariantFieldFromRow(this, 'stock_quantity')"
+                                            title="Copy Stock to all rows"
+                                        >
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    @else
+                                        <div class="variant-copy-placeholder" style="width: 24px; flex-shrink: 0; border-left: 1px solid transparent;"></div>
+                                    @endif
+                                </div>
                             </td>
                             <td>
                                 <input type="hidden" name="variants[{{ $index }}][is_active]" value="0">
@@ -300,6 +298,9 @@
                 </tfoot>
             </table>
         </div>
+
+        {{-- Client-side Variant Pagination --}}
+        <div id="variantMatrixPagination" class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3 px-1" style="display: none !important;"></div>
 
         <div class="row g-3 align-items-end mt-1">
             <div class="col-lg-6">

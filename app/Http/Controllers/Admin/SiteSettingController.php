@@ -292,6 +292,7 @@ class SiteSettingController extends Controller
                 'settings.product_grid_columns' => 'nullable|integer|in:3,4,5,6',
                 'settings.order_number_prefix' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9_-]+$/'],
                 'settings.order_number_generation_mode' => ['nullable', 'string', 'in:timestamp_random,date_sequence,global_sequence'],
+                'settings.logo_height' => 'nullable|integer|min:20|max:120',
             ]);
 
             $this->ensureGeneralOrderSettingsExist();
@@ -409,6 +410,21 @@ class SiteSettingController extends Controller
                 $allowedModes = ['timestamp_random', 'date_sequence', 'global_sequence'];
                 $rawValue = (string) $request->input("settings.{$key}", 'timestamp_random');
                 $newValue = in_array($rawValue, $allowedModes, true) ? $rawValue : 'timestamp_random';
+
+                if ($newValue !== $setting->value) {
+                    $setting->value = $newValue;
+                    $setting->save();
+                    $updatedKeys[] = $key;
+                }
+            }
+            // Handle logo height as clamped integer
+            elseif ($setting->group === 'general' && $setting->key === 'logo_height') {
+                if (!$request->has("settings.{$key}")) {
+                    return;
+                }
+
+                $rawValue = (int) $request->input("settings.{$key}", 40);
+                $newValue = (string) max(20, min(120, $rawValue));
 
                 if ($newValue !== $setting->value) {
                     $setting->value = $newValue;

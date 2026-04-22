@@ -71,7 +71,8 @@ class ProductController extends Controller
             $query->where('stock_quantity', '<=', 0);
         }
 
-        $products = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
+        $products = $query->orderByDesc('created_at')->paginate($perPage)->withQueryString();
         $categories = Category::orderBy('name')->get();
 
         return view('admin.products.index', compact('products', 'categories'));

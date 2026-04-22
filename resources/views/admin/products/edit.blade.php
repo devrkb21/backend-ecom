@@ -947,28 +947,143 @@
     text-transform: uppercase;
     font-size: 0.72rem;
     white-space: nowrap;
+    padding: 0.4rem 0.3rem !important;
 }
 
+.variant-matrix-table tbody td {
+    padding: 0.35rem 0.3rem !important;
+    white-space: nowrap;
+}
+
+/* Auto-sizing inputs: start compact, grow with content */
+.variant-matrix-table .form-control,
+.variant-matrix-table .form-control-sm {
+    width: auto;
+    min-width: 52px;
+    max-width: 160px;
+    padding: 0.2rem 0.35rem;
+    font-size: 0.8rem;
+}
+
+.variant-matrix-table input[type="number"] {
+    min-width: 48px;
+    max-width: 110px;
+    -moz-appearance: textfield;
+}
+
+.variant-matrix-table input[type="number"]::-webkit-outer-spin-button,
+.variant-matrix-table input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Compact input groups (৳ prefix) */
+.variant-matrix-table .input-group {
+    flex-wrap: nowrap;
+    width: max-content !important;
+    flex: 0 0 auto !important;
+}
+
+.variant-matrix-table .input-group .input-group-text {
+    padding: 0.2rem 0.3rem;
+    font-size: 0.75rem;
+    min-width: auto;
+}
+
+.variant-matrix-table .input-group .form-control {
+    min-width: 48px;
+    max-width: 100px;
+    flex: 0 0 auto !important;
+    transition: width 0.1s ease-out;
+}
+
+.variant-matrix-table .form-control,
+.variant-matrix-table .form-control-sm {
+    transition: width 0.1s ease-out;
+}
+
+/* Narrow copy button columns */
 .variant-copy-column,
 .variant-copy-cell {
-    width: 42px;
-    min-width: 42px;
+    width: 28px;
+    min-width: 28px;
+    max-width: 28px;
     text-align: center;
+    padding: 0.35rem 0 !important;
 }
 
 .variant-copy-field-btn {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     padding: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    font-size: 0.7rem;
+}
+
+/* Image cell compact */
+.variant-matrix-table td:nth-child(3) .rounded {
+    width: 36px !important;
+    height: 36px !important;
 }
 
 @media (max-width: 992px) {
     .variation-manager-row {
         padding: 0.6rem;
     }
+}
+
+/* Variant Matrix Pagination */
+.variant-matrix-pagination-bar {
+    background: #f8f9fb;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 0.6rem 1rem;
+}
+
+.variant-matrix-pagination-bar .vm-page-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 6px;
+    border: 1px solid #dee2e6;
+    background: #fff;
+    color: #495057;
+    font-size: 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.variant-matrix-pagination-bar .vm-page-btn:hover:not(.active):not(:disabled) {
+    background: #e9ecef;
+    border-color: #ced4da;
+}
+
+.variant-matrix-pagination-bar .vm-page-btn.active {
+    background: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+    font-weight: 600;
+}
+
+.variant-matrix-pagination-bar .vm-page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.variant-matrix-pagination-bar select {
+    height: 32px;
+    font-size: 0.8rem;
+    padding: 0 1.8rem 0 0.5rem;
+    border-radius: 4px;
+}
+
+tr[data-variant-row].vm-hidden {
+    display: none !important;
 }
 </style>
 @endpush
@@ -2012,11 +2127,12 @@ function copyVariantFieldFromRow(triggerButton, fieldName) {
     });
 }
 
-// Toggle all variants selection
+// Toggle all variants selection (only visible/paginated rows)
 function toggleAllVariants(checkbox) {
-    var checkboxes = document.querySelectorAll('.variant-checkbox');
-    checkboxes.forEach(function(cb) {
-        cb.checked = checkbox.checked;
+    var rows = document.querySelectorAll('#variantMatrixForm tbody tr[data-variant-row]:not(.vm-hidden)');
+    rows.forEach(function(row) {
+        var cb = row.querySelector('.variant-checkbox');
+        if (cb) cb.checked = checkbox.checked;
     });
     updateBulkEditCount();
 }
@@ -2273,5 +2389,222 @@ document.addEventListener('submit', async function(event) {
         setFormSubmitting(form, false);
     }
 });
+// ==========================================
+// Variant Matrix Input Auto-Resize
+// ==========================================
+(function() {
+    var matrixForm = document.getElementById('variantMatrixForm');
+    if (!matrixForm) return;
+
+    // Create hidden measuring element
+    var measurer = document.createElement('span');
+    measurer.style.cssText = 'position:absolute;left:-9999px;top:-9999px;white-space:pre;font-size:0.8rem;font-family:inherit;padding:0;border:0;';
+    document.body.appendChild(measurer);
+
+    function autoResizeInput(input) {
+        var val = input.value || input.placeholder || '';
+        if (val.length < 4) val = '0000';
+        
+        var computedStyle = window.getComputedStyle(input);
+        measurer.style.fontSize = computedStyle.fontSize;
+        measurer.style.fontFamily = computedStyle.fontFamily;
+        measurer.style.fontWeight = computedStyle.fontWeight;
+        measurer.style.letterSpacing = computedStyle.letterSpacing;
+        
+        measurer.textContent = val;
+        var measuredWidth = measurer.offsetWidth;
+        
+        var isInGroup = input.closest('.input-group');
+        var pad = isInGroup ? 16 : 20; // Increased padding slightly to ensure decimals don't get cut off
+        var newWidth = Math.max(48, Math.min(measuredWidth + pad, isInGroup ? 120 : 160));
+        
+        input.style.setProperty('width', newWidth + 'px', 'important');
+        input.style.setProperty('min-width', newWidth + 'px', 'important');
+        if (isInGroup) {
+            input.style.setProperty('flex', '0 0 ' + newWidth + 'px', 'important');
+        }
+    }
+
+    function autoResizeAll() {
+        var inputs = matrixForm.querySelectorAll('.variant-matrix-table input[type="text"], .variant-matrix-table input[type="number"]');
+        inputs.forEach(function(input) {
+            if (input.type === 'hidden') return;
+            autoResizeInput(input);
+        });
+    }
+
+    // Bind live resize on input
+    matrixForm.addEventListener('input', function(e) {
+        var target = e.target;
+        if (target.matches('.variant-matrix-table input[type="text"], .variant-matrix-table input[type="number"]')) {
+            autoResizeInput(target);
+        }
+    });
+
+    matrixForm.addEventListener('change', function(e) {
+        var target = e.target;
+        if (target.matches('.variant-matrix-table input[type="text"], .variant-matrix-table input[type="number"]')) {
+            autoResizeInput(target);
+        }
+    });
+
+    // Initial resize on page load
+    autoResizeAll();
+})();
+
+// ==========================================
+// Variant Matrix Client-Side Pagination
+// ==========================================
+(function() {
+    var container = document.getElementById('variantMatrixPagination');
+    var matrixForm = document.getElementById('variantMatrixForm');
+    if (!container || !matrixForm) return;
+
+    var allRows = Array.from(matrixForm.querySelectorAll('tbody tr[data-variant-row]'));
+    var totalRows = allRows.length;
+
+    // Don't show pagination for very small sets
+    if (totalRows <= 20) {
+        container.style.display = 'none !important';
+        return;
+    }
+
+    var perPage = 20;
+    var currentPage = 1;
+
+    function totalPages() {
+        if (perPage <= 0) return 1; // "All"
+        return Math.max(1, Math.ceil(totalRows / perPage));
+    }
+
+    function applyPagination() {
+        if (perPage <= 0) {
+            // Show all
+            allRows.forEach(function(row) { row.classList.remove('vm-hidden'); });
+        } else {
+            var start = (currentPage - 1) * perPage;
+            var end = start + perPage;
+            allRows.forEach(function(row, i) {
+                if (i >= start && i < end) {
+                    row.classList.remove('vm-hidden');
+                } else {
+                    row.classList.add('vm-hidden');
+                }
+            });
+        }
+
+        // Update serial numbers for visible rows
+        var visibleIndex = 0;
+        allRows.forEach(function(row, i) {
+            if (!row.classList.contains('vm-hidden')) {
+                var slCell = row.querySelector('td:nth-child(2)');
+                if (slCell) {
+                    var strong = slCell.querySelector('strong');
+                    if (strong) strong.textContent = (i + 1);
+                }
+            }
+        });
+
+        // Update select-all checkbox state for visible rows
+        var selectAll = document.getElementById('selectAllVariants');
+        if (selectAll) {
+            var visibleCbs = matrixForm.querySelectorAll('tbody tr[data-variant-row]:not(.vm-hidden) .variant-checkbox');
+            var checkedVisible = matrixForm.querySelectorAll('tbody tr[data-variant-row]:not(.vm-hidden) .variant-checkbox:checked');
+            selectAll.checked = visibleCbs.length > 0 && checkedVisible.length === visibleCbs.length;
+            selectAll.indeterminate = checkedVisible.length > 0 && checkedVisible.length < visibleCbs.length;
+        }
+
+        renderPaginationUI();
+    }
+
+    function renderPaginationUI() {
+        var tp = totalPages();
+        var showingStart, showingEnd;
+
+        if (perPage <= 0) {
+            showingStart = 1;
+            showingEnd = totalRows;
+        } else {
+            showingStart = Math.min(((currentPage - 1) * perPage) + 1, totalRows);
+            showingEnd = Math.min(currentPage * perPage, totalRows);
+        }
+
+        var html = '';
+
+        // Left: per-page selector + count
+        html += '<div class="d-flex align-items-center gap-2 flex-wrap">';
+        html += '<span class="text-muted" style="font-size:0.8rem;">Show</span>';
+        html += '<select id="vmPerPageSelect" class="form-select form-select-sm" style="width:auto;">';
+        [20, 50, 100].forEach(function(n) {
+            html += '<option value="' + n + '"' + (perPage === n ? ' selected' : '') + '>' + n + '</option>';
+        });
+        html += '<option value="0"' + (perPage <= 0 ? ' selected' : '') + '>All</option>';
+        html += '</select>';
+        html += '<span class="text-muted" style="font-size:0.8rem;">Showing <strong>' + showingStart + '–' + showingEnd + '</strong> of <strong>' + totalRows + '</strong> variants</span>';
+        html += '</div>';
+
+        // Right: page navigation (only if not showing all)
+        if (perPage > 0 && tp > 1) {
+            html += '<div class="d-flex align-items-center gap-1">';
+
+            // Previous
+            html += '<button type="button" class="vm-page-btn" data-vm-page="' + (currentPage - 1) + '"' + (currentPage <= 1 ? ' disabled' : '') + '>&laquo;</button>';
+
+            // Page numbers with ellipsis
+            var pages = [];
+            var delta = 2;
+            var left = Math.max(2, currentPage - delta);
+            var right = Math.min(tp - 1, currentPage + delta);
+
+            pages.push(1);
+            if (left > 2) pages.push('...');
+            for (var p = left; p <= right; p++) pages.push(p);
+            if (right < tp - 1) pages.push('...');
+            if (tp > 1) pages.push(tp);
+
+            pages.forEach(function(pg) {
+                if (pg === '...') {
+                    html += '<span class="text-muted px-1" style="font-size:0.8rem;">…</span>';
+                } else {
+                    html += '<button type="button" class="vm-page-btn' + (pg === currentPage ? ' active' : '') + '" data-vm-page="' + pg + '">' + pg + '</button>';
+                }
+            });
+
+            // Next
+            html += '<button type="button" class="vm-page-btn" data-vm-page="' + (currentPage + 1) + '"' + (currentPage >= tp ? ' disabled' : '') + '>&raquo;</button>';
+            html += '</div>';
+        }
+
+        container.innerHTML = html;
+        container.style.cssText = ''; // Remove the initial hide
+        container.classList.add('variant-matrix-pagination-bar');
+
+        // Bind events
+        var perPageSelect = document.getElementById('vmPerPageSelect');
+        if (perPageSelect) {
+            perPageSelect.addEventListener('change', function() {
+                perPage = parseInt(this.value, 10);
+                currentPage = 1;
+                applyPagination();
+            });
+        }
+
+        container.querySelectorAll('[data-vm-page]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var pg = parseInt(this.getAttribute('data-vm-page'), 10);
+                if (pg >= 1 && pg <= tp && pg !== currentPage) {
+                    currentPage = pg;
+                    applyPagination();
+                    // Scroll to variant table
+                    var tableEl = matrixForm.querySelector('.variant-matrix-table');
+                    if (tableEl) tableEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    }
+
+    // Initial render
+    applyPagination();
+})();
 </script>
 @endpush

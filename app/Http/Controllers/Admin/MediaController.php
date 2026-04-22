@@ -28,7 +28,8 @@ class MediaController extends Controller
             $query->collection($collection);
         }
 
-        $media = $query->paginate(24)->withQueryString();
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
+        $media = $query->paginate($perPage)->withQueryString();
 
         return view('admin.media.index', compact('media'));
     }

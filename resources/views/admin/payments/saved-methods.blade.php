@@ -94,10 +94,8 @@
             </table>
         </div>
     </div>
-    @if($methods->hasPages())
-        <div class="card-footer">
-            {{ $methods->links() }}
+    <div class="card-footer">
+            @include('admin.partials.pagination', ['paginator' => $methods])
         </div>
-    @endif
 </div>
 @endsection

@@ -59,7 +59,8 @@ class ReturnController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        $returns = $query->paginate(15)->withQueryString();
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
+        $returns = $query->paginate($perPage)->withQueryString();
 
         // Statistics
         $stats = [

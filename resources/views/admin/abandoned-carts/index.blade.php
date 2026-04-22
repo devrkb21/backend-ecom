@@ -503,11 +503,9 @@
                 </table>
             </div>
 
-            @if($abandonedCarts->hasPages())
             <div class="card-footer">
-                {{ $abandonedCarts->links() }}
+                @include('admin.partials.pagination', ['paginator' => $abandonedCarts])
             </div>
-            @endif
         </div>
     </form>
 </div>

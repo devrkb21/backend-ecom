@@ -158,7 +158,7 @@
             </table>
         </div>
 
-        {{ $members->links() }}
+        @include('admin.partials.pagination', ['paginator' => $members])
     </div>
 </div>
 @endsection

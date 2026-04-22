@@ -25,7 +25,7 @@
                         }
                     }
                     
-                    $rootCategories = $categories->filter(fn($c) => $c->parent_id === null);
+                    $rootCategories = $allCategories->filter(fn($c) => $c->parent_id === null);
                 @endphp
 
                 @if($rootCategories->isNotEmpty())
@@ -43,7 +43,7 @@
     <div class="col-md-7">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-semibold"><i class="bi bi-tags me-2"></i>All Categories ({{ $categories->count() }})</h6>
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-tags me-2"></i>All Categories ({{ $allCategories->count() }})</h6>
                 <a href="{{ route('admin.categories.create') }}" class="btn btn-primary btn-sm">
                     <i class="bi bi-plus"></i> Add Category
                 </a>
@@ -108,6 +108,9 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+            <div class="card-footer">
+                @include('admin.partials.pagination', ['paginator' => $categories])
             </div>
         </div>
     </div>

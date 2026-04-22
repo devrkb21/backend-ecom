@@ -109,7 +109,7 @@
                     </table>
                 </div>
                 
-                {{ $transactions->links() }}
+                @include('admin.partials.pagination', ['paginator' => $transactions])
             </div>
         </div>
         

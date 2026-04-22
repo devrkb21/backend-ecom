@@ -216,9 +216,7 @@
         </div>
 
         {{-- Pagination --}}
-        <div class="d-flex justify-content-center mt-4">
-            {{ $coupons->links() }}
-        </div>
+        @include('admin.partials.pagination', ['paginator' => $coupons])
     </div>
 </div>
 @endsection
