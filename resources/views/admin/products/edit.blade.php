@@ -980,7 +980,8 @@
 /* Compact input groups (৳ prefix) */
 .variant-matrix-table .input-group {
     flex-wrap: nowrap;
-    width: auto;
+    width: max-content !important;
+    flex: 0 0 auto !important;
 }
 
 .variant-matrix-table .input-group .input-group-text {
@@ -992,6 +993,13 @@
 .variant-matrix-table .input-group .form-control {
     min-width: 48px;
     max-width: 100px;
+    flex: 0 0 auto !important;
+    transition: width 0.1s ease-out;
+}
+
+.variant-matrix-table .form-control,
+.variant-matrix-table .form-control-sm {
+    transition: width 0.1s ease-out;
 }
 
 /* Narrow copy button columns */
@@ -2395,15 +2403,26 @@ document.addEventListener('submit', async function(event) {
 
     function autoResizeInput(input) {
         var val = input.value || input.placeholder || '';
-        // Minimum 4 chars width
         if (val.length < 4) val = '0000';
+        
+        var computedStyle = window.getComputedStyle(input);
+        measurer.style.fontSize = computedStyle.fontSize;
+        measurer.style.fontFamily = computedStyle.fontFamily;
+        measurer.style.fontWeight = computedStyle.fontWeight;
+        measurer.style.letterSpacing = computedStyle.letterSpacing;
+        
         measurer.textContent = val;
         var measuredWidth = measurer.offsetWidth;
-        // Add padding: 14px for regular inputs, 10px for inputs inside input-group
+        
         var isInGroup = input.closest('.input-group');
-        var pad = isInGroup ? 10 : 14;
-        var newWidth = Math.max(48, Math.min(measuredWidth + pad, isInGroup ? 100 : 160));
-        input.style.width = newWidth + 'px';
+        var pad = isInGroup ? 16 : 20; // Increased padding slightly to ensure decimals don't get cut off
+        var newWidth = Math.max(48, Math.min(measuredWidth + pad, isInGroup ? 120 : 160));
+        
+        input.style.setProperty('width', newWidth + 'px', 'important');
+        input.style.setProperty('min-width', newWidth + 'px', 'important');
+        if (isInGroup) {
+            input.style.setProperty('flex', '0 0 ' + newWidth + 'px', 'important');
+        }
     }
 
     function autoResizeAll() {

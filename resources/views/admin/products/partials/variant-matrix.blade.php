@@ -40,14 +40,10 @@
                         @foreach($variantAttributes as $variantAttribute)
                             <th>{{ $variantAttribute->name }}</th>
                         @endforeach
-                        <th>Purchase Price</th>
-                        <th class="variant-copy-column"></th>
-                        <th>Regular Price</th>
-                        <th class="variant-copy-column"></th>
-                        <th>Discounted Price</th>
-                        <th class="variant-copy-column"></th>
-                        <th>Stock @if($stockEnabled)<span class="text-danger">*</span>@endif</th>
-                        <th class="variant-copy-column"></th>
+                        <th class="text-center" style="line-height: 1.1; font-size: 0.8rem;">Purchase<br>Price</th>
+                        <th class="text-center" style="line-height: 1.1; font-size: 0.8rem;">Regular<br>Price</th>
+                        <th class="text-center" style="line-height: 1.1; font-size: 0.8rem;">Discount<br>Price</th>
+                        <th class="text-center" style="line-height: 1.1; font-size: 0.8rem;">Stock @if($stockEnabled)<span class="text-danger">*</span>@endif</th>
                         <th>Status</th>
                         <th class="text-end">Actions</th>
                     </tr>
@@ -180,19 +176,19 @@
                                         value="{{ $variantPurchasePriceInput }}"
                                         required
                                     >
+                                    @if($index === 0)
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-secondary variant-copy-field-btn flex-shrink-0"
+                                            onclick="copyVariantFieldFromRow(this, 'purchase_price')"
+                                            title="Copy Purchase Price to all rows"
+                                        >
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    @else
+                                        <div class="variant-copy-placeholder" style="width: 24px; flex-shrink: 0; border-left: 1px solid transparent;"></div>
+                                    @endif
                                 </div>
-                            </td>
-                            <td class="variant-copy-cell align-middle">
-                                @if($index === 0)
-                                    <button
-                                        type="button"
-                                        class="btn btn-outline-secondary btn-sm variant-copy-field-btn"
-                                        onclick="copyVariantFieldFromRow(this, 'purchase_price')"
-                                        title="Copy Purchase Price to all rows"
-                                    >
-                                        <i class="bi bi-check-lg"></i>
-                                    </button>
-                                @endif
                             </td>
                             <td>
                                 <div class="input-group input-group-sm">
@@ -206,19 +202,19 @@
                                         value="{{ $variantRegularPriceInput }}"
                                         required
                                     >
+                                    @if($index === 0)
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-secondary variant-copy-field-btn flex-shrink-0"
+                                            onclick="copyVariantFieldFromRow(this, 'regular_price')"
+                                            title="Copy Regular Price to all rows"
+                                        >
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    @else
+                                        <div class="variant-copy-placeholder" style="width: 24px; flex-shrink: 0; border-left: 1px solid transparent;"></div>
+                                    @endif
                                 </div>
-                            </td>
-                            <td class="variant-copy-cell align-middle">
-                                @if($index === 0)
-                                    <button
-                                        type="button"
-                                        class="btn btn-outline-secondary btn-sm variant-copy-field-btn"
-                                        onclick="copyVariantFieldFromRow(this, 'regular_price')"
-                                        title="Copy Regular Price to all rows"
-                                    >
-                                        <i class="bi bi-check-lg"></i>
-                                    </button>
-                                @endif
                             </td>
                             <td>
                                 <div class="input-group input-group-sm">
@@ -232,41 +228,43 @@
                                         value="{{ $variantDiscountedPriceInput }}"
                                         placeholder="Optional"
                                     >
+                                    @if($index === 0)
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-secondary variant-copy-field-btn flex-shrink-0"
+                                            onclick="copyVariantFieldFromRow(this, 'discounted_price')"
+                                            title="Copy Discounted Price to all rows"
+                                        >
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    @else
+                                        <div class="variant-copy-placeholder" style="width: 24px; flex-shrink: 0; border-left: 1px solid transparent;"></div>
+                                    @endif
                                 </div>
                             </td>
-                            <td class="variant-copy-cell align-middle">
-                                @if($index === 0)
-                                    <button
-                                        type="button"
-                                        class="btn btn-outline-secondary btn-sm variant-copy-field-btn"
-                                        onclick="copyVariantFieldFromRow(this, 'discounted_price')"
-                                        title="Copy Discounted Price to all rows"
-                                    >
-                                        <i class="bi bi-check-lg"></i>
-                                    </button>
-                                @endif
-                            </td>
                             <td>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    class="form-control form-control-sm"
-                                    name="variants[{{ $index }}][stock_quantity]"
-                                    value="{{ $variantStockInput }}"
-                                    @if($stockEnabled) required @endif
-                                >
-                            </td>
-                            <td class="variant-copy-cell align-middle">
-                                @if($index === 0)
-                                    <button
-                                        type="button"
-                                        class="btn btn-outline-secondary btn-sm variant-copy-field-btn"
-                                        onclick="copyVariantFieldFromRow(this, 'stock_quantity')"
-                                        title="Copy Stock to all rows"
+                                <div class="input-group input-group-sm">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        class="form-control"
+                                        name="variants[{{ $index }}][stock_quantity]"
+                                        value="{{ $variantStockInput }}"
+                                        @if($stockEnabled) required @endif
                                     >
-                                        <i class="bi bi-check-lg"></i>
-                                    </button>
-                                @endif
+                                    @if($index === 0)
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-secondary variant-copy-field-btn flex-shrink-0"
+                                            onclick="copyVariantFieldFromRow(this, 'stock_quantity')"
+                                            title="Copy Stock to all rows"
+                                        >
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    @else
+                                        <div class="variant-copy-placeholder" style="width: 24px; flex-shrink: 0; border-left: 1px solid transparent;"></div>
+                                    @endif
+                                </div>
                             </td>
                             <td>
                                 <input type="hidden" name="variants[{{ $index }}][is_active]" value="0">
