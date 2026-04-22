@@ -136,10 +136,8 @@
             </table>
         </div>
     </div>
-    @if($users->hasPages())
-        <div class="card-footer">
-            {{ $users->links() }}
+    <div class="card-footer">
+            @include('admin.partials.pagination', ['paginator' => $users])
         </div>
-    @endif
 </div>
 @endsection

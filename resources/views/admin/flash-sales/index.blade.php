@@ -230,7 +230,7 @@
             </table>
         </div>
 
-        {{ $flashSales->links() }}
+        @include('admin.partials.pagination', ['paginator' => $flashSales])
     </div>
 </div>
 @endsection

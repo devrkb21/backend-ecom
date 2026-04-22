@@ -114,7 +114,7 @@
             </table>
         </div>
 
-        {{ $rewards->links() }}
+        @include('admin.partials.pagination', ['paginator' => $rewards])
     </div>
 </div>
 @endsection

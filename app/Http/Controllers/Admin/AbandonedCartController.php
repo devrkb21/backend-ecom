@@ -95,7 +95,8 @@ class AbandonedCartController extends Controller
             }
         }
 
-        $abandonedCarts = $query->paginate(20)->withQueryString();
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
+        $abandonedCarts = $query->paginate($perPage)->withQueryString();
 
         $stats = AbandonedCart::getSummary();
 

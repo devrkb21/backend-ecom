@@ -152,7 +152,7 @@
             </table>
         </div>
 
-        {{ $redemptions->links() }}
+        @include('admin.partials.pagination', ['paginator' => $redemptions])
     </div>
 </div>
 @endsection

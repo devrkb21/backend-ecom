@@ -70,6 +70,74 @@
                                             @endforeach
                                         </select>
                                         <small class="text-muted d-block mt-1">Applies to homepage, product listing, category products, and related products grids.</small>
+                                    @elseif($setting->key === 'logo_height')
+                                        @php
+                                            $currentLogoHeight = (int) old("settings.{$setting->key}", $setting->value ?: 40);
+                                            $currentLogoHeight = max(20, min(120, $currentLogoHeight));
+                                            $logoSetting = $settings->firstWhere('key', 'site_logo');
+                                            $logoPath = $logoSetting ? ltrim((string) $logoSetting->value, '/') : '';
+                                            $logoPreviewUrl = '';
+                                            if ($logoPath !== '') {
+                                                $logoPreviewUrl = (str_starts_with($logoPath, 'http://') || str_starts_with($logoPath, 'https://'))
+                                                    ? $logoSetting->value
+                                                    : ((str_starts_with($logoPath, 'media/') || str_starts_with($logoPath, 'storage/'))
+                                                        ? asset($logoPath)
+                                                        : Storage::disk('public')->url($logoPath));
+                                            }
+                                        @endphp
+                                        <div class="logo-size-control">
+                                            <div class="d-flex align-items-center gap-3 mb-3">
+                                                <input
+                                                    type="range"
+                                                    class="form-range flex-grow-1"
+                                                    id="logoHeightSlider"
+                                                    min="20"
+                                                    max="120"
+                                                    step="1"
+                                                    value="{{ $currentLogoHeight }}"
+                                                    oninput="updateLogoPreview(this.value)"
+                                                >
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <input
+                                                        type="number"
+                                                        class="form-control form-control-sm text-center"
+                                                        style="width: 68px;"
+                                                        id="logoHeightNumber"
+                                                        name="settings[{{ $setting->key }}]"
+                                                        value="{{ $currentLogoHeight }}"
+                                                        min="20"
+                                                        max="120"
+                                                        oninput="updateLogoPreviewFromNumber(this.value)"
+                                                    >
+                                                    <span class="text-muted small">px</span>
+                                                </div>
+                                            </div>
+
+                                            {{-- Live Preview --}}
+                                            <div class="border rounded-3 p-3 bg-light">
+                                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                                    <span class="text-muted small fw-semibold"><i class="bi bi-eye me-1"></i>Live Preview</span>
+                                                    <span class="badge bg-secondary" id="logoSizeLabel">{{ $currentLogoHeight }}px</span>
+                                                </div>
+                                                <div class="bg-white border rounded-2 p-3 d-flex align-items-center" style="min-height: 80px;">
+                                                    @if($logoPreviewUrl)
+                                                        <img
+                                                            src="{{ $logoPreviewUrl }}"
+                                                            alt="Logo Preview"
+                                                            id="logoPreviewImage"
+                                                            style="height: {{ $currentLogoHeight }}px; width: auto; object-fit: contain; transition: height 0.15s ease;"
+                                                        >
+                                                    @else
+                                                        <div class="text-muted small" id="logoPreviewPlaceholder">
+                                                            <i class="bi bi-image me-1"></i>No logo uploaded — upload a Site Logo above to see the preview.
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                                <small class="text-muted d-block mt-2">
+                                                    This is how your logo will appear in the frontend header. Height range: 20px – 120px.
+                                                </small>
+                                            </div>
+                                        </div>
                                     @else
                                         <input 
                                             type="number" 
@@ -351,7 +419,43 @@
             previewContainer.innerHTML = '<div class="position-relative d-inline-block">' +
                 '<img src="' + media.url + '" alt="Preview" class="img-thumbnail" style="max-height: 150px; max-width: 300px;">' +
                 '</div>';
+
+            // If the site_logo was updated, also update the logo height live preview
+            if (settingKey === 'site_logo') {
+                var logoPreviewImg = document.getElementById('logoPreviewImage');
+                var logoPlaceholder = document.getElementById('logoPreviewPlaceholder');
+                if (logoPreviewImg) {
+                    logoPreviewImg.src = media.url;
+                } else if (logoPlaceholder) {
+                    var slider = document.getElementById('logoHeightSlider');
+                    var h = slider ? slider.value : 40;
+                    logoPlaceholder.outerHTML = '<img src="' + media.url + '" alt="Logo Preview" id="logoPreviewImage" style="height: ' + h + 'px; width: auto; object-fit: contain; transition: height 0.15s ease;">';
+                }
+            }
         });
+    }
+
+    // Logo height slider + preview sync
+    function updateLogoPreview(val) {
+        val = Math.max(20, Math.min(120, parseInt(val, 10) || 40));
+        var numberInput = document.getElementById('logoHeightNumber');
+        var previewImg = document.getElementById('logoPreviewImage');
+        var sizeLabel = document.getElementById('logoSizeLabel');
+
+        if (numberInput) numberInput.value = val;
+        if (previewImg) previewImg.style.height = val + 'px';
+        if (sizeLabel) sizeLabel.textContent = val + 'px';
+    }
+
+    function updateLogoPreviewFromNumber(val) {
+        val = Math.max(20, Math.min(120, parseInt(val, 10) || 40));
+        var slider = document.getElementById('logoHeightSlider');
+        var previewImg = document.getElementById('logoPreviewImage');
+        var sizeLabel = document.getElementById('logoSizeLabel');
+
+        if (slider) slider.value = val;
+        if (previewImg) previewImg.style.height = val + 'px';
+        if (sizeLabel) sizeLabel.textContent = val + 'px';
     }
 </script>
 @endpush

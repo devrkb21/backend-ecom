@@ -33,9 +33,10 @@ class UserController extends Controller
             $query->whereNotNull('deleted_at');
         }
 
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
         $users = $query
             ->orderByDesc('created_at')
-            ->paginate(15)
+            ->paginate($perPage)
             ->withQueryString();
 
         $stats = [
@@ -122,16 +123,17 @@ class UserController extends Controller
         return back()->with('success', $message);
     }
 
-    public function show(int $id)
+    public function show(Request $request, int $id)
     {
         $user = User::withTrashed()->findOrFail($id);
 
-        $user->load(['orders' => function ($query) {
-            $query->latest()->limit(10);
-        }]);
+        $user->load('orders');
+
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
+        $orders = $user->orders()->latest()->paginate($perPage)->withQueryString();
 
         $roleLabels = User::roleOptions(false);
 
-        return view('admin.users.show', compact('user', 'roleLabels'));
+        return view('admin.users.show', compact('user', 'roleLabels', 'orders'));
     }
 }

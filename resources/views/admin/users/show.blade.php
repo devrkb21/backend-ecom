@@ -80,7 +80,7 @@
             </div>
         </div>
 
-        @if($user->orders->count() > 0)
+        @if($orders->total() > 0)
             <div class="card">
                 <div class="card-header">
                     <h6 class="mb-0 fw-semibold"><i class="bi bi-receipt me-2"></i>Recent Orders</h6>
@@ -98,7 +98,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($user->orders->take(10) as $order)
+                            @foreach($orders as $order)
                                     <tr>
                                         <td>#{{ $order->order_number ?? $order->id }}</td>
                                         <td>৳{{ number_format($order->total, 2) }}</td>
@@ -118,6 +118,9 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+                <div class="card-footer">
+                    @include('admin.partials.pagination', ['paginator' => $orders])
                 </div>
             </div>
         @endif

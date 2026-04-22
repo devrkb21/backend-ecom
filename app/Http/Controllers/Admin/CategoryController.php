@@ -11,14 +11,23 @@ use Illuminate\Support\Facades\Cache;
 
 class CategoryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $categories = Category::with(['parent', 'children'])
+        // Full collection for the tree view
+        $allCategories = Category::with(['parent', 'children'])
             ->withCount('products')
             ->orderBy('name')
             ->get();
 
-        return view('admin.categories.index', compact('categories'));
+        // Paginated collection for the flat table
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
+        $categories = Category::with(['parent', 'children'])
+            ->withCount('products')
+            ->orderBy('name')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return view('admin.categories.index', compact('allCategories', 'categories'));
     }
 
     public function create()

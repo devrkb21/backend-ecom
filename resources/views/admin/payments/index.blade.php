@@ -59,7 +59,7 @@
             </table>
         </div>
 
-        {{ $payments->links() }}
+        @include('admin.partials.pagination', ['paginator' => $payments])
     </div>
 </div>
 @endsection

@@ -265,11 +265,9 @@
         </div>
     </form>
 
-    @if($orders->hasPages())
-        <div class="card-footer">
-            {{ $orders->links() }}
+    <div class="card-footer">
+            @include('admin.partials.pagination', ['paginator' => $orders])
         </div>
-    @endif
 </div>
 @endsection
 

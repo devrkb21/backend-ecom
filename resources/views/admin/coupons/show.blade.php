@@ -135,10 +135,10 @@
         {{-- Usage History --}}
         <div class="card">
             <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Usage History</h6>
+                <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Usage History ({{ $coupon->usages->count() }})</h6>
             </div>
             <div class="card-body">
-                @if($coupon->usages->count() > 0)
+                @if($usages->total() > 0)
                     <div class="table-responsive">
                         <table class="table table-sm">
                             <thead class="table-light">
@@ -150,7 +150,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($coupon->usages()->latest()->take(20)->get() as $usage)
+                                @foreach($usages as $usage)
                                     <tr>
                                         <td>
                                             @if($usage->user)
@@ -176,11 +176,7 @@
                             </tbody>
                         </table>
                     </div>
-                    @if($coupon->usages->count() > 20)
-                        <div class="text-center text-muted small mt-2">
-                            Showing 20 of {{ $coupon->usages->count() }} records
-                        </div>
-                    @endif
+                    @include('admin.partials.pagination', ['paginator' => $usages])
                 @else
                     <div class="text-center text-muted py-4">
                         <i class="bi bi-inbox" style="font-size: 2rem;"></i>

@@ -234,7 +234,7 @@
                 </table>
             </div>
             <div class="mt-3">
-                {{ $returns->links() }}
+                @include('admin.partials.pagination', ['paginator' => $returns])
             </div>
         </div>
     </div>

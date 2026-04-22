@@ -31,7 +31,8 @@ class FlashSaleController extends Controller
             $query->where('ends_at', '<', now());
         }
 
-        $flashSales = $query->paginate(15);
+        $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
+        $flashSales = $query->paginate($perPage)->withQueryString();
 
         // Calculate stats
         $stats = [

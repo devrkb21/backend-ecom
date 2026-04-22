@@ -191,7 +191,7 @@
             </table>
         </div>
 
-        {{ $products->links() }}
+        @include('admin.partials.pagination', ['paginator' => $products])
     </div>
 </div>
 @endsection

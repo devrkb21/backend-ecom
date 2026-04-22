@@ -68,7 +68,7 @@
 
             {{-- Pagination --}}
             <div class="mt-4">
-                {{ $media->links() }}
+                @include('admin.partials.pagination', ['paginator' => $media])
             </div>
         @endif
     </div>

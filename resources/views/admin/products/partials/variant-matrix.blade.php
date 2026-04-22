@@ -25,7 +25,7 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th style="width: 44px;">
+                        <th style="width: 36px;">
                             <input
                                 type="checkbox"
                                 class="form-check-input"
@@ -33,18 +33,18 @@
                                 onchange="toggleAllVariants(this)"
                             >
                         </th>
-                        <th style="width: 60px;">SL</th>
-                        <th style="width: 60px;">Image</th>
-                        <th style="min-width: 180px;">Name</th>
+                        <th style="width: 40px;">SL</th>
+                        <th style="width: 50px;">Image</th>
+                        <th style="min-width: 130px;">Name</th>
                         <th>SKU</th>
                         @foreach($variantAttributes as $variantAttribute)
                             <th>{{ $variantAttribute->name }}</th>
                         @endforeach
-                        <th style="min-width: 120px;">Purchase Price</th>
+                        <th>Purchase Price</th>
                         <th class="variant-copy-column"></th>
-                        <th style="min-width: 120px;">Regular Price</th>
+                        <th>Regular Price</th>
                         <th class="variant-copy-column"></th>
-                        <th style="min-width: 140px;">Discounted Price</th>
+                        <th>Discounted Price</th>
                         <th class="variant-copy-column"></th>
                         <th>Stock @if($stockEnabled)<span class="text-danger">*</span>@endif</th>
                         <th class="variant-copy-column"></th>
@@ -97,7 +97,7 @@
                                         : asset('storage/' . $variantImagePath));
                             }
                         @endphp
-                        <tr id="variant-row-{{ $variant->id }}">
+                        <tr id="variant-row-{{ $variant->id }}" data-variant-row>
                             <td>
                                 <input
                                     type="checkbox"
@@ -123,7 +123,7 @@
                                     onclick="openVariantMatrixImagePicker({{ $variant->id }})"
                                     title="Select variant image from media library"
                                 >
-                                    <div id="variant-row-image-box-{{ $variant->id }}" class="rounded d-flex align-items-center justify-content-center {{ $variantImageUrl ? '' : 'bg-light' }}" style="width: 45px; height: 45px; overflow: hidden;">
+                                    <div id="variant-row-image-box-{{ $variant->id }}" class="rounded d-flex align-items-center justify-content-center {{ $variantImageUrl ? '' : 'bg-light' }}" style="width: 36px; height: 36px; overflow: hidden;">
                                         @if($variantImageUrl)
                                             <img src="{{ $variantImageUrl }}" alt="Variant" class="w-100 h-100" style="object-fit: cover;">
                                         @else
@@ -300,6 +300,9 @@
                 </tfoot>
             </table>
         </div>
+
+        {{-- Client-side Variant Pagination --}}
+        <div id="variantMatrixPagination" class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3 px-1" style="display: none !important;"></div>
 
         <div class="row g-3 align-items-end mt-1">
             <div class="col-lg-6">

@@ -202,11 +202,9 @@
             </table>
         </div>
     </div>
-    @if($reviews->hasPages())
-        <div class="card-footer">
-            {{ $reviews->links() }}
+    <div class="card-footer">
+            @include('admin.partials.pagination', ['paginator' => $reviews])
         </div>
-    @endif
 </div>
 @endsection
 

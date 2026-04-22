@@ -66,7 +66,10 @@
                 </tbody>
             </table>
         </div>
+    </div>
 
+    <div class="card-footer">
+        @include('admin.partials.pagination', ['paginator' => $attributes])
     </div>
 </div>
 @endsection
