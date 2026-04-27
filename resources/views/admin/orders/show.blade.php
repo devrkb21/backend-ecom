@@ -521,6 +521,42 @@
                 </div>
             </div>
         @endif
+
+        <div class="card mt-4">
+            <div class="card-header"><i class="bi bi-funnel me-2"></i>Order Source</div>
+            <div class="card-body">
+                <form action="{{ route('admin.orders.update-source', $order) }}" method="POST">
+                    @csrf
+                    @method('PATCH')
+
+                    <div class="mb-3">
+                        @php
+                            $sourceOptionsStr = \App\Models\Setting::getValue('general', 'order_source_options', 'Web,Facebook,Instagram,WhatsApp');
+                            $sourceOptions = array_filter(array_map('trim', explode(',', $sourceOptionsStr)));
+                        @endphp
+                        <label for="order_source" class="form-label">Order From</label>
+                        <select class="form-select @error('order_source') is-invalid @enderror" id="order_source" name="order_source">
+                            <option value="">-- Select Source --</option>
+                            @foreach($sourceOptions as $source)
+                                <option value="{{ $source }}" {{ $order->order_source === $source ? 'selected' : '' }}>
+                                    {{ $source }}
+                                </option>
+                            @endforeach
+                            @if($order->order_source && !in_array($order->order_source, $sourceOptions))
+                                <option value="{{ $order->order_source }}" selected>{{ $order->order_source }}</option>
+                            @endif
+                        </select>
+                        @error('order_source')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-check"></i> Update Source
+                    </button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 @endsection

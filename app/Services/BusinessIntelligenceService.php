@@ -138,6 +138,54 @@ class BusinessIntelligenceService
     }
 
     /**
+     * Get sales by order source
+     */
+    public function getSalesByOrderSource(string $period = 'month'): array
+    {
+        $dates = $this->getDateRange($period);
+
+        return Order::select('order_source', DB::raw('COUNT(*) as count'), DB::raw('SUM(total) as total'))
+            ->whereBetween('created_at', [$dates['start'], $dates['end']])
+            ->whereNotIn('status', ['cancelled', 'failed'])
+            ->groupBy('order_source')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'source' => $item->order_source ?? 'Web',
+                    'count' => $item->count,
+                    'total' => round($item->total, 2),
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get sales by location (shipping city)
+     */
+    public function getSalesByLocation(string $period = 'month', int $limit = 10): array
+    {
+        $dates = $this->getDateRange($period);
+
+        return Order::select('shipping_city', DB::raw('COUNT(*) as count'), DB::raw('SUM(total) as total'))
+            ->whereBetween('created_at', [$dates['start'], $dates['end']])
+            ->whereNotIn('status', ['cancelled', 'failed'])
+            ->whereNotNull('shipping_city')
+            ->where('shipping_city', '!=', '')
+            ->groupBy('shipping_city')
+            ->orderByDesc('count')
+            ->limit($limit)
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'city' => ucfirst($item->shipping_city),
+                    'count' => $item->count,
+                    'total' => round($item->total, 2),
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
      * Get sales by category
      */
     public function getSalesByCategory(string $period = 'month', int $limit = 10): array

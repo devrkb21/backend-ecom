@@ -586,7 +586,7 @@
 </style>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.getElementById('restocking_fee')?.addEventListener('input', function() {
     const total = {{ $return->total_amount }};
@@ -594,4 +594,4 @@ document.getElementById('restocking_fee')?.addEventListener('input', function() 
     document.getElementById('refund_amount').value = Math.max(0, total - fee).toFixed(2);
 });
 </script>
-@endsection
+@endpush

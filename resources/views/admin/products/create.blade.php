@@ -43,6 +43,7 @@
                             <div class="mb-3">
                                 <label for="sku" class="form-label small text-muted">SKU</label>
                                 <input type="text" class="form-control @error('sku') is-invalid @enderror" id="sku" name="sku" value="{{ old('sku') }}">
+                                <div class="form-text">Leave empty to auto-generate numeric SKU.</div>
                                 @error('sku')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror

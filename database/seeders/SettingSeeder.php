@@ -36,6 +36,7 @@ class SettingSeeder extends Seeder
             ['group' => 'general', 'key' => 'order_number_prefix', 'type' => 'text', 'label' => 'Order Number Prefix', 'value' => 'ORD', 'sort_order' => 14],
             ['group' => 'general', 'key' => 'order_number_generation_mode', 'type' => 'text', 'label' => 'Order Number Generation Mode', 'value' => 'timestamp_random', 'sort_order' => 15],
             ['group' => 'general', 'key' => 'stock_enabled', 'type' => 'boolean', 'label' => 'Enable Stock Tracking', 'value' => '1', 'sort_order' => 16],
+            ['group' => 'general', 'key' => 'order_source_options', 'type' => 'text', 'label' => 'Order Source Options (Comma separated)', 'value' => 'Web, Facebook, Instagram, WhatsApp', 'sort_order' => 17],
 
             // Social Media
             ['group' => 'social', 'key' => 'facebook', 'type' => 'text', 'label' => 'Facebook URL', 'value' => '', 'sort_order' => 1],

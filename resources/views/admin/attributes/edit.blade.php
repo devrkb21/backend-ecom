@@ -34,6 +34,22 @@
                         @enderror
                     </div>
 
+                    <div class="mb-3">
+                        <label class="form-label d-block">Frontend Display Style <span class="text-danger">*</span></label>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="display_style" id="style_rounded" value="rounded" {{ old('display_style', $attribute->display_style ?? 'rounded') == 'rounded' ? 'checked' : '' }}>
+                            <label class="form-check-label" for="style_rounded">Rounded Rectangle (with name)</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="display_style" id="style_circle" value="circle" {{ old('display_style', $attribute->display_style ?? 'rounded') == 'circle' ? 'checked' : '' }}>
+                            <label class="form-check-label" for="style_circle">Color Circle (only color)</label>
+                        </div>
+                        @error('display_style')
+                            <div class="text-danger small mt-1">{{ $message }}</div>
+                        @enderror
+                        <div class="form-text">Controls how the variant options are shown on the product details page.</div>
+                    </div>
+
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-check"></i> Update Attribute
                     </button>

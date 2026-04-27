@@ -12,11 +12,11 @@
 @endsection
 
 @section('content')
-<div class="container-fluid">
+
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h3 mb-0 text-gray-800">
+            <h1 class="h3 mb-0 text-dark">
                 <i class="bi bi-box-seam"></i> Inventory Alerts
             </h1>
             <p class="text-muted mb-0">Stock levels and inventory insights</p>
@@ -33,32 +33,32 @@
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-primary shadow h-100 py-2">
                 <div class="card-body">
-                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Units</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ number_format($valuation['total_units']) }}</div>
+                    <div class="small fw-bold text-primary text-uppercase mb-1">Total Units</div>
+                    <div class="h5 mb-0 fw-bold text-dark">{{ number_format($valuation['total_units']) }}</div>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-success shadow h-100 py-2">
                 <div class="card-body">
-                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Retail Value</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">৳{{ number_format($valuation['total_retail_value'], 0) }}</div>
+                    <div class="small fw-bold text-success text-uppercase mb-1">Retail Value</div>
+                    <div class="h5 mb-0 fw-bold text-dark">৳{{ number_format($valuation['total_retail_value'], 0) }}</div>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-info shadow h-100 py-2">
                 <div class="card-body">
-                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Cost Value</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">৳{{ number_format($valuation['total_cost_value'], 0) }}</div>
+                    <div class="small fw-bold text-info text-uppercase mb-1">Cost Value</div>
+                    <div class="h5 mb-0 fw-bold text-dark">৳{{ number_format($valuation['total_cost_value'], 0) }}</div>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-warning shadow h-100 py-2">
                 <div class="card-body">
-                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Potential Profit</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                    <div class="small fw-bold text-warning text-uppercase mb-1">Potential Profit</div>
+                    <div class="h5 mb-0 fw-bold text-dark">
                         ৳{{ number_format($valuation['potential_profit'], 0) }}
                         <small class="text-muted ms-1">({{ number_format($valuation['potential_profit_percentage'], 1) }}%)</small>
                     </div>
@@ -72,9 +72,9 @@
         <div class="col-lg-6">
             <div class="card shadow mb-4">
                 <div class="card-header py-3 bg-warning">
-                    <h6 class="m-0 font-weight-bold text-dark">
-                        <i class="fas fa-exclamation-triangle"></i> Low Stock Items (≤ {{ $threshold }} units)
-                        <span class="badge badge-dark ml-2">{{ count($lowStock) }}</span>
+                    <h6 class="m-0 fw-bold text-dark">
+                        <i class="bi bi-exclamation-triangle"></i> Low Stock Items (≤ {{ $threshold }} units)
+                        <span class="badge badge-dark ms-2">{{ count($lowStock) }}</span>
                     </h6>
                 </div>
                 <div class="card-body p-0">
@@ -87,7 +87,7 @@
                                     <th>SKU</th>
                                     <th class="text-center">Stock</th>
                                     <th>Category</th>
-                                    <th class="text-right">Value</th>
+                                    <th class="text-end">Value</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -103,7 +103,7 @@
                                         <span class="badge badge-warning stock-badge">{{ $item['stock'] }}</span>
                                     </td>
                                     <td><small>{{ $item['category'] }}</small></td>
-                                    <td class="text-right">৳{{ number_format($item['potential_loss'], 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($item['potential_loss'], 0) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -111,15 +111,15 @@
                     </div>
                     @else
                     <div class="text-center py-5">
-                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <i class="bi bi-check-circle fa-3x text-success mb-3"></i>
                         <p class="text-muted">No low stock items!</p>
                     </div>
                     @endif
                 </div>
                 <div class="card-footer">
                     <form class="form-inline">
-                        <label class="mr-2">Alert threshold:</label>
-                        <select name="threshold" class="form-control form-control-sm mr-2" onchange="this.form.submit()">
+                        <label class="me-2">Alert threshold:</label>
+                        <select name="threshold" class="form-control form-control-sm me-2" onchange="this.form.submit()">
                             <option value="5" {{ $threshold == 5 ? 'selected' : '' }}>5 units</option>
                             <option value="10" {{ $threshold == 10 ? 'selected' : '' }}>10 units</option>
                             <option value="20" {{ $threshold == 20 ? 'selected' : '' }}>20 units</option>
@@ -134,9 +134,9 @@
         <div class="col-lg-6">
             <div class="card shadow mb-4">
                 <div class="card-header py-3 bg-danger text-white">
-                    <h6 class="m-0 font-weight-bold">
-                        <i class="fas fa-times-circle"></i> Out of Stock
-                        <span class="badge badge-light ml-2">{{ count($outOfStock) }}</span>
+                    <h6 class="m-0 fw-bold">
+                        <i class="bi bi-x-circle"></i> Out of Stock
+                        <span class="badge badge-light ms-2">{{ count($outOfStock) }}</span>
                     </h6>
                 </div>
                 <div class="card-body p-0">
@@ -149,7 +149,7 @@
                                     <th>SKU</th>
                                     <th>Category</th>
                                     <th>Last Sale</th>
-                                    <th class="text-right">Price</th>
+                                    <th class="text-end">Price</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -163,7 +163,7 @@
                                     <td><small class="text-muted">{{ $item['sku'] }}</small></td>
                                     <td><small>{{ $item['category'] }}</small></td>
                                     <td><small class="text-muted">{{ $item['last_sale'] }}</small></td>
-                                    <td class="text-right">৳{{ number_format($item['price'], 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($item['price'], 0) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -171,7 +171,7 @@
                     </div>
                     @else
                     <div class="text-center py-5">
-                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <i class="bi bi-check-circle fa-3x text-success mb-3"></i>
                         <p class="text-muted">All products are in stock!</p>
                     </div>
                     @endif
@@ -183,7 +183,7 @@
     <!-- Inventory by Category -->
     <div class="card shadow mb-4">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Inventory Value by Category</h6>
+            <h6 class="m-0 fw-bold text-primary">Inventory Value by Category</h6>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -192,9 +192,9 @@
                         <tr>
                             <th>Category</th>
                             <th class="text-center">Units</th>
-                            <th class="text-right">Retail Value</th>
-                            <th class="text-right">Cost Value</th>
-                            <th class="text-right">Margin</th>
+                            <th class="text-end">Retail Value</th>
+                            <th class="text-end">Cost Value</th>
+                            <th class="text-end">Margin</th>
                             <th style="width: 200px;">Distribution</th>
                         </tr>
                     </thead>
@@ -207,9 +207,9 @@
                         <tr>
                             <td><strong>{{ $category['name'] }}</strong></td>
                             <td class="text-center">{{ number_format($category['units']) }}</td>
-                            <td class="text-right">৳{{ number_format($category['value'], 0) }}</td>
-                            <td class="text-right text-muted">৳{{ number_format($category['cost'], 0) }}</td>
-                            <td class="text-right">
+                            <td class="text-end">৳{{ number_format($category['value'], 0) }}</td>
+                            <td class="text-end text-muted">৳{{ number_format($category['cost'], 0) }}</td>
+                            <td class="text-end">
                                 <span class="{{ $margin >= 30 ? 'text-success' : ($margin >= 15 ? 'text-warning' : 'text-danger') }}">
                                     {{ number_format($margin, 1) }}%
                                 </span>
@@ -232,7 +232,7 @@
     <!-- Inventory Turnover -->
     <div class="card shadow mb-4">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">
+            <h6 class="m-0 fw-bold text-primary">
                 Inventory Turnover Rate (Last 30 Days)
                 <small class="text-muted">Higher is better - indicates faster selling products</small>
             </h6>
@@ -289,5 +289,4 @@
             </div>
         </div>
     </div>
-</div>
 @endsection

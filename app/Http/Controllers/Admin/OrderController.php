@@ -147,6 +147,21 @@ class OrderController extends Controller
             ->with('success', 'Order status updated successfully.');
     }
 
+    public function updateSource(Request $request, Order $order)
+    {
+        $request->validate([
+            'order_source' => 'nullable|string|max:255',
+        ]);
+
+        $order->update([
+            'order_source' => $request->input('order_source'),
+        ]);
+
+        return redirect()
+            ->route('admin.orders.show', $order)
+            ->with('success', 'Order source updated successfully.');
+    }
+
     public function bulkAction(Request $request)
     {
         $activeStatusKeys = OrderStatus::query()

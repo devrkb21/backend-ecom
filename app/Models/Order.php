@@ -23,6 +23,7 @@ class Order extends Model
         'order_number',
         'guest_access_token_hash',
         'status',
+        'order_source',
         'subtotal',
         'tax',
         'shipping',

@@ -25,7 +25,7 @@ class BusinessIntelligenceController extends Controller
         $outOfStock = $this->biService->getOutOfStockProducts();
         $bestSellers = $this->biService->getBestSellers($period, 5);
 
-        return view('admin.bi.index', compact(
+        return view('admin.analytics.bi-dashboard', compact(
             'period',
             'salesOverview',
             'customerOverview',
@@ -46,15 +46,19 @@ class BusinessIntelligenceController extends Controller
         $overview = $this->biService->getSalesOverview($period);
         $dailyChart = $this->biService->getDailySalesChart($days);
         $byPaymentMethod = $this->biService->getSalesByPaymentMethod($period);
+        $byOrderSource = $this->biService->getSalesByOrderSource($period);
+        $byLocation = $this->biService->getSalesByLocation($period, 10);
         $byCategory = $this->biService->getSalesByCategory($period, 10);
         $hourlyDistribution = $this->biService->getHourlySalesDistribution($days);
 
-        return view('admin.bi.sales-reports', compact(
+        return view('admin.analytics.sales-reports', compact(
             'period',
             'days',
             'overview',
             'dailyChart',
             'byPaymentMethod',
+            'byOrderSource',
+            'byLocation',
             'byCategory',
             'hourlyDistribution'
         ));
@@ -72,7 +76,7 @@ class BusinessIntelligenceController extends Controller
         $valuation = $this->biService->getInventoryValuation();
         $turnover = $this->biService->getInventoryTurnover(30);
 
-        return view('admin.bi.inventory-alerts', compact(
+        return view('admin.analytics.inventory-alerts', compact(
             'threshold',
             'lowStock',
             'outOfStock',
@@ -93,7 +97,7 @@ class BusinessIntelligenceController extends Controller
         $segments = $this->biService->getCustomerSegments();
         $cohorts = $this->biService->getCohortAnalysis(6);
 
-        return view('admin.bi.customer-analytics', compact(
+        return view('admin.analytics.customer-analytics', compact(
             'period',
             'overview',
             'topCustomers',
@@ -114,7 +118,7 @@ class BusinessIntelligenceController extends Controller
         $slowMovers = $this->biService->getSlowMovers($days, 20);
         $conversionRates = $this->biService->getProductConversionRates(20);
 
-        return view('admin.bi.product-performance', compact(
+        return view('admin.analytics.product-performance', compact(
             'period',
             'days',
             'bestSellers',
