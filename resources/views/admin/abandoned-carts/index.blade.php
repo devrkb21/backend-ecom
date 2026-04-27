@@ -138,109 +138,125 @@
     <!-- Stats Cards -->
     <div class="row g-2 mb-2">
         <div class="col-md-3 col-sm-6">
-            <div class="card bg-warning bg-opacity-10 border-warning abandoned-stat-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-warning mb-1">Open Carts</h6>
-                            <h3 class="stat-value">{{ number_format($stats['open']) }}</h3>
-                            <small class="text-muted">Pending + Follow Up</small>
-                        </div>
-                        <div class="text-warning opacity-50">
-                            <i class="fas fa-clock fa-lg"></i>
+            <a href="{{ route('admin.abandoned-carts.index', ['status' => 'open']) }}" class="text-decoration-none text-dark d-block h-100">
+                <div class="card bg-warning bg-opacity-10 border-warning abandoned-stat-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-warning mb-1">Open Carts</h6>
+                                <h3 class="stat-value">{{ number_format($stats['open']) }}</h3>
+                                <small class="text-muted">Pending + Follow Up</small>
+                            </div>
+                            <div class="text-warning opacity-50">
+                                <i class="fas fa-clock fa-lg"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3 col-sm-6">
-            <div class="card bg-info bg-opacity-10 border-info abandoned-stat-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-info mb-1">Overdue Follow Up</h6>
-                            <h3 class="stat-value">{{ number_format($stats['overdue_follow_up']) }}</h3>
-                            <small class="text-muted">Need immediate action</small>
-                        </div>
-                        <div class="text-info opacity-50">
-                            <i class="fas fa-phone fa-lg"></i>
+            <a href="{{ route('admin.abandoned-carts.index', ['priority' => 'overdue_follow_up']) }}" class="text-decoration-none text-dark d-block h-100">
+                <div class="card bg-info bg-opacity-10 border-info abandoned-stat-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-info mb-1">Overdue Follow Up</h6>
+                                <h3 class="stat-value">{{ number_format($stats['overdue_follow_up']) }}</h3>
+                                <small class="text-muted">Need immediate action</small>
+                            </div>
+                            <div class="text-info opacity-50">
+                                <i class="fas fa-phone fa-lg"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3 col-sm-6">
-            <div class="card bg-success bg-opacity-10 border-success abandoned-stat-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-success mb-1">Recovered (30d)</h6>
-                            <h3 class="stat-value">৳{{ number_format($stats['recovered_revenue_30d'], 0) }}</h3>
-                            <small class="text-muted">Revenue won back</small>
-                        </div>
-                        <div class="text-success opacity-50">
-                            <i class="fas fa-check-circle fa-lg"></i>
+            <a href="{{ route('admin.abandoned-carts.index', ['status' => 'recovered']) }}" class="text-decoration-none text-dark d-block h-100">
+                <div class="card bg-success bg-opacity-10 border-success abandoned-stat-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-success mb-1">Recovered (30d)</h6>
+                                <h3 class="stat-value">৳{{ number_format($stats['recovered_revenue_30d'], 0) }}</h3>
+                                <small class="text-muted">Revenue won back</small>
+                            </div>
+                            <div class="text-success opacity-50">
+                                <i class="fas fa-check-circle fa-lg"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3 col-sm-6">
-            <div class="card bg-primary bg-opacity-10 border-primary abandoned-stat-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-primary mb-1">Potential Revenue</h6>
-                            <h3 class="stat-value">৳{{ number_format($stats['potential_revenue'], 0) }}</h3>
-                            <small class="text-muted">Avg ৳{{ number_format($stats['avg_open_value'], 0) }}/cart</small>
-                        </div>
-                        <div class="text-primary opacity-50">
-                            <i class="fas fa-coins fa-lg"></i>
+            <a href="{{ route('admin.abandoned-carts.index') }}" class="text-decoration-none text-dark d-block h-100">
+                <div class="card bg-primary bg-opacity-10 border-primary abandoned-stat-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-primary mb-1">Potential Revenue</h6>
+                                <h3 class="stat-value">৳{{ number_format($stats['potential_revenue'], 0) }}</h3>
+                                <small class="text-muted">Avg ৳{{ number_format($stats['avg_open_value'], 0) }}/cart</small>
+                            </div>
+                            <div class="text-primary opacity-50">
+                                <i class="fas fa-coins fa-lg"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
     </div>
 
     <!-- Additional Stats -->
     <div class="row g-2 mb-3">
         <div class="col-md-3">
-            <div class="card abandoned-secondary-stat">
-                <div class="card-body text-center">
-                    <h6 class="text-muted mb-2">Recovery Rate (30 days)</h6>
-                    <h2 class="mb-0 {{ $stats['recovery_rate'] >= 10 ? 'text-success' : 'text-warning' }}">
-                        {{ $stats['recovery_rate'] }}%
-                    </h2>
+            <a href="{{ route('admin.abandoned-carts.index', ['status' => 'recovered']) }}" class="text-decoration-none text-dark d-block h-100">
+                <div class="card abandoned-secondary-stat h-100">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">Recovery Rate (30 days)</h6>
+                        <h2 class="mb-0 {{ $stats['recovery_rate'] >= 10 ? 'text-success' : 'text-warning' }}">
+                            {{ $stats['recovery_rate'] }}%
+                        </h2>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3">
-            <div class="card abandoned-secondary-stat">
-                <div class="card-body text-center">
-                    <h6 class="text-muted mb-2">With Contact Info</h6>
-                    <h2 class="mb-0 text-info">{{ number_format($stats['with_contact']) }}</h2>
-                    <small class="text-muted">{{ $stats['contactable_rate'] }}% of open leads</small>
+            <a href="{{ route('admin.abandoned-carts.index', ['has_contact' => 'yes']) }}" class="text-decoration-none text-dark d-block h-100">
+                <div class="card abandoned-secondary-stat h-100">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">With Contact Info</h6>
+                        <h2 class="mb-0 text-info">{{ number_format($stats['with_contact']) }}</h2>
+                        <small class="text-muted">{{ $stats['contactable_rate'] }}% of open leads</small>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3">
-            <div class="card abandoned-secondary-stat">
-                <div class="card-body text-center">
-                    <h6 class="text-muted mb-2">High Value Open</h6>
-                    <h2 class="mb-0 text-danger">{{ number_format($stats['high_value_open']) }}</h2>
-                    <small class="text-muted">Over ৳5,000 carts</small>
+            <a href="{{ route('admin.abandoned-carts.index', ['priority' => 'high_value']) }}" class="text-decoration-none text-dark d-block h-100">
+                <div class="card abandoned-secondary-stat h-100">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">High Value Open</h6>
+                        <h2 class="mb-0 text-danger">{{ number_format($stats['high_value_open']) }}</h2>
+                        <small class="text-muted">Over ৳5,000 carts</small>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3">
-            <div class="card abandoned-secondary-stat">
-                <div class="card-body text-center">
-                    <h6 class="text-muted mb-2">Reminder Queue</h6>
-                    <h2 class="mb-0 text-primary">{{ number_format($stats['reminder_due']) }}</h2>
-                    <small class="text-muted">Ready for reminder send</small>
+            <a href="{{ route('admin.abandoned-carts.index', ['priority' => 'reminder_due']) }}" class="text-decoration-none text-dark d-block h-100">
+                <div class="card abandoned-secondary-stat h-100">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">Reminder Queue</h6>
+                        <h2 class="mb-0 text-primary">{{ number_format($stats['reminder_due']) }}</h2>
+                        <small class="text-muted">Ready for reminder send</small>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
     </div>
 

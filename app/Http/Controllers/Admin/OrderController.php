@@ -66,6 +66,10 @@ class OrderController extends Controller
             });
         }
 
+        if ($request->input('date') === 'today') {
+            $query->whereDate('created_at', \Carbon\Carbon::today());
+        }
+
         $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
         $orders = $query->paginate($perPage)->withQueryString();
 

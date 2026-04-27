@@ -7,240 +7,264 @@
 <!-- Today's Stats -->
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100 border-start border-primary border-4">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
-                            <i class="bi bi-currency-dollar text-primary fs-4"></i>
+        <a href="{{ route('admin.bi.sales-reports') }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 border-start border-primary border-4 hover-elevate">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-currency-dollar text-primary fs-4"></i>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h4 class="mb-0">৳{{ number_format($todayStats['revenue'], 2) }}</h4>
-                        <span class="text-muted small">Today's Revenue</span>
+                        <div class="flex-grow-1 ms-3">
+                            <h4 class="mb-0">৳{{ number_format($todayStats['revenue'], 2) }}</h4>
+                            <span class="text-muted small">Today's Revenue</span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100 border-start border-success border-4">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-success bg-opacity-10 p-3 rounded-circle">
-                            <i class="bi bi-cart-check text-success fs-4"></i>
+        <a href="{{ route('admin.orders.index', ['date' => 'today']) }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 border-start border-success border-4 hover-elevate">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-cart-check text-success fs-4"></i>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h4 class="mb-0">{{ number_format($todayStats['orders']) }}</h4>
-                        <span class="text-muted small">Today's Orders</span>
+                        <div class="flex-grow-1 ms-3">
+                            <h4 class="mb-0">{{ number_format($todayStats['orders']) }}</h4>
+                            <span class="text-muted small">Today's Orders</span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100 border-start border-info border-4">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-info bg-opacity-10 p-3 rounded-circle">
-                            <i class="bi bi-person-plus text-info fs-4"></i>
+        <a href="{{ route('admin.users.index', ['date' => 'today']) }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 border-start border-info border-4 hover-elevate">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-person-plus text-info fs-4"></i>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h4 class="mb-0">{{ number_format($todayStats['new_customers']) }}</h4>
-                        <span class="text-muted small">New Customers</span>
+                        <div class="flex-grow-1 ms-3">
+                            <h4 class="mb-0">{{ number_format($todayStats['new_customers']) }}</h4>
+                            <span class="text-muted small">New Customers</span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100 border-start border-warning border-4">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
-                            <i class="bi bi-exclamation-triangle text-warning fs-4"></i>
+        <a href="{{ route('admin.products.index', ['stock' => 'low']) }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 border-start border-warning border-4 hover-elevate">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-exclamation-triangle text-warning fs-4"></i>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h4 class="mb-0">{{ number_format($lowStockCount) }}</h4>
-                        <span class="text-muted small">Low Stock Items</span>
+                        <div class="flex-grow-1 ms-3">
+                            <h4 class="mb-0">{{ number_format($lowStockCount) }}</h4>
+                            <span class="text-muted small">Low Stock Items</span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 </div>
 
 <!-- Abandoned Cart Summary -->
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100 border-start border-warning border-4">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
-                            <i class="bi bi-cart-x text-warning fs-4"></i>
+        <a href="{{ route('admin.abandoned-carts.index', ['status' => 'open']) }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 border-start border-warning border-4 hover-elevate">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-cart-x text-warning fs-4"></i>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h4 class="mb-0">{{ number_format($abandonedSummary['open']) }}</h4>
-                        <span class="text-muted small">Open Abandoned Carts</span>
-                        <br>
-                        <small class="text-danger">{{ number_format($abandonedSummary['overdue_follow_up']) }} overdue follow-up</small>
+                        <div class="flex-grow-1 ms-3">
+                            <h4 class="mb-0">{{ number_format($abandonedSummary['open']) }}</h4>
+                            <span class="text-muted small">Open Abandoned Carts</span>
+                            <br>
+                            <small class="text-danger">{{ number_format($abandonedSummary['overdue_follow_up']) }} overdue follow-up</small>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100 border-start border-danger border-4">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-danger bg-opacity-10 p-3 rounded-circle">
-                            <i class="bi bi-bell text-danger fs-4"></i>
+        <a href="{{ route('admin.abandoned-carts.index') }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 border-start border-danger border-4 hover-elevate">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-danger bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-bell text-danger fs-4"></i>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h4 class="mb-0">{{ number_format($abandonedSummary['reminder_due']) }}</h4>
-                        <span class="text-muted small">Reminder Queue</span>
-                        <br>
-                        <small class="text-muted">{{ number_format($abandonedSummary['high_value_open']) }} high-value carts</small>
+                        <div class="flex-grow-1 ms-3">
+                            <h4 class="mb-0">{{ number_format($abandonedSummary['reminder_due']) }}</h4>
+                            <span class="text-muted small">Reminder Queue</span>
+                            <br>
+                            <small class="text-muted">{{ number_format($abandonedSummary['high_value_open']) }} high-value carts</small>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100 border-start border-primary border-4">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
-                            <i class="bi bi-cash-coin text-primary fs-4"></i>
+        <a href="{{ route('admin.abandoned-carts.index') }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 border-start border-primary border-4 hover-elevate">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-cash-coin text-primary fs-4"></i>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h4 class="mb-0">৳{{ number_format($abandonedSummary['potential_revenue'], 0) }}</h4>
-                        <span class="text-muted small">Potential Revenue</span>
-                        <br>
-                        <small class="text-muted">Avg ৳{{ number_format($abandonedSummary['avg_open_value'], 0) }}/cart</small>
+                        <div class="flex-grow-1 ms-3">
+                            <h4 class="mb-0">৳{{ number_format($abandonedSummary['potential_revenue'], 0) }}</h4>
+                            <span class="text-muted small">Potential Revenue</span>
+                            <br>
+                            <small class="text-muted">Avg ৳{{ number_format($abandonedSummary['avg_open_value'], 0) }}/cart</small>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100 border-start border-success border-4">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-success bg-opacity-10 p-3 rounded-circle">
-                            <i class="bi bi-arrow-repeat text-success fs-4"></i>
+        <a href="{{ route('admin.abandoned-carts.index', ['status' => 'recovered']) }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 border-start border-success border-4 hover-elevate">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-arrow-repeat text-success fs-4"></i>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h4 class="mb-0">{{ $abandonedSummary['recovery_rate'] }}%</h4>
-                        <span class="text-muted small">Recovery Rate (30d)</span>
-                        <br>
-                        <small class="text-success">৳{{ number_format($abandonedSummary['recovered_revenue_30d'], 0) }} recovered</small>
+                        <div class="flex-grow-1 ms-3">
+                            <h4 class="mb-0">{{ $abandonedSummary['recovery_rate'] }}%</h4>
+                            <span class="text-muted small">Recovery Rate (30d)</span>
+                            <br>
+                            <small class="text-success">৳{{ number_format($abandonedSummary['recovered_revenue_30d'], 0) }} recovered</small>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 </div>
 
 <!-- Main Stats -->
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
-                            <i class="bi bi-people text-primary fs-4"></i>
+        <a href="{{ route('admin.users.index') }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 hover-elevate">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-people text-primary fs-4"></i>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h3 class="mb-0">{{ number_format($stats['total_users']) }}</h3>
-                        <span class="text-muted small">Total Customers</span>
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0">{{ number_format($stats['total_users']) }}</h3>
+                            <span class="text-muted small">Total Customers</span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-success bg-opacity-10 p-3 rounded-circle">
-                            <i class="bi bi-box text-success fs-4"></i>
+        <a href="{{ route('admin.products.index') }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 hover-elevate">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-box text-success fs-4"></i>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h3 class="mb-0">{{ number_format($stats['total_products']) }}</h3>
-                        <span class="text-muted small">Total Products</span>
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0">{{ number_format($stats['total_products']) }}</h3>
+                            <span class="text-muted small">Total Products</span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-info bg-opacity-10 p-3 rounded-circle">
-                            <i class="bi bi-receipt text-info fs-4"></i>
+        <a href="{{ route('admin.orders.index') }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 hover-elevate">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-receipt text-info fs-4"></i>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h3 class="mb-0">{{ number_format($stats['total_orders']) }}</h3>
-                        <span class="text-muted small">Total Orders</span>
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0">{{ number_format($stats['total_orders']) }}</h3>
+                            <span class="text-muted small">Total Orders</span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-success bg-opacity-10 p-3 rounded-circle">
-                            <i class="bi bi-currency-dollar text-success fs-4"></i>
+        <a href="{{ route('admin.bi.sales-reports') }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 hover-elevate">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-currency-dollar text-success fs-4"></i>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h3 class="mb-0">৳{{ number_format($stats['total_revenue'], 2) }}</h3>
-                        <span class="text-muted small">Total Revenue</span>
-                        @if($revenueChange != 0)
-                            <br>
-                            <small class="{{ $revenueChange > 0 ? 'text-success' : 'text-danger' }}">
-                                <i class="bi bi-{{ $revenueChange > 0 ? 'arrow-up' : 'arrow-down' }}"></i>
-                                {{ abs(round($revenueChange, 1)) }}% vs last month
-                            </small>
-                        @endif
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0">৳{{ number_format($stats['total_revenue'], 2) }}</h3>
+                            <span class="text-muted small">Total Revenue</span>
+                            @if($revenueChange != 0)
+                                <br>
+                                <small class="{{ $revenueChange > 0 ? 'text-success' : 'text-danger' }}">
+                                    <i class="bi bi-{{ $revenueChange > 0 ? 'arrow-up' : 'arrow-down' }}"></i>
+                                    {{ abs(round($revenueChange, 1)) }}% vs last month
+                                </small>
+                            @endif
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 </div>
 
@@ -250,7 +274,7 @@
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h6 class="card-title mb-0 fw-semibold">Revenue - Last 7 Days</h6>
-                <a href="{{ route('admin.analytics.sales') }}" class="btn btn-sm btn-outline-primary">
+                <a href="{{ route('admin.bi.sales-reports') }}" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-graph-up me-1"></i> View Full Report
                 </a>
             </div>
@@ -400,7 +424,7 @@
                 @endif
             </div>
             <div class="card-footer">
-                <a href="{{ route('admin.analytics.products') }}" class="btn btn-sm btn-outline-primary w-100">
+                <a href="{{ route('admin.bi.product-performance') }}" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-bar-chart me-1"></i> View Products Report
                 </a>
             </div>
@@ -421,7 +445,7 @@
                     <a href="{{ route('admin.categories.create') }}" class="btn btn-outline-primary">
                         <i class="bi bi-folder-plus me-1"></i> Add Category
                     </a>
-                    <a href="{{ route('admin.analytics.sales') }}" class="btn btn-outline-info">
+                    <a href="{{ route('admin.bi.sales-reports') }}" class="btn btn-outline-info">
                         <i class="bi bi-graph-up me-1"></i> Sales Report
                     </a>
                 </div>

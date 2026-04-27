@@ -42,83 +42,91 @@
     <!-- Quick Stats -->
     <div class="row">
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="row g-0 align-items-center">
-                        <div class="col me-2">
-                            <div class="small fw-bold text-primary text-uppercase mb-1">Revenue</div>
-                            <div class="h5 mb-0 fw-bold text-dark">৳{{ number_format($salesOverview['revenue'], 2) }}</div>
-                            <small class="{{ $salesOverview['revenue_growth'] >= 0 ? 'growth-positive' : 'growth-negative' }}">
-                                <i class="fas fa-{{ $salesOverview['revenue_growth'] >= 0 ? 'arrow-up' : 'arrow-down' }}"></i>
-                                {{ abs($salesOverview['revenue_growth']) }}% vs last period
-                            </small>
-                        </div>
-                        <div class="col-auto">
-                            <i class="bi bi-currency-dollar fa-2x text-muted"></i>
+            <a href="{{ route('admin.bi.sales-reports', ['period' => $period]) }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <div class="row g-0 align-items-center">
+                            <div class="col me-2">
+                                <div class="small fw-bold text-primary text-uppercase mb-1">Revenue</div>
+                                <div class="h5 mb-0 fw-bold text-dark">৳{{ number_format($salesOverview['revenue'], 2) }}</div>
+                                <small class="{{ $salesOverview['revenue_growth'] >= 0 ? 'growth-positive' : 'growth-negative' }}">
+                                    <i class="fas fa-{{ $salesOverview['revenue_growth'] >= 0 ? 'arrow-up' : 'arrow-down' }}"></i>
+                                    {{ abs($salesOverview['revenue_growth']) }}% vs last period
+                                </small>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-currency-dollar fa-2x text-muted"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
 
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="row g-0 align-items-center">
-                        <div class="col me-2">
-                            <div class="small fw-bold text-success text-uppercase mb-1">Orders</div>
-                            <div class="h5 mb-0 fw-bold text-dark">{{ number_format($salesOverview['orders']) }}</div>
-                            <small class="{{ $salesOverview['orders_growth'] >= 0 ? 'growth-positive' : 'growth-negative' }}">
-                                <i class="fas fa-{{ $salesOverview['orders_growth'] >= 0 ? 'arrow-up' : 'arrow-down' }}"></i>
-                                {{ abs($salesOverview['orders_growth']) }}% vs last period
-                            </small>
-                        </div>
-                        <div class="col-auto">
-                            <i class="bi bi-cart fa-2x text-muted"></i>
+            <a href="{{ route('admin.bi.sales-reports', ['period' => $period]) }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <div class="row g-0 align-items-center">
+                            <div class="col me-2">
+                                <div class="small fw-bold text-success text-uppercase mb-1">Orders</div>
+                                <div class="h5 mb-0 fw-bold text-dark">{{ number_format($salesOverview['orders']) }}</div>
+                                <small class="{{ $salesOverview['orders_growth'] >= 0 ? 'growth-positive' : 'growth-negative' }}">
+                                    <i class="fas fa-{{ $salesOverview['orders_growth'] >= 0 ? 'arrow-up' : 'arrow-down' }}"></i>
+                                    {{ abs($salesOverview['orders_growth']) }}% vs last period
+                                </small>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-cart fa-2x text-muted"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
 
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="row g-0 align-items-center">
-                        <div class="col me-2">
-                            <div class="small fw-bold text-info text-uppercase mb-1">Avg Order Value</div>
-                            <div class="h5 mb-0 fw-bold text-dark">৳{{ number_format($salesOverview['average_order_value'], 2) }}</div>
-                            <small class="{{ $salesOverview['aov_growth'] >= 0 ? 'growth-positive' : 'growth-negative' }}">
-                                <i class="fas fa-{{ $salesOverview['aov_growth'] >= 0 ? 'arrow-up' : 'arrow-down' }}"></i>
-                                {{ abs($salesOverview['aov_growth']) }}% vs last period
-                            </small>
-                        </div>
-                        <div class="col-auto">
-                            <i class="bi bi-graph-up fa-2x text-muted"></i>
+            <a href="{{ route('admin.bi.sales-reports', ['period' => $period]) }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <div class="row g-0 align-items-center">
+                            <div class="col me-2">
+                                <div class="small fw-bold text-info text-uppercase mb-1">Avg Order Value</div>
+                                <div class="h5 mb-0 fw-bold text-dark">৳{{ number_format($salesOverview['average_order_value'], 2) }}</div>
+                                <small class="{{ $salesOverview['aov_growth'] >= 0 ? 'growth-positive' : 'growth-negative' }}">
+                                    <i class="fas fa-{{ $salesOverview['aov_growth'] >= 0 ? 'arrow-up' : 'arrow-down' }}"></i>
+                                    {{ abs($salesOverview['aov_growth']) }}% vs last period
+                                </small>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-graph-up fa-2x text-muted"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
 
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="row g-0 align-items-center">
-                        <div class="col me-2">
-                            <div class="small fw-bold text-warning text-uppercase mb-1">New Customers</div>
-                            <div class="h5 mb-0 fw-bold text-dark">{{ number_format($customerOverview['new_customers']) }}</div>
-                            <small class="{{ $customerOverview['new_customer_growth'] >= 0 ? 'growth-positive' : 'growth-negative' }}">
-                                <i class="fas fa-{{ $customerOverview['new_customer_growth'] >= 0 ? 'arrow-up' : 'arrow-down' }}"></i>
-                                {{ abs($customerOverview['new_customer_growth']) }}% vs last period
-                            </small>
-                        </div>
-                        <div class="col-auto">
-                            <i class="bi bi-people fa-2x text-muted"></i>
+            <a href="{{ route('admin.bi.customer-analytics', ['period' => $period]) }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <div class="row g-0 align-items-center">
+                            <div class="col me-2">
+                                <div class="small fw-bold text-warning text-uppercase mb-1">New Customers</div>
+                                <div class="h5 mb-0 fw-bold text-dark">{{ number_format($customerOverview['new_customers']) }}</div>
+                                <small class="{{ $customerOverview['new_customer_growth'] >= 0 ? 'growth-positive' : 'growth-negative' }}">
+                                    <i class="fas fa-{{ $customerOverview['new_customer_growth'] >= 0 ? 'arrow-up' : 'arrow-down' }}"></i>
+                                    {{ abs($customerOverview['new_customer_growth']) }}% vs last period
+                                </small>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-people fa-2x text-muted"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
     </div>
 

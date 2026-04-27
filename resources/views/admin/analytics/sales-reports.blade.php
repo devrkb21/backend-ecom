@@ -36,121 +36,133 @@
     <!-- Overview Stats -->
     <div class="row g-3 mb-4">
         <div class="col-sm-6 col-lg-4">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-currency-dollar text-primary fs-4"></i>
+            <a href="{{ route('admin.orders.index') }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
+                                    <i class="bi bi-currency-dollar text-primary fs-4"></i>
+                                </div>
                             </div>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h3 class="mb-0 text-primary">৳{{ number_format($overview['revenue'], 0) }}</h3>
-                            <span class="text-muted small">Gross Revenue</span>
-                            <br>
-                            <small class="{{ $overview['revenue_growth'] >= 0 ? 'text-success' : 'text-danger' }}">
-                                <i class="bi bi-arrow-{{ $overview['revenue_growth'] >= 0 ? 'up' : 'down' }}"></i>
-                                {{ abs($overview['revenue_growth']) }}%
-                            </small>
+                            <div class="flex-grow-1 ms-3">
+                                <h3 class="mb-0 text-primary">৳{{ number_format($overview['revenue'], 0) }}</h3>
+                                <span class="text-muted small">Gross Revenue</span>
+                                <br>
+                                <small class="{{ $overview['revenue_growth'] >= 0 ? 'text-success' : 'text-danger' }}">
+                                    <i class="bi bi-arrow-{{ $overview['revenue_growth'] >= 0 ? 'up' : 'down' }}"></i>
+                                    {{ abs($overview['revenue_growth']) }}%
+                                </small>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-sm-6 col-lg-4">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <div class="bg-success bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-wallet2 text-success fs-4"></i>
+            <a href="{{ route('admin.orders.index') }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-success bg-opacity-10 p-3 rounded-circle">
+                                    <i class="bi bi-wallet2 text-success fs-4"></i>
+                                </div>
                             </div>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h3 class="mb-0 text-success">৳{{ number_format($overview['net_revenue'], 0) }}</h3>
-                            <span class="text-muted small">Net Revenue</span>
+                            <div class="flex-grow-1 ms-3">
+                                <h3 class="mb-0 text-success">৳{{ number_format($overview['net_revenue'], 0) }}</h3>
+                                <span class="text-muted small">Net Revenue</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-sm-6 col-lg-4">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <div class="bg-info bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-receipt text-info fs-4"></i>
+            <a href="{{ route('admin.orders.index') }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-info bg-opacity-10 p-3 rounded-circle">
+                                    <i class="bi bi-receipt text-info fs-4"></i>
+                                </div>
                             </div>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h3 class="mb-0 text-info">{{ number_format($overview['orders']) }}</h3>
-                            <span class="text-muted small">Total Orders</span>
-                            <br>
-                            <small class="{{ $overview['orders_growth'] >= 0 ? 'text-success' : 'text-danger' }}">
-                                <i class="bi bi-arrow-{{ $overview['orders_growth'] >= 0 ? 'up' : 'down' }}"></i>
-                                {{ abs($overview['orders_growth']) }}%
-                            </small>
+                            <div class="flex-grow-1 ms-3">
+                                <h3 class="mb-0 text-info">{{ number_format($overview['orders']) }}</h3>
+                                <span class="text-muted small">Total Orders</span>
+                                <br>
+                                <small class="{{ $overview['orders_growth'] >= 0 ? 'text-success' : 'text-danger' }}">
+                                    <i class="bi bi-arrow-{{ $overview['orders_growth'] >= 0 ? 'up' : 'down' }}"></i>
+                                    {{ abs($overview['orders_growth']) }}%
+                                </small>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-sm-6 col-lg-4">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-graph-up text-warning fs-4"></i>
+            <a href="{{ route('admin.orders.index') }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
+                                    <i class="bi bi-graph-up text-warning fs-4"></i>
+                                </div>
                             </div>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h3 class="mb-0 text-warning">৳{{ number_format($overview['average_order_value'], 0) }}</h3>
-                            <span class="text-muted small">Avg Order Value</span>
-                            <br>
-                            <small class="{{ $overview['aov_growth'] >= 0 ? 'text-success' : 'text-danger' }}">
-                                <i class="bi bi-arrow-{{ $overview['aov_growth'] >= 0 ? 'up' : 'down' }}"></i>
-                                {{ abs($overview['aov_growth']) }}%
-                            </small>
+                            <div class="flex-grow-1 ms-3">
+                                <h3 class="mb-0 text-warning">৳{{ number_format($overview['average_order_value'], 0) }}</h3>
+                                <span class="text-muted small">Avg Order Value</span>
+                                <br>
+                                <small class="{{ $overview['aov_growth'] >= 0 ? 'text-success' : 'text-danger' }}">
+                                    <i class="bi bi-arrow-{{ $overview['aov_growth'] >= 0 ? 'up' : 'down' }}"></i>
+                                    {{ abs($overview['aov_growth']) }}%
+                                </small>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-sm-6 col-lg-4">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <div class="bg-danger bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-arrow-return-left text-danger fs-4"></i>
+            <a href="{{ route('admin.orders.index') }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-danger bg-opacity-10 p-3 rounded-circle">
+                                    <i class="bi bi-arrow-return-left text-danger fs-4"></i>
+                                </div>
                             </div>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h3 class="mb-0 text-danger">৳{{ number_format($overview['refunds'], 0) }}</h3>
-                            <span class="text-muted small">Refunds</span>
+                            <div class="flex-grow-1 ms-3">
+                                <h3 class="mb-0 text-danger">৳{{ number_format($overview['refunds'], 0) }}</h3>
+                                <span class="text-muted small">Refunds</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-sm-6 col-lg-4">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <div class="bg-secondary bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-calendar3 text-secondary fs-4"></i>
+            <a href="#" class="text-decoration-none d-block h-100 text-dark" style="pointer-events: none;">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-secondary bg-opacity-10 p-3 rounded-circle">
+                                    <i class="bi bi-calendar3 text-secondary fs-4"></i>
+                                </div>
                             </div>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h6 class="mb-0 text-secondary">{{ $overview['start_date'] }}</h6>
-                            <span class="text-muted small">to {{ $overview['end_date'] }}</span>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-0 text-secondary">{{ $overview['start_date'] }}</h6>
+                                <span class="text-muted small">to {{ $overview['end_date'] }}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
     </div>
 

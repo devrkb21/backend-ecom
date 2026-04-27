@@ -36,36 +36,44 @@
     <!-- Quick Stats -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card stat-card h-100">
-                <div class="card-body text-center">
-                    <div class="h2 mb-0 text-primary">{{ count($bestSellers) }}</div>
-                    <small class="text-muted">Products Sold</small>
+            <a href="{{ route('admin.products.index') }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body text-center">
+                        <div class="h2 mb-0 text-primary">{{ count($bestSellers) }}</div>
+                        <small class="text-muted">Products Sold</small>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3">
-            <div class="card stat-card h-100">
-                <div class="card-body text-center">
-                    <div class="h2 mb-0 text-success">৳{{ number_format(array_sum(array_column($bestSellers, 'revenue')), 0) }}</div>
-                    <small class="text-muted">Total Revenue</small>
+            <a href="{{ route('admin.orders.index') }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body text-center">
+                        <div class="h2 mb-0 text-success">৳{{ number_format(array_sum(array_column($bestSellers, 'revenue')), 0) }}</div>
+                        <small class="text-muted">Total Revenue</small>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3">
-            <div class="card stat-card h-100">
-                <div class="card-body text-center">
-                    <div class="h2 mb-0 text-info">{{ number_format(array_sum(array_column($bestSellers, 'units_sold'))) }}</div>
-                    <small class="text-muted">Units Sold</small>
+            <a href="{{ route('admin.orders.index') }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body text-center">
+                        <div class="h2 mb-0 text-info">{{ number_format(array_sum(array_column($bestSellers, 'units_sold'))) }}</div>
+                        <small class="text-muted">Units Sold</small>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3">
-            <div class="card stat-card h-100">
-                <div class="card-body text-center">
-                    <div class="h2 mb-0 text-warning">{{ count($slowMovers) }}</div>
-                    <small class="text-muted">Slow Movers</small>
+            <a href="{{ route('admin.products.index') }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body text-center">
+                        <div class="h2 mb-0 text-warning">{{ count($slowMovers) }}</div>
+                        <small class="text-muted">Slow Movers</small>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
     </div>
 
