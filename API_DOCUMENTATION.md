@@ -6,11 +6,11 @@
 - Base URL (production): https://api.innercollection.com.bd/api/v1
 - Base URL (local): http://localhost:8000/api/v1
 - Health check: GET /api/health
-- Total API routes (including /api/health): 164
-- Total /api/v1 routes: 163
-- Authenticated /api/v1 routes: 99
+- Total API routes (including /api/health): 168
+- Total /api/v1 routes: 167
+- Authenticated /api/v1 routes: 102
 - Internal-secret /api/v1 routes: 51
-- Public /api/v1 routes: 13
+- Public /api/v1 routes: 14
 
 ## Table of Contents
 1. API Conventions
@@ -50,9 +50,9 @@ API access is split into 3 models:
 - `Public` routes: no Sanctum token and no internal secret required.
 
 Current route distribution under `/api/v1`:
-- Auth routes: 99
+- Auth routes: 102
 - Internal-secret routes: 51
-- Public routes: 13
+- Public routes: 14
 
 ### Authorization Model
 - User ownership checks are done in controller/service for user-scoped resources (orders, payments, profile, returns, addresses, wishlist, reviews).
@@ -242,169 +242,173 @@ The following table is generated from current route:list output.
 | Method | Path | Access | Action |
 |---|---|---|---|
 | GET|HEAD | /api/health | Public | Closure |
-| GET|HEAD | /api/v1/addresses | Auth | AddressController@index |
-| POST | /api/v1/addresses | Auth | AddressController@store |
-| GET|HEAD | /api/v1/addresses/default/billing | Auth | AddressController@defaultBilling |
-| GET|HEAD | /api/v1/addresses/default/shipping | Auth | AddressController@defaultShipping |
-| DELETE | /api/v1/addresses/{address} | Auth | AddressController@destroy |
-| GET|HEAD | /api/v1/addresses/{address} | Auth | AddressController@show |
-| PUT | /api/v1/addresses/{address} | Auth | AddressController@update |
-| POST | /api/v1/addresses/{address}/set-default | Auth | AddressController@setDefault |
-| GET|HEAD | /api/v1/admin/audit-logs | Auth + is_admin | AuditLogController@index |
-| GET|HEAD | /api/v1/admin/audit-logs/{id} | Auth + is_admin | AuditLogController@show |
-| GET|HEAD | /api/v1/admin/orders/export | Auth + is_admin | OrderExportController@export |
-| GET|HEAD | /api/v1/admin/orders/export/download/{filename} | Auth + is_admin | OrderExportController@download |
-| GET|HEAD | /api/v1/attributes | Internal Secret | AttributeController@index |
-| GET|HEAD | /api/v1/attributes/{id} | Internal Secret | AttributeController@show |
-| POST | /api/v1/auth/change-password | Auth | AuthController@changePassword |
-| POST | /api/v1/auth/email/resend | Auth | AuthController@resendVerification |
-| GET|HEAD | /api/v1/auth/email/verify/{id}/{hash} | Public + signed | AuthController@verifyEmail |
-| POST | /api/v1/auth/forgot-password | Public + throttle:auth | AuthController@forgotPassword |
-| POST | /api/v1/auth/login | Public + throttle:auth | AuthController@login |
-| POST | /api/v1/auth/logout | Auth | AuthController@logout |
-| GET|HEAD | /api/v1/auth/me | Auth | AuthController@me |
-| POST | /api/v1/auth/register | Public + throttle:auth | AuthController@register |
-| POST | /api/v1/auth/reset-password | Public + throttle:auth | AuthController@resetPassword |
-| GET|HEAD | /api/v1/bkash/callback | Public | BkashController@callback |
-| GET|HEAD | /api/v1/bkash/check-status | Auth | BkashController@checkStatus |
-| GET|HEAD | /api/v1/bkash/config | Public | BkashController@config |
-| POST | /api/v1/bkash/create-payment | Auth | BkashController@createPayment |
-| POST | /api/v1/bkash/refund | Auth + perm:returns.manage | BkashController@refund |
-| DELETE | /api/v1/cart | Auth | CartController@clear |
-| GET|HEAD | /api/v1/cart | Auth | CartController@index |
-| DELETE | /api/v1/cart/coupon | Auth | CouponController@remove |
-| POST | /api/v1/cart/coupon | Auth | CouponController@apply |
-| POST | /api/v1/cart/items | Auth | CartController@addItem |
-| DELETE | /api/v1/cart/items/{productId} | Auth | CartController@removeItem |
-| PUT | /api/v1/cart/items/{productId} | Auth | CartController@updateItem |
-| POST | /api/v1/cart/recommendations | Auth | RelatedProductController@cartRecommendations |
-| GET|HEAD | /api/v1/categories | Internal Secret | CategoryController@index |
-| POST | /api/v1/categories | Auth + perm:catalog.manage | CategoryController@store |
-| GET|HEAD | /api/v1/categories/menu | Internal Secret | CategoryController@menu |
-| GET|HEAD | /api/v1/categories/slug/{slug} | Internal Secret | CategoryController@showBySlug |
-| DELETE | /api/v1/categories/{id} | Auth + perm:catalog.manage | CategoryController@destroy |
-| GET|HEAD | /api/v1/categories/{id} | Internal Secret | CategoryController@show |
-| PUT | /api/v1/categories/{id} | Auth + perm:catalog.manage | CategoryController@update |
-| GET|HEAD | /api/v1/categories/{id}/children | Internal Secret | CategoryController@children |
-| POST | /api/v1/checkout/recovered | Auth | AbandonedCartController@markRecovered |
-| POST | /api/v1/checkout/track | Auth | AbandonedCartController@track |
-| GET|HEAD | /api/v1/coupons/available | Auth | CouponController@available |
-| GET|HEAD | /api/v1/coupons/validate | Auth | CouponController@validate |
-| GET|HEAD | /api/v1/flash-sales | Internal Secret | FlashSaleController@index |
-| GET|HEAD | /api/v1/flash-sales/featured | Internal Secret | FlashSaleController@featured |
-| GET|HEAD | /api/v1/flash-sales/product/{productId} | Internal Secret | FlashSaleController@checkProduct |
-| GET|HEAD | /api/v1/flash-sales/upcoming | Internal Secret | FlashSaleController@upcoming |
-| POST | /api/v1/flash-sales/validate-purchase | Internal Secret | FlashSaleController@validatePurchase |
-| GET|HEAD | /api/v1/flash-sales/{slug} | Internal Secret | FlashSaleController@show |
-| GET|HEAD | /api/v1/locations/bd/districts | Internal Secret | BangladeshLocationController@districts |
-| GET|HEAD | /api/v1/locations/bd/divisions | Internal Secret | BangladeshLocationController@divisions |
-| GET|HEAD | /api/v1/locations/bd/unions | Internal Secret | BangladeshLocationController@unions |
-| GET|HEAD | /api/v1/locations/bd/upazilas | Internal Secret | BangladeshLocationController@upazilas |
-| GET|HEAD | /api/v1/locations/districts | Internal Secret | BangladeshLocationController@districts |
-| GET|HEAD | /api/v1/locations/divisions | Internal Secret | BangladeshLocationController@divisions |
-| GET|HEAD | /api/v1/locations/unions | Internal Secret | BangladeshLocationController@unions |
-| GET|HEAD | /api/v1/locations/upazilas | Internal Secret | BangladeshLocationController@upazilas |
-| GET|HEAD | /api/v1/loyalty/leaderboard | Auth | LoyaltyController@leaderboard |
-| POST | /api/v1/loyalty/redeem | Auth | LoyaltyController@redeem |
-| GET|HEAD | /api/v1/loyalty/redemptions | Auth | LoyaltyController@redemptions |
-| GET|HEAD | /api/v1/loyalty/redemptions/active | Auth | LoyaltyController@activeRedemptions |
-| POST | /api/v1/loyalty/redemptions/{redemption}/cancel | Auth | LoyaltyController@cancelRedemption |
-| GET|HEAD | /api/v1/loyalty/rewards | Auth | LoyaltyController@rewards |
-| GET|HEAD | /api/v1/loyalty/summary | Auth | LoyaltyController@summary |
-| GET|HEAD | /api/v1/loyalty/tiers | Auth | LoyaltyController@tiers |
-| GET|HEAD | /api/v1/loyalty/transactions | Auth | LoyaltyController@transactions |
-| POST | /api/v1/loyalty/validate-coupon | Auth | LoyaltyController@validateCoupon |
-| GET|HEAD | /api/v1/notifications | Auth | NotificationController@index |
-| POST | /api/v1/notifications/read-all | Auth | NotificationController@markAllAsRead |
-| GET|HEAD | /api/v1/notifications/unread-count | Auth | NotificationController@unreadCount |
-| DELETE | /api/v1/notifications/{id} | Auth | NotificationController@destroy |
-| POST | /api/v1/notifications/{id}/read | Auth | NotificationController@markAsRead |
-| GET|HEAD | /api/v1/orders | Auth | OrderController@index |
-| POST | /api/v1/orders | Public | OrderController@store |
-| GET|HEAD | /api/v1/orders/number/{orderNumber} | Public | OrderController@showByNumber |
-| GET|HEAD | /api/v1/orders/status/{status} | Auth + perm:orders.manage | OrderController@byStatus |
-| GET|HEAD | /api/v1/orders/{id} | Auth | OrderController@show |
-| POST | /api/v1/orders/{id}/cancel | Auth | OrderController@cancel |
-| GET|HEAD | /api/v1/orders/{id}/invoice | Auth | InvoiceController@show |
-| GET|HEAD | /api/v1/orders/{id}/notes | Auth | OrderNoteController@index |
-| POST | /api/v1/orders/{id}/notes | Auth + perm:orders.manage | OrderNoteController@store |
-| DELETE | /api/v1/orders/{id}/notes/{noteId} | Auth + perm:orders.manage | OrderNoteController@destroy |
-| PUT | /api/v1/orders/{id}/status | Auth + perm:orders.manage | OrderController@updateStatus |
-| GET|HEAD | /api/v1/orders/{id}/tracking | Auth | OrderTrackingController@show |
-| GET|HEAD | /api/v1/payment-methods | Internal Secret | PaymentGatewayController@index |
-| GET|HEAD | /api/v1/payment-methods/{code} | Internal Secret | PaymentGatewayController@show |
-| POST | /api/v1/payments | Auth | PaymentController@store |
-| GET|HEAD | /api/v1/payments/order/{orderId} | Auth | PaymentController@show |
-| POST | /api/v1/payments/{paymentId}/process | Auth | PaymentController@process |
-| POST | /api/v1/payments/{paymentId}/refund | Auth + perm:returns.manage | PaymentController@refund |
-| GET|HEAD | /api/v1/products | Internal Secret | ProductController@index |
-| POST | /api/v1/products | Auth + perm:catalog.manage | ProductController@store |
-| GET|HEAD | /api/v1/products/bestsellers | Internal Secret | ProductController@bestsellers |
-| POST | /api/v1/products/bulk-action | Auth + perm:catalog.manage | ProductController@bulkAction |
-| GET|HEAD | /api/v1/products/category/{categoryId} | Internal Secret | ProductController@byCategory |
-| GET|HEAD | /api/v1/products/featured | Internal Secret | ProductController@featured |
-| GET|HEAD | /api/v1/products/new | Internal Secret | ProductController@newProducts |
-| GET|HEAD | /api/v1/products/search | Internal Secret | ProductController@search |
-| GET|HEAD | /api/v1/products/slug/{slug} | Internal Secret | ProductController@showBySlug |
-| DELETE | /api/v1/products/{id} | Auth + perm:catalog.manage | ProductController@destroy |
-| GET|HEAD | /api/v1/products/{id} | Internal Secret | ProductController@show |
-| PUT | /api/v1/products/{id} | Auth + perm:catalog.manage | ProductController@update |
-| GET|HEAD | /api/v1/products/{id}/variants | Internal Secret | ProductController@variants |
-| GET|HEAD | /api/v1/products/{productId}/reviews | Internal Secret | ReviewController@index |
-| GET|HEAD | /api/v1/products/{productId}/reviews/featured | Internal Secret | ReviewController@featured |
-| GET|HEAD | /api/v1/products/{productId}/reviews/summary | Internal Secret | ReviewController@summary |
-| GET|HEAD | /api/v1/products/{product}/cross-sell | Internal Secret | RelatedProductController@crossSell |
-| GET|HEAD | /api/v1/products/{product}/frequently-bought-together | Internal Secret | RelatedProductController@frequentlyBoughtTogether |
-| GET|HEAD | /api/v1/products/{product}/related | Internal Secret | RelatedProductController@index |
-| GET|HEAD | /api/v1/products/{product}/upsell | Internal Secret | RelatedProductController@upsell |
-| GET|HEAD | /api/v1/profile | Auth | UserController@profile |
-| PUT | /api/v1/profile | Auth | UserController@updateProfile |
-| GET|HEAD | /api/v1/returns | Auth | ReturnController@index |
-| POST | /api/v1/returns | Auth | ReturnController@store |
-| GET|HEAD | /api/v1/returns/check-eligibility | Auth | ReturnController@checkEligibility |
-| GET|HEAD | /api/v1/returns/{return} | Auth | ReturnController@show |
-| POST | /api/v1/returns/{return}/cancel | Auth | ReturnController@cancel |
-| POST | /api/v1/returns/{return}/upload-images | Auth | ReturnController@uploadImages |
-| POST | /api/v1/reviews | Auth | ReviewController@store |
-| GET|HEAD | /api/v1/reviews/can-review/{productId} | Auth | ReviewController@canReview |
-| GET|HEAD | /api/v1/reviews/my | Auth | ReviewController@myReviews |
-| DELETE | /api/v1/reviews/{review} | Auth | ReviewController@destroy |
-| PUT | /api/v1/reviews/{review} | Auth | ReviewController@update |
-| DELETE | /api/v1/reviews/{review}/vote | Auth | ReviewController@removeVote |
-| POST | /api/v1/reviews/{review}/vote | Auth | ReviewController@vote |
-| GET|HEAD | /api/v1/settings | Internal Secret | FrontendSettingController@index |
-| GET|HEAD | /api/v1/settings/banner | Internal Secret | FrontendSettingController@banner |
-| GET|HEAD | /api/v1/settings/checkout | Internal Secret | FrontendSettingController@checkout |
-| GET|HEAD | /api/v1/settings/footer | Internal Secret | FrontendSettingController@footer |
-| GET|HEAD | /api/v1/settings/general | Internal Secret | FrontendSettingController@general |
-| GET|HEAD | /api/v1/settings/hero | Internal Secret | FrontendSettingController@hero |
-| GET|HEAD | /api/v1/settings/seo | Internal Secret | FrontendSettingController@seo |
-| GET|HEAD | /api/v1/settings/social | Internal Secret | FrontendSettingController@social |
-| GET|HEAD | /api/v1/settings/{group} | Internal Secret | FrontendSettingController@showGroup |
-| GET|HEAD | /api/v1/shipping-methods | Internal Secret | ShippingMethodController@index |
-| POST | /api/v1/shipping-methods/calculate | Internal Secret | ShippingMethodController@calculate |
-| GET|HEAD | /api/v1/shipping-methods/{code} | Internal Secret | ShippingMethodController@show |
-| GET|HEAD | /api/v1/stripe/config | Public | StripeController@config |
-| POST | /api/v1/stripe/confirm-payment | Auth | StripeController@confirmPayment |
-| POST | /api/v1/stripe/create-payment-intent | Auth | StripeController@createPaymentIntent |
-| POST | /api/v1/stripe/webhook | Public | StripeController@webhook |
-| GET|HEAD | /api/v1/track/order/{orderNumber} | Public | OrderTrackingController@trackByOrderNumber |
-| GET|HEAD | /api/v1/track/tracking/{trackingNumber} | Public | OrderTrackingController@trackByTrackingNumber |
-| GET|HEAD | /api/v1/users | Auth + perm:users.manage | UserController@index |
-| POST | /api/v1/users | Auth + perm:users.manage | UserController@store |
-| DELETE | /api/v1/users/{id} | Auth + perm:users.manage | UserController@destroy |
-| GET|HEAD | /api/v1/users/{id} | Auth | UserController@show |
-| PUT | /api/v1/users/{id} | Auth | UserController@update |
-| POST | /api/v1/users/{id}/toggle-status | Auth + perm:users.manage | UserController@toggleStatus |
-| GET|HEAD | /api/v1/wishlist | Auth | WishlistController@index |
-| POST | /api/v1/wishlist | Auth | WishlistController@store |
-| GET|HEAD | /api/v1/wishlist/check | Auth | WishlistController@check |
-| DELETE | /api/v1/wishlist/clear | Auth | WishlistController@clear |
-| GET|HEAD | /api/v1/wishlist/count | Auth | WishlistController@count |
-| DELETE | /api/v1/wishlist/product | Auth | WishlistController@removeByProduct |
-| POST | /api/v1/wishlist/toggle | Auth | WishlistController@toggle |
-| DELETE | /api/v1/wishlist/{wishlist} | Auth | WishlistController@destroy |
-| POST | /api/v1/wishlist/{wishlist}/move-to-cart | Auth | WishlistController@moveToCart |
+| POST | /api/v1/auth/register | Public + throttle:auth | Auth@register |
+| POST | /api/v1/auth/login | Public + throttle:auth | Auth@login |
+| POST | /api/v1/auth/forgot-password | Public + throttle:auth | Auth@forgotPassword |
+| POST | /api/v1/auth/reset-password | Public + throttle:auth | Auth@resetPassword |
+| GET|HEAD | /api/v1/auth/email/verify/{id}/{hash} | Public + signed | Auth@verifyEmail |
+| GET|HEAD | /api/v1/stripe/config | Public | Stripe@config |
+| POST | /api/v1/stripe/webhook | Public | Stripe@webhook |
+| POST | /api/v1/stripe/create-payment-intent | Auth | Stripe@createPaymentIntent |
+| POST | /api/v1/stripe/confirm-payment | Auth | Stripe@confirmPayment |
+| GET|HEAD | /api/v1/bkash/config | Public | Bkash@config |
+| GET|HEAD | /api/v1/bkash/callback | Public | Bkash@callback |
+| POST | /api/v1/bkash/create-payment | Auth | Bkash@createPayment |
+| GET|HEAD | /api/v1/track/order/{orderNumber} | Public | OrderTracking@trackByOrderNumber |
+| GET|HEAD | /api/v1/track/tracking/{trackingNumber} | Public | OrderTracking@trackByTrackingNumber |
+| GET|HEAD | /api/v1/categories | Internal Secret | Category@index |
+| GET|HEAD | /api/v1/categories/menu | Internal Secret | Category@menu |
+| GET|HEAD | /api/v1/categories/{id} | Internal Secret | Category@show |
+| GET|HEAD | /api/v1/categories/slug/{slug} | Internal Secret | Category@showBySlug |
+| GET|HEAD | /api/v1/categories/{id}/children | Internal Secret | Category@children |
+| GET|HEAD | /api/v1/products | Internal Secret | Product@index |
+| GET|HEAD | /api/v1/products/featured | Internal Secret | Product@featured |
+| GET|HEAD | /api/v1/products/new | Internal Secret | Product@newProducts |
+| GET|HEAD | /api/v1/products/bestsellers | Internal Secret | Product@bestsellers |
+| GET|HEAD | /api/v1/products/search | Internal Secret | Product@search |
+| GET|HEAD | /api/v1/products/{id} | Internal Secret | Product@show |
+| GET|HEAD | /api/v1/products/slug/{slug} | Internal Secret | Product@showBySlug |
+| GET|HEAD | /api/v1/products/category/{categoryId} | Internal Secret | Product@byCategory |
+| GET|HEAD | /api/v1/products/{id}/variants | Internal Secret | Product@variants |
+| GET|HEAD | /api/v1/products/{product}/related | Internal Secret | RelatedProduct@index |
+| GET|HEAD | /api/v1/products/{product}/frequently-bought-together | Internal Secret | RelatedProduct@frequentlyBoughtTogether |
+| GET|HEAD | /api/v1/products/{product}/upsell | Internal Secret | RelatedProduct@upsell |
+| GET|HEAD | /api/v1/products/{product}/cross-sell | Internal Secret | RelatedProduct@crossSell |
+| GET|HEAD | /api/v1/products/{productId}/reviews | Internal Secret | Review@index |
+| GET|HEAD | /api/v1/products/{productId}/reviews/summary | Internal Secret | Review@summary |
+| GET|HEAD | /api/v1/products/{productId}/reviews/featured | Internal Secret | Review@featured |
+| GET|HEAD | /api/v1/attributes | Internal Secret | Attribute@index |
+| GET|HEAD | /api/v1/attributes/{id} | Internal Secret | Attribute@show |
+| GET|HEAD | /api/v1/payment-methods | Internal Secret | PaymentGateway@index |
+| GET|HEAD | /api/v1/payment-methods/{code} | Internal Secret | PaymentGateway@show |
+| GET|HEAD | /api/v1/shipping-methods | Internal Secret | ShippingMethod@index |
+| GET|HEAD | /api/v1/shipping-methods/{code} | Internal Secret | ShippingMethod@show |
+| POST | /api/v1/shipping-methods/calculate | Internal Secret | ShippingMethod@calculate |
+| GET|HEAD | /api/v1/locations/bd/divisions | Internal Secret | BangladeshLocation@divisions |
+| GET|HEAD | /api/v1/locations/bd/districts | Internal Secret | BangladeshLocation@districts |
+| GET|HEAD | /api/v1/locations/bd/upazilas | Internal Secret | BangladeshLocation@upazilas |
+| GET|HEAD | /api/v1/locations/bd/unions | Internal Secret | BangladeshLocation@unions |
+| GET|HEAD | /api/v1/locations/divisions | Internal Secret | BangladeshLocation@divisions |
+| GET|HEAD | /api/v1/locations/districts | Internal Secret | BangladeshLocation@districts |
+| GET|HEAD | /api/v1/locations/upazilas | Internal Secret | BangladeshLocation@upazilas |
+| GET|HEAD | /api/v1/locations/unions | Internal Secret | BangladeshLocation@unions |
+| GET|HEAD | /api/v1/settings | Internal Secret | FrontendSetting@index |
+| GET|HEAD | /api/v1/settings/hero | Internal Secret | FrontendSetting@hero |
+| GET|HEAD | /api/v1/settings/general | Internal Secret | FrontendSetting@general |
+| GET|HEAD | /api/v1/settings/social | Internal Secret | FrontendSetting@social |
+| GET|HEAD | /api/v1/settings/seo | Internal Secret | FrontendSetting@seo |
+| GET|HEAD | /api/v1/settings/footer | Internal Secret | FrontendSetting@footer |
+| GET|HEAD | /api/v1/settings/banner | Internal Secret | FrontendSetting@banner |
+| GET|HEAD | /api/v1/settings/checkout | Internal Secret | FrontendSetting@checkout |
+| GET|HEAD | /api/v1/settings/{group} | Internal Secret | FrontendSetting@showGroup |
+| GET|HEAD | /api/v1/flash-sales | Internal Secret | FlashSale@index |
+| GET|HEAD | /api/v1/flash-sales/featured | Internal Secret | FlashSale@featured |
+| GET|HEAD | /api/v1/flash-sales/upcoming | Internal Secret | FlashSale@upcoming |
+| GET|HEAD | /api/v1/flash-sales/{slug} | Internal Secret | FlashSale@show |
+| GET|HEAD | /api/v1/flash-sales/product/{productId} | Internal Secret | FlashSale@checkProduct |
+| POST | /api/v1/flash-sales/validate-purchase | Internal Secret | FlashSale@validatePurchase |
+| POST | /api/v1/orders | Public | Order@store |
+| POST | /api/v1/cart/coupon | Auth | Coupon@apply |
+| POST | /api/v1/checkout/track | Auth | AbandonedCart@track |
+| GET|HEAD | /api/v1/orders/{id}/payment-summary | Auth | Order@paymentSummary |
+| GET|HEAD | /api/v1/orders/number/{orderNumber} | Public | Order@showByNumber |
+| POST | /api/v1/auth/logout | Auth | Auth@logout |
+| GET|HEAD | /api/v1/auth/me | Auth | Auth@me |
+| POST | /api/v1/auth/email/resend | Auth | Auth@resendVerification |
+| POST | /api/v1/auth/change-password | Auth | Auth@changePassword |
+| GET|HEAD | /api/v1/profile | Auth | User@profile |
+| PUT | /api/v1/profile | Auth | User@updateProfile |
+| GET|HEAD | /api/v1/users | Auth + perm:users.manage | User@index |
+| POST | /api/v1/users | Auth + perm:users.manage | User@store |
+| DELETE | /api/v1/users/{id} | Auth + perm:users.manage | User@destroy |
+| POST | /api/v1/users/{id}/toggle-status | Auth + perm:users.manage | User@toggleStatus |
+| GET|HEAD | /api/v1/users/{id} | Auth | User@show |
+| PUT | /api/v1/users/{id} | Auth | User@update |
+| POST | /api/v1/categories | Auth + perm:catalog.manage | Category@store |
+| PUT | /api/v1/categories/{id} | Auth + perm:catalog.manage | Category@update |
+| DELETE | /api/v1/categories/{id} | Auth + perm:catalog.manage | Category@destroy |
+| POST | /api/v1/products | Auth + perm:catalog.manage | Product@store |
+| PUT | /api/v1/products/{id} | Auth + perm:catalog.manage | Product@update |
+| DELETE | /api/v1/products/{id} | Auth + perm:catalog.manage | Product@destroy |
+| POST | /api/v1/products/bulk-action | Auth + perm:catalog.manage | Product@bulkAction |
+| GET|HEAD | /api/v1/cart | Auth | Cart@index |
+| POST | /api/v1/cart/items | Auth | Cart@addItem |
+| PUT | /api/v1/cart/items/{productId} | Auth | Cart@updateItem |
+| DELETE | /api/v1/cart/items/{productId} | Auth | Cart@removeItem |
+| DELETE | /api/v1/cart | Auth | Cart@clear |
+| DELETE | /api/v1/cart/coupon | Auth | Coupon@remove |
+| GET|HEAD | /api/v1/coupons/validate | Auth | Coupon@validate |
+| GET|HEAD | /api/v1/coupons/available | Auth | Coupon@available |
+| POST | /api/v1/cart/recommendations | Auth | RelatedProduct@cartRecommendations |
+| GET|HEAD | /api/v1/wishlist | Auth | Wishlist@index |
+| POST | /api/v1/wishlist | Auth | Wishlist@store |
+| POST | /api/v1/wishlist/toggle | Auth | Wishlist@toggle |
+| GET|HEAD | /api/v1/wishlist/check | Auth | Wishlist@check |
+| GET|HEAD | /api/v1/wishlist/count | Auth | Wishlist@count |
+| DELETE | /api/v1/wishlist/clear | Auth | Wishlist@clear |
+| DELETE | /api/v1/wishlist/{wishlist} | Auth | Wishlist@destroy |
+| DELETE | /api/v1/wishlist/product | Auth | Wishlist@removeByProduct |
+| POST | /api/v1/wishlist/{wishlist}/move-to-cart | Auth | Wishlist@moveToCart |
+| GET|HEAD | /api/v1/reviews/my | Auth | Review@myReviews |
+| POST | /api/v1/reviews | Auth | Review@store |
+| PUT | /api/v1/reviews/{review} | Auth | Review@update |
+| DELETE | /api/v1/reviews/{review} | Auth | Review@destroy |
+| POST | /api/v1/reviews/{review}/vote | Auth | Review@vote |
+| DELETE | /api/v1/reviews/{review}/vote | Auth | Review@removeVote |
+| GET|HEAD | /api/v1/reviews/can-review/{productId} | Auth | Review@canReview |
+| GET|HEAD | /api/v1/addresses | Auth | Address@index |
+| POST | /api/v1/addresses | Auth | Address@store |
+| GET|HEAD | /api/v1/addresses/default/shipping | Auth | Address@defaultShipping |
+| GET|HEAD | /api/v1/addresses/default/billing | Auth | Address@defaultBilling |
+| GET|HEAD | /api/v1/addresses/{address} | Auth | Address@show |
+| PUT | /api/v1/addresses/{address} | Auth | Address@update |
+| DELETE | /api/v1/addresses/{address} | Auth | Address@destroy |
+| POST | /api/v1/addresses/{address}/set-default | Auth | Address@setDefault |
+| POST | /api/v1/checkout/recovered | Auth | AbandonedCart@markRecovered |
+| GET|HEAD | /api/v1/notifications | Auth | Notification@index |
+| GET|HEAD | /api/v1/notifications/unread-count | Auth | Notification@unreadCount |
+| POST | /api/v1/notifications/{id}/read | Auth | Notification@markAsRead |
+| POST | /api/v1/notifications/read-all | Auth | Notification@markAllAsRead |
+| DELETE | /api/v1/notifications/{id} | Auth | Notification@destroy |
+| GET|HEAD | /api/v1/returns | Auth | Return@index |
+| POST | /api/v1/returns | Auth | Return@store |
+| GET|HEAD | /api/v1/returns/check-eligibility | Auth | Return@checkEligibility |
+| GET|HEAD | /api/v1/returns/{return} | Auth | Return@show |
+| POST | /api/v1/returns/{return}/cancel | Auth | Return@cancel |
+| POST | /api/v1/returns/{return}/upload-images | Auth | Return@uploadImages |
+| GET|HEAD | /api/v1/loyalty/tiers | Auth | Loyalty@tiers |
+| GET|HEAD | /api/v1/loyalty/summary | Auth | Loyalty@summary |
+| GET|HEAD | /api/v1/loyalty/transactions | Auth | Loyalty@transactions |
+| GET|HEAD | /api/v1/loyalty/rewards | Auth | Loyalty@rewards |
+| POST | /api/v1/loyalty/redeem | Auth | Loyalty@redeem |
+| GET|HEAD | /api/v1/loyalty/redemptions | Auth | Loyalty@redemptions |
+| GET|HEAD | /api/v1/loyalty/redemptions/active | Auth | Loyalty@activeRedemptions |
+| POST | /api/v1/loyalty/redemptions/{redemption}/cancel | Auth | Loyalty@cancelRedemption |
+| POST | /api/v1/loyalty/validate-coupon | Auth | Loyalty@validateCoupon |
+| GET|HEAD | /api/v1/loyalty/leaderboard | Auth | Loyalty@leaderboard |
+| GET|HEAD | /api/v1/orders | Public | Order@index |
+| GET|HEAD | /api/v1/orders/{id} | Auth | Order@show |
+| POST | /api/v1/orders/{id}/cancel | Auth | Order@cancel |
+| GET|HEAD | /api/v1/orders/{id}/tracking | Auth | OrderTracking@show |
+| GET|HEAD | /api/v1/orders/{id}/invoice | Auth | Invoice@show |
+| GET|HEAD | /api/v1/orders/{id}/notes | Auth | OrderNote@index |
+| POST | /api/v1/orders/{id}/notes | Auth + perm:orders.manage | OrderNote@store |
+| DELETE | /api/v1/orders/{id}/notes/{noteId} | Auth + perm:orders.manage | OrderNote@destroy |
+| PUT | /api/v1/orders/{id}/status | Auth + perm:orders.manage | Order@updateStatus |
+| GET|HEAD | /api/v1/orders/status/{status} | Auth + perm:orders.manage | Order@byStatus |
+| GET|HEAD | /api/v1/payments/order/{orderId} | Auth | Payment@show |
+| POST | /api/v1/payments | Auth | Payment@store |
+| POST | /api/v1/payments/{paymentId}/process | Auth | Payment@process |
+| POST | /api/v1/payments/{paymentId}/refund | Auth + perm:returns.manage | Payment@refund |
+| GET|HEAD | /api/v1/bkash/check-status | Auth | Bkash@checkStatus |
+| POST | /api/v1/bkash/refund | Auth + perm:returns.manage | Bkash@refund |
+| GET|HEAD | /api/v1/saved-payment-methods | Auth | SavedPaymentMethod@index |
+| POST | /api/v1/saved-payment-methods/{savedPaymentMethod}/set-default | Auth | SavedPaymentMethod@setDefault |
+| POST | /api/v1/saved-payment-methods/{savedPaymentMethod}/remove | Auth | SavedPaymentMethod@remove |
+| GET|HEAD | /api/v1/admin/orders/export | Auth + is_admin | OrderExport@export |
+| GET|HEAD | /api/v1/admin/orders/export/download/{filename} | Auth + is_admin | OrderExport@download |
+| GET|HEAD | /api/v1/admin/audit-logs | Auth + is_admin | AuditLog@index |
+| GET|HEAD | /api/v1/admin/audit-logs/{id} | Auth + is_admin | AuditLog@show |
 
 ## 10) Detailed Request and Response Contracts (A-Z)
 

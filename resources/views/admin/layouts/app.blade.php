@@ -338,8 +338,7 @@
                 $isSalesManagerActive = request()->routeIs('admin.returns.*')
                     || (request()->routeIs('admin.orders.*') && request('status') === 'pending');
 
-                $isAnalyticsActive = request()->routeIs('admin.bi.*')
-                    || request()->routeIs('admin.analytics.*');
+                $isAnalyticsActive = request()->routeIs('admin.bi.*');
 
                 $canManageUsers = auth()->user()->hasAdminPermission('users.manage');
                 $canManageRoles = auth()->user()->hasAdminPermission('roles.manage');
@@ -500,7 +499,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.bi.sales-reports') || request()->routeIs('admin.analytics.sales') ? 'active' : '' }}" href="{{ route('admin.bi.sales-reports') }}">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.bi.sales-reports') ? 'active' : '' }}" href="{{ route('admin.bi.sales-reports') }}">
                             <i class="bi bi-currency-dollar"></i> Sales & Revenue
                         </a>
                     </li>
@@ -513,18 +512,13 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.bi.customer-analytics') || request()->routeIs('admin.analytics.customers') ? 'active' : '' }}" href="{{ route('admin.bi.customer-analytics') }}">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.bi.customer-analytics') ? 'active' : '' }}" href="{{ route('admin.bi.customer-analytics') }}">
                             <i class="bi bi-person-badge"></i> Customer Insights
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.bi.product-performance') || request()->routeIs('admin.analytics.products') ? 'active' : '' }}" href="{{ route('admin.bi.product-performance') }}">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.bi.product-performance') ? 'active' : '' }}" href="{{ route('admin.bi.product-performance') }}">
                             <i class="bi bi-trophy"></i> Product Performance
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.analytics.orders') ? 'active' : '' }}" href="{{ route('admin.analytics.orders') }}">
-                            <i class="bi bi-clipboard-data"></i> Orders Analysis
                         </a>
                     </li>
                 </ul>

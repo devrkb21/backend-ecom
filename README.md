@@ -243,7 +243,7 @@ Crontab:
 - 7 whitelisted `/api/v1` exceptions listed in Security Model section
 
 ### Authenticated endpoints (`Authorization: Bearer <token>`)
-- All remaining `/api/v1` routes (147 endpoints currently)
+- All remaining `/api/v1` routes (102 endpoints currently)
 - Includes products, categories, settings, payment method discovery, shipping calculation, tracking, and all customer features
 
 ### Admin-sensitive endpoints
@@ -264,7 +264,6 @@ Common permission keys:
 - `returns.manage`
 - `abandoned_carts.manage`
 - `marketing.manage`
-- `analytics.view`
 - `users.manage`
 - `roles.manage`
 - `settings.manage`

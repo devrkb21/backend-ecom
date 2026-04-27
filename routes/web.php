@@ -12,7 +12,6 @@ use App\Http\Controllers\Admin\SavedPaymentMethodController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\MediaController;
-use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\PaymentGatewayController;
 use App\Http\Controllers\Admin\ShippingMethodController;
 use App\Http\Controllers\Admin\SiteSettingController;
@@ -117,14 +116,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('media/{media}', [MediaController::class, 'destroy'])->name('media.destroy');
         Route::post('media/bulk-destroy', [MediaController::class, 'bulkDestroy'])->name('media.bulk-destroy');
 
-        // Analytics & Reports
-        Route::prefix('analytics')->name('analytics.')->group(function () {
-            Route::get('sales', [AnalyticsController::class, 'sales'])->name('sales');
-            Route::get('products', [AnalyticsController::class, 'products'])->name('products');
-            Route::get('customers', [AnalyticsController::class, 'customers'])->name('customers');
-            Route::get('orders', [AnalyticsController::class, 'orders'])->name('orders');
-            Route::get('export/{type}', [AnalyticsController::class, 'export'])->name('export');
-        });
 
         // Settings
         Route::prefix('settings')->name('settings.')->group(function () {
