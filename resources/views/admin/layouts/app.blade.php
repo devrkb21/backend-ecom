@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Admin Panel') - {{ config('app.name') }}</title>
+    <title>@yield('title', 'Admin Panel') - {{ \App\Models\Setting::getValue('general', 'site_name') ?: config('app.name') }}</title>
+    @if($favicon = \App\Models\Setting::getValue('general', 'site_favicon'))
+        <link rel="icon" href="{{ $favicon }}">
+    @endif
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <style>
@@ -285,8 +288,13 @@
 <body>
     <!-- Sidebar -->
     <nav class="sidebar">
-        <div class="sidebar-brand">
-            <i class="bi bi-shop"></i> Admin Panel
+        <div class="sidebar-brand d-flex align-items-center justify-content-center px-3" style="min-height: 60px;">
+            @php $siteLogo = \App\Models\Setting::getValue('general', 'site_logo'); @endphp
+            @if($siteLogo)
+                <img src="{{ $siteLogo }}" alt="{{ \App\Models\Setting::getValue('general', 'site_name') ?: config('app.name') }}" style="max-height: 40px; max-width: 100%;">
+            @else
+                <i class="bi bi-shop me-2"></i> <span>{{ \App\Models\Setting::getValue('general', 'site_name') ?: 'Admin Panel' }}</span>
+            @endif
         </div>
         <div class="sidebar-controls">
             <button type="button" class="btn btn-outline-light btn-sm w-100 sidebar-control-btn" id="sidebarBulkToggle" aria-label="Toggle all sidebar groups">
@@ -330,8 +338,7 @@
                 $isSalesManagerActive = request()->routeIs('admin.returns.*')
                     || (request()->routeIs('admin.orders.*') && request('status') === 'pending');
 
-                $isAnalyticsActive = request()->routeIs('admin.bi.*')
-                    || request()->routeIs('admin.analytics.*');
+                $isAnalyticsActive = request()->routeIs('admin.bi.*');
 
                 $canManageUsers = auth()->user()->hasAdminPermission('users.manage');
                 $canManageRoles = auth()->user()->hasAdminPermission('roles.manage');
@@ -488,12 +495,12 @@
                 <ul class="nav flex-column submenu">
                     <li class="nav-item">
                         <a class="nav-link submenu-link {{ request()->routeIs('admin.bi.index') ? 'active' : '' }}" href="{{ route('admin.bi.index') }}">
-                            <i class="bi bi-speedometer"></i> BI Dashboard
+                            <i class="bi bi-speedometer"></i> Analytics Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link submenu-link {{ request()->routeIs('admin.bi.sales-reports') ? 'active' : '' }}" href="{{ route('admin.bi.sales-reports') }}">
-                            <i class="bi bi-currency-dollar"></i> Sales Reports
+                            <i class="bi bi-currency-dollar"></i> Sales & Revenue
                         </a>
                     </li>
                     <li class="nav-item">
@@ -506,32 +513,12 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link submenu-link {{ request()->routeIs('admin.bi.customer-analytics') ? 'active' : '' }}" href="{{ route('admin.bi.customer-analytics') }}">
-                            <i class="bi bi-person-badge"></i> Customer Analytics
+                            <i class="bi bi-person-badge"></i> Customer Insights
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link submenu-link {{ request()->routeIs('admin.bi.product-performance') ? 'active' : '' }}" href="{{ route('admin.bi.product-performance') }}">
                             <i class="bi bi-trophy"></i> Product Performance
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.analytics.sales') ? 'active' : '' }}" href="{{ route('admin.analytics.sales') }}">
-                            <i class="bi bi-graph-up"></i> Sales Report
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.analytics.products') ? 'active' : '' }}" href="{{ route('admin.analytics.products') }}">
-                            <i class="bi bi-box-seam"></i> Products Report
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.analytics.orders') ? 'active' : '' }}" href="{{ route('admin.analytics.orders') }}">
-                            <i class="bi bi-clipboard-data"></i> Orders Report
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.analytics.customers') ? 'active' : '' }}" href="{{ route('admin.analytics.customers') }}">
-                            <i class="bi bi-person-lines-fill"></i> Customers Report
                         </a>
                     </li>
                 </ul>

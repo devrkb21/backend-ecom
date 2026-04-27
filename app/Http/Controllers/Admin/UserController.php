@@ -33,6 +33,10 @@ class UserController extends Controller
             $query->whereNotNull('deleted_at');
         }
 
+        if ($request->input('date') === 'today') {
+            $query->whereDate('created_at', \Carbon\Carbon::today());
+        }
+
         $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
         $users = $query
             ->orderByDesc('created_at')

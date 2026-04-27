@@ -10,6 +10,7 @@ class ProductAttribute extends Model
     protected $fillable = [
         'name',
         'slug',
+        'display_style',
     ];
 
     public function values(): HasMany

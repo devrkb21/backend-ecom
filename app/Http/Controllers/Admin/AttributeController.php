@@ -27,6 +27,7 @@ class AttributeController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', 'unique:product_attributes,slug'],
+            'display_style' => ['required', 'string', 'in:circle,rounded'],
         ]);
 
         if (empty($validated['slug'])) {
@@ -51,6 +52,7 @@ class AttributeController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', 'unique:product_attributes,slug,' . $attribute->id],
+            'display_style' => ['required', 'string', 'in:circle,rounded'],
         ]);
 
         if (empty($validated['slug'])) {

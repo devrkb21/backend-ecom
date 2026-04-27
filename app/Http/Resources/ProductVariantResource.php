@@ -35,6 +35,7 @@ class ProductVariantResource extends JsonResource
                         'attribute_id' => (int) ($value->attribute_id ?? $value->product_attribute_id),
                         'attribute_name' => $value->attribute->name,
                         'attribute_slug' => $value->attribute->slug,
+                        'display_style' => $value->attribute->display_style,
                         'value_id' => $value->id,
                         'value' => $value->value,
                         'color_code' => $value->color_code,

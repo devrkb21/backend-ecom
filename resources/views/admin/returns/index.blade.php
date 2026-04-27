@@ -308,7 +308,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 function showApproveModal(returnId, totalAmount) {
     document.getElementById('approveForm').action = '/admin/returns/' + returnId + '/approve';
@@ -330,4 +330,4 @@ document.querySelector('input[name="restocking_fee"]')?.addEventListener('input'
     document.getElementById('approve_refund_amount').value = Math.max(0, total - fee).toFixed(2);
 });
 </script>
-@endsection
+@endpush

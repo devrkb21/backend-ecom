@@ -112,6 +112,7 @@
                             <th class="text-center">Items</th>
                             <th class="text-end">Total</th>
                             <th>Payment</th>
+                            <th>Source</th>
                             <th>Status</th>
                             <th>Date</th>
                             <th>Actions</th>
@@ -234,6 +235,13 @@
                                     <span class="badge bg-{{ $statusColors[$order->payment_status] ?? 'secondary' }}">
                                         {{ $methodLabels[$order->payment_method] ?? ucfirst($order->payment_method ?? 'N/A') }}
                                     </span>
+                                </td>
+                                <td>
+                                    @if($order->order_source)
+                                        <span class="badge bg-secondary">{{ $order->order_source }}</span>
+                                    @else
+                                        <span class="text-muted small">N/A</span>
+                                    @endif
                                 </td>
                                 <td>
                                     @php

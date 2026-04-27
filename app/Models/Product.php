@@ -58,8 +58,8 @@ class Product extends Model
                 $product->slug = Str::slug($product->name);
             }
             if (empty($product->sku)) {
-                // Generate SKU from name and timestamp
-                $product->sku = strtoupper(Str::slug($product->name, '-') . '-' . now()->format('ymd') . rand(100, 999));
+                // Generate SKU from 8 digit numeric value
+                $product->sku = (string) random_int(10000000, 99999999);
             }
         });
     }

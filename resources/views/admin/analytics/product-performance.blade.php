@@ -16,11 +16,11 @@
 @endsection
 
 @section('content')
-<div class="container-fluid">
+
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h3 mb-0 text-gray-800">
+            <h1 class="h3 mb-0 text-dark">
                 <i class="bi bi-trophy"></i> Product Performance
             </h1>
             <p class="text-muted mb-0">Best sellers, slow movers & product insights</p>
@@ -36,44 +36,52 @@
     <!-- Quick Stats -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="h2 mb-0 text-primary">{{ count($bestSellers) }}</div>
-                    <small class="text-muted">Products Sold</small>
+            <a href="{{ route('admin.products.index') }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body text-center">
+                        <div class="h2 mb-0 text-primary">{{ count($bestSellers) }}</div>
+                        <small class="text-muted">Products Sold</small>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="h2 mb-0 text-success">৳{{ number_format(array_sum(array_column($bestSellers, 'revenue')), 0) }}</div>
-                    <small class="text-muted">Total Revenue</small>
+            <a href="{{ route('admin.orders.index') }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body text-center">
+                        <div class="h2 mb-0 text-success">৳{{ number_format(array_sum(array_column($bestSellers, 'revenue')), 0) }}</div>
+                        <small class="text-muted">Total Revenue</small>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="h2 mb-0 text-info">{{ number_format(array_sum(array_column($bestSellers, 'units_sold'))) }}</div>
-                    <small class="text-muted">Units Sold</small>
+            <a href="{{ route('admin.orders.index') }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body text-center">
+                        <div class="h2 mb-0 text-info">{{ number_format(array_sum(array_column($bestSellers, 'units_sold'))) }}</div>
+                        <small class="text-muted">Units Sold</small>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="h2 mb-0 text-warning">{{ count($slowMovers) }}</div>
-                    <small class="text-muted">Slow Movers</small>
+            <a href="{{ route('admin.products.index') }}" class="text-decoration-none d-block h-100 text-dark">
+                <div class="card stat-card h-100">
+                    <div class="card-body text-center">
+                        <div class="h2 mb-0 text-warning">{{ count($slowMovers) }}</div>
+                        <small class="text-muted">Slow Movers</small>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
     </div>
 
     <!-- Best Sellers -->
     <div class="card shadow mb-4">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">
-                <i class="fas fa-trophy text-warning"></i> Best Selling Products
+            <h6 class="m-0 fw-bold text-primary">
+                <i class="bi bi-trophy text-warning"></i> Best Selling Products
             </h6>
         </div>
         <div class="card-body p-0">
@@ -85,7 +93,7 @@
                             <th>Product</th>
                             <th class="text-center">Orders</th>
                             <th class="text-center">Units Sold</th>
-                            <th class="text-right">Revenue</th>
+                            <th class="text-end">Revenue</th>
                             <th class="text-center">Stock</th>
                             <th class="text-center">Actions</th>
                         </tr>
@@ -110,28 +118,28 @@
                             <td class="text-center">
                                 <span class="badge badge-info">{{ number_format($product['units_sold']) }}</span>
                             </td>
-                            <td class="text-right font-weight-bold text-success">
+                            <td class="text-end fw-bold text-success">
                                 ৳{{ number_format($product['revenue'], 0) }}
                             </td>
                             <td class="text-center">
                                 @if($product['stock_status'] == 'good')
-                                    <span class="stock-good"><i class="fas fa-check-circle"></i> {{ $product['stock'] }}</span>
+                                    <span class="stock-good"><i class="bi bi-check-circle"></i> {{ $product['stock'] }}</span>
                                 @elseif($product['stock_status'] == 'low')
-                                    <span class="stock-low"><i class="fas fa-exclamation-triangle"></i> {{ $product['stock'] }}</span>
+                                    <span class="stock-low"><i class="bi bi-exclamation-triangle"></i> {{ $product['stock'] }}</span>
                                 @else
-                                    <span class="stock-out"><i class="fas fa-times-circle"></i> Out</span>
+                                    <span class="stock-out"><i class="bi bi-x-circle"></i> Out</span>
                                 @endif
                             </td>
                             <td class="text-center">
                                 <button class="btn btn-sm btn-outline-info" onclick="showTrends({{ $product['id'] }}, '{{ addslashes($product['name']) }}')">
-                                    <i class="fas fa-chart-line"></i>
+                                    <i class="bi bi-graph-up"></i>
                                 </button>
                             </td>
                         </tr>
                         @empty
                         <tr>
                             <td colspan="7" class="text-center py-5 text-muted">
-                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <i class="bi bi-inbox fa-3x mb-3"></i>
                                 <p>No sales data for this period</p>
                             </td>
                         </tr>
@@ -145,8 +153,8 @@
     <!-- Slow Movers -->
     <div class="card shadow mb-4">
         <div class="card-header py-3 bg-warning">
-            <h6 class="m-0 font-weight-bold text-dark">
-                <i class="fas fa-turtle"></i> Slow Moving Products (Last {{ $days }} Days)
+            <h6 class="m-0 fw-bold text-dark">
+                <i class="bi bi-turtle"></i> Slow Moving Products (Last {{ $days }} Days)
                 <small>- Products with less than 5 sales</small>
             </h6>
         </div>
@@ -158,7 +166,7 @@
                             <th>Product</th>
                             <th>Category</th>
                             <th class="text-center">Stock</th>
-                            <th class="text-right">Stock Value</th>
+                            <th class="text-end">Stock Value</th>
                             <th class="text-center">Sold ({{ $days }}d)</th>
                             <th class="text-center">Daily Rate</th>
                             <th class="text-center">Days to Sellout</th>
@@ -175,7 +183,7 @@
                             </td>
                             <td><small>{{ $product['category'] }}</small></td>
                             <td class="text-center">{{ number_format($product['stock']) }}</td>
-                            <td class="text-right text-danger">৳{{ number_format($product['stock_value'], 0) }}</td>
+                            <td class="text-end text-danger">৳{{ number_format($product['stock_value'], 0) }}</td>
                             <td class="text-center">
                                 <span class="badge badge-{{ $product['sold_last_period'] > 0 ? 'warning' : 'danger' }}">
                                     {{ $product['sold_last_period'] }}
@@ -193,7 +201,7 @@
                         @empty
                         <tr>
                             <td colspan="7" class="text-center py-4 text-success">
-                                <i class="fas fa-check-circle fa-2x mb-2"></i>
+                                <i class="bi bi-check-circle fa-2x mb-2"></i>
                                 <p class="mb-0">Great! No slow-moving products.</p>
                             </td>
                         </tr>
@@ -207,7 +215,7 @@
     <!-- Product Conversion -->
     <div class="card shadow mb-4">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Product Purchase Metrics</h6>
+            <h6 class="m-0 fw-bold text-primary">Product Purchase Metrics</h6>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -218,7 +226,7 @@
                             <th class="text-center">Purchases</th>
                             <th class="text-center">Units Sold</th>
                             <th class="text-center">Avg Units/Order</th>
-                            <th class="text-right">Revenue</th>
+                            <th class="text-end">Revenue</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -237,7 +245,7 @@
                                     {{ $product['avg_units_per_order'] }}
                                 </span>
                             </td>
-                            <td class="text-right">৳{{ number_format($product['revenue'], 0) }}</td>
+                            <td class="text-end">৳{{ number_format($product['revenue'], 0) }}</td>
                         </tr>
                         @endforeach
                     </tbody>
@@ -265,10 +273,9 @@
             </div>
         </div>
     </div>
-</div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 let trendsChart = null;
@@ -348,4 +355,4 @@ function showTrends(productId, productName) {
         });
 }
 </script>
-@endsection
+@endpush
