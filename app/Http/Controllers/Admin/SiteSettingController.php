@@ -20,6 +20,24 @@ class SiteSettingController extends Controller
     {
         $definitions = [
             [
+                'key' => 'site_title',
+                'value' => 'Inner Collection - Your Everyday Store',
+                'type' => 'text',
+                'label' => 'Site Title',
+                'description' => 'The main title of the website, displayed in the browser tab and SEO.',
+                'is_public' => true,
+                'sort_order' => 1,
+            ],
+            [
+                'key' => 'site_description',
+                'value' => 'Discover quality products at Inner Collection',
+                'type' => 'textarea',
+                'label' => 'Site Description',
+                'description' => 'A brief description of your website used for SEO and metadata.',
+                'is_public' => true,
+                'sort_order' => 2,
+            ],
+            [
                 'key' => 'call_for_order_phone',
                 'value' => '',
                 'type' => 'text',
@@ -289,6 +307,8 @@ class SiteSettingController extends Controller
 
         if ($group === 'general') {
             $request->validate([
+                'settings.site_title' => 'nullable|string|max:255',
+                'settings.site_description' => 'nullable|string|max:1000',
                 'settings.product_grid_columns' => 'nullable|integer|in:3,4,5,6',
                 'settings.order_number_prefix' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9_-]+$/'],
                 'settings.order_number_generation_mode' => ['nullable', 'string', 'in:timestamp_random,date_sequence,global_sequence'],
