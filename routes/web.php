@@ -93,6 +93,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
         Route::patch('orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
         Route::patch('orders/{order}/source', [OrderController::class, 'updateSource'])->name('orders.update-source');
+        Route::post('orders/{order}/apply-discount', [OrderController::class, 'applyDiscount'])->name('orders.apply-discount');
+        Route::post('orders/{order}/remove-discount', [OrderController::class, 'removeDiscount'])->name('orders.remove-discount');
 
         // Order Tracking
         Route::get('orders/{order}/tracking', [OrderTrackingController::class, 'edit'])->name('orders.tracking.edit');

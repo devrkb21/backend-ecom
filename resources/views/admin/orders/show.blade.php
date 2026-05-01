@@ -184,7 +184,7 @@
                         <tbody>
                             @foreach($order->items as $item)
                                 <tr>
-                                    <td>
+                                    <td style="max-width: 250px; white-space: normal;">
                                         @php
                                             $variantName = trim((string) ($item->variant?->name ?? ''));
                                             $variantSku = trim((string) ($item->variant?->sku ?? ''));
@@ -269,6 +269,49 @@
                                     <td class="text-end">৳{{ number_format($order->shipping, 2) }}</td>
                                 </tr>
                             @endif
+                            
+                            <!-- Admin Discount Section -->
+                            <tr class="bg-light">
+                                <td colspan="4" class="p-3">
+                                    @if($order->discount_amount <= 0)
+                                        <form action="{{ route('admin.orders.apply-discount', $order) }}" method="POST" class="row g-2 align-items-center justify-content-end">
+                                        @csrf
+                                        <div class="col-auto">
+                                            <label class="col-form-label col-form-label-sm fw-semibold">Apply Discount:</label>
+                                        </div>
+                                        <div class="col-auto">
+                                            <select name="discount_type" id="discountTypeSelect" class="form-select form-select-sm" style="width: auto;">
+                                                <option value="fixed">Fixed Amount (৳)</option>
+                                                <option value="percentage">Percentage (%)</option>
+                                                <option value="coupon">Coupon Code</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-auto">
+                                            <input type="text" name="discount_value" id="discountValueInput" class="form-control form-control-sm" placeholder="Value/Code" required style="max-width: 150px;">
+                                            <datalist id="activeCouponsList">
+                                                @foreach($activeCoupons as $coupon)
+                                                    <option value="{{ $coupon->code }}">{{ $coupon->name }} ({{ $coupon->formatted_value }})</option>
+                                                @endforeach
+                                            </datalist>
+                                        </div>
+                                        <div class="col-auto">
+                                            <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
+                                        </div>
+                                    </form>
+                                    @else
+                                        <div class="d-flex justify-content-end align-items-center gap-3 mt-2">
+                                            <span class="text-success small fw-semibold">
+                                                <i class="bi bi-check-circle-fill me-1"></i> Discount Applied
+                                            </span>
+                                            <form action="{{ route('admin.orders.remove-discount', $order) }}" method="POST" class="m-0">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-outline-danger px-2 py-1" onclick="return confirm('Remove existing discount?')"><i class="bi bi-x-circle me-1"></i> Remove</button>
+                                        </form>
+                                        </div>
+                                    @endif
+                                </td>
+                            </tr>
+                            
                             <tr>
                                 <th colspan="3" class="text-end">Total:</th>
                                 <th class="text-end">৳{{ number_format($order->total, 2) }}</th>
@@ -555,3 +598,26 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const discountTypeSelect = document.getElementById('discountTypeSelect');
+        const discountValueInput = document.getElementById('discountValueInput');
+        
+        if (discountTypeSelect && discountValueInput) {
+            discountTypeSelect.addEventListener('change', function() {
+                if (this.value === 'coupon') {
+                    discountValueInput.setAttribute('list', 'activeCouponsList');
+                    discountValueInput.placeholder = 'Type or select coupon';
+                } else {
+                    discountValueInput.removeAttribute('list');
+                    discountValueInput.placeholder = 'Value';
+                }
+            });
+            // trigger on load
+            discountTypeSelect.dispatchEvent(new Event('change'));
+        }
+    });
+</script>
+@endpush
