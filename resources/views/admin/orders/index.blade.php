@@ -38,34 +38,79 @@
     </div>
 
     <div class="card-body border-bottom">
-        <form action="{{ route('admin.orders.index') }}" method="GET" class="row g-2 align-items-center">
+        <form action="{{ route('admin.orders.index') }}" method="GET">
             @if($activeView !== 'all')
                 <input type="hidden" name="view" value="{{ $activeView }}">
             @endif
 
-            <div class="col-md-6 col-lg-5">
-                <input
-                    type="text"
-                    name="search"
-                    value="{{ request('search') }}"
-                    class="form-control form-control-sm"
-                    placeholder="Search by order #, customer name, or email"
-                >
-            </div>
-
-            <div class="col-auto">
-                <button type="submit" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-search me-1"></i> Search
-                </button>
-            </div>
-
-            @if(request()->filled('search'))
-                <div class="col-auto">
-                    <a href="{{ route('admin.orders.index', $activeView !== 'all' ? ['view' => $activeView] : []) }}" class="btn btn-sm btn-outline-secondary">
-                        Clear
-                    </a>
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1">Search</label>
+                    <input
+                        type="text"
+                        name="search"
+                        value="{{ request('search') }}"
+                        class="form-control form-control-sm"
+                        placeholder="Order #, Name, Email"
+                    >
                 </div>
-            @endif
+                
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Payment Method</label>
+                    <select name="payment_method" class="form-select form-select-sm">
+                        <option value="">All Methods</option>
+                        @foreach($paymentMethods as $method)
+                            <option value="{{ $method }}" {{ request('payment_method') === $method ? 'selected' : '' }}>
+                                {{ ucfirst($method) }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Payment Status</label>
+                    <select name="payment_status" class="form-select form-select-sm">
+                        <option value="">All Statuses</option>
+                        @foreach($paymentStatuses as $status)
+                            <option value="{{ $status }}" {{ request('payment_status') === $status ? 'selected' : '' }}>
+                                {{ ucfirst($status) }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Order Source</label>
+                    <select name="order_source" class="form-select form-select-sm">
+                        <option value="">All Sources</option>
+                        @foreach($orderSources as $source)
+                            <option value="{{ $source }}" {{ request('order_source') === $source ? 'selected' : '' }}>
+                                {{ ucfirst($source) }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1">Date Range</label>
+                    <div class="input-group input-group-sm">
+                        <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}" title="Start Date">
+                        <span class="input-group-text border-0 bg-transparent px-1">-</span>
+                        <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}" title="End Date">
+                    </div>
+                </div>
+
+                <div class="col-12 mt-3 d-flex justify-content-end gap-2">
+                    @if(request()->except(['view', 'page']))
+                        <a href="{{ route('admin.orders.index', $activeView !== 'all' ? ['view' => $activeView] : []) }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-x"></i> Clear Filters
+                        </a>
+                    @endif
+                    <button type="submit" class="btn btn-sm btn-primary px-4">
+                        <i class="bi bi-funnel me-1"></i> Apply Filters
+                    </button>
+                </div>
+            </div>
         </form>
     </div>
 
@@ -145,7 +190,11 @@
                                 <td class="text-center">
                                     <input type="checkbox" class="form-check-input order-checkbox" name="order_ids[]" value="{{ $order->id }}" aria-label="Select order {{ $displayOrderNumber }}">
                                 </td>
-                                <td><strong>#{{ $displayOrderNumber }}</strong></td>
+                                <td>
+                                    <a href="{{ route('admin.orders.show', $order) }}" class="text-decoration-none">
+                                        <strong>#{{ $displayOrderNumber }}</strong>
+                                    </a>
+                                </td>
                                 <td>
                                     @php
                                         $checkoutPayloadForCustomer = is_array($order->checkout_fields_payload) ? $order->checkout_fields_payload : [];

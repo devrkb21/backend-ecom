@@ -66,6 +66,26 @@ class OrderController extends Controller
             });
         }
 
+        if ($request->filled('payment_method')) {
+            $query->where('payment_method', $request->input('payment_method'));
+        }
+
+        if ($request->filled('payment_status')) {
+            $query->where('payment_status', $request->input('payment_status'));
+        }
+
+        if ($request->filled('order_source')) {
+            $query->where('order_source', $request->input('order_source'));
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->input('date_from'));
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->input('date_to'));
+        }
+
         if ($request->input('date') === 'today') {
             $query->whereDate('created_at', \Carbon\Carbon::today());
         }
@@ -105,7 +125,16 @@ class OrderController extends Controller
             });
         }
 
-        return view('admin.orders.index', compact('orders', 'view', 'statuses', 'filterCounts', 'bulkStatuses'));
+        $orderSources = Order::select('order_source')->distinct()->whereNotNull('order_source')->pluck('order_source');
+        $paymentMethods = Order::select('payment_method')->distinct()->whereNotNull('payment_method')->pluck('payment_method');
+        
+        // Allowed Payment Statuses
+        $paymentStatuses = ['pending', 'awaiting', 'paid', 'failed', 'refunded'];
+
+        return view('admin.orders.index', compact(
+            'orders', 'view', 'statuses', 'filterCounts', 'bulkStatuses',
+            'orderSources', 'paymentMethods', 'paymentStatuses'
+        ));
     }
 
     public function show(Order $order)
@@ -128,7 +157,9 @@ class OrderController extends Controller
             ->orderBy('id')
             ->get();
 
-        return view('admin.orders.show', compact('order', 'availableStatuses'));
+        $activeCoupons = \App\Models\Coupon::active()->get();
+
+        return view('admin.orders.show', compact('order', 'availableStatuses', 'activeCoupons'));
     }
 
     public function updateStatus(UpdateOrderStatusRequest $request, Order $order)
@@ -164,6 +195,72 @@ class OrderController extends Controller
         return redirect()
             ->route('admin.orders.show', $order)
             ->with('success', 'Order source updated successfully.');
+    }
+
+    public function applyDiscount(Request $request, Order $order)
+    {
+        $request->validate([
+            'discount_type' => 'required|in:fixed,percentage,coupon',
+            'discount_value' => 'required|string',
+        ]);
+
+        $type = $request->input('discount_type');
+        $value = $request->input('discount_value');
+        $discountAmount = 0;
+        $couponCode = null;
+
+        if ($type === 'fixed') {
+            $discountAmount = (float) $value;
+        } elseif ($type === 'percentage') {
+            $discountAmount = ($order->subtotal * (float) $value) / 100;
+        } elseif ($type === 'coupon') {
+            $coupon = \App\Models\Coupon::where('code', $value)->first();
+            if (!$coupon) {
+                return back()->with('error', 'Invalid coupon code.');
+            }
+            // Assume coupon has a discount_type of fixed or percentage, and discount_value
+            // Let's use generic logic if fields exist, or fallback
+            $couponType = $coupon->discount_type ?? ($coupon->type ?? 'fixed');
+            $couponValue = (float) ($coupon->discount_value ?? ($coupon->value ?? 0));
+            
+            if ($couponType === 'fixed') {
+                $discountAmount = $couponValue;
+            } else {
+                $discountAmount = ($order->subtotal * $couponValue) / 100;
+            }
+            $couponCode = $coupon->code;
+        }
+
+        // Ensure discount doesn't exceed subtotal
+        if ($discountAmount > $order->subtotal) {
+            $discountAmount = $order->subtotal;
+        }
+
+        $total = ($order->subtotal + $order->tax + $order->shipping) - $discountAmount;
+        if ($total < 0) {
+            $total = 0;
+        }
+
+        $order->update([
+            'discount_amount' => $discountAmount,
+            'coupon_code' => $couponCode,
+            'total' => $total,
+        ]);
+
+        return back()->with('success', 'Discount applied successfully.');
+    }
+
+    public function removeDiscount(Order $order)
+    {
+        $total = ($order->subtotal + $order->tax + $order->shipping);
+        
+        $order->update([
+            'discount_amount' => 0,
+            'coupon_code' => null,
+            'total' => $total,
+        ]);
+
+        return back()->with('success', 'Discount removed successfully.');
     }
 
     public function bulkAction(Request $request)

@@ -214,8 +214,8 @@
         }
         .content-wrapper .table-responsive > .table,
         .content-wrapper .admin-table-scroll > .table {
+            min-width: 100%;
             width: max-content;
-            min-width: 0;
             table-layout: auto;
         }
         .content-wrapper .admin-table-scroll > .table.admin-table-compact > :not(caption) > * > * {
