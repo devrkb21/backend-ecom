@@ -14,6 +14,50 @@ class SiteSettingController extends Controller
     private const RESTRICTED_GROUPS = ['integration'];
 
     /**
+     * Ensure appearance settings exist.
+     */
+    protected function ensureAppearanceSettingsExist(): void
+    {
+        $definitions = [
+            [
+                'key' => 'primary_color',
+                'value' => '#db2777', // Default accent color (pink-600)
+                'type' => 'color',
+                'label' => 'Primary Color',
+                'description' => 'Main accent color used for buttons, badges, and primary highlights.',
+                'is_public' => true,
+                'sort_order' => 1,
+            ],
+            [
+                'key' => 'primary_hover_color',
+                'value' => '#be185d', // Default accent hover (pink-700)
+                'type' => 'color',
+                'label' => 'Primary Hover / Link Color',
+                'description' => 'Color used for links and button hover states.',
+                'is_public' => true,
+                'sort_order' => 2,
+            ],
+        ];
+
+        $created = false;
+
+        foreach ($definitions as $definition) {
+            $setting = Setting::firstOrCreate(
+                ['group' => 'appearance', 'key' => $definition['key']],
+                array_merge(['group' => 'appearance'], $definition)
+            );
+
+            if ($setting->wasRecentlyCreated) {
+                $created = true;
+            }
+        }
+
+        if ($created) {
+            Setting::clearCache('appearance');
+        }
+    }
+
+    /**
      * Ensure order and cart behavior settings exist in the general group.
      */
     protected function ensureGeneralOrderSettingsExist(): void
@@ -99,6 +143,15 @@ class SiteSettingController extends Controller
                 'description' => 'Choose how order numbers are generated.',
                 'is_public' => false,
                 'sort_order' => 15,
+            ],
+            [
+                'key' => 'order_number_custom_format',
+                'value' => '{PREFIX}-{YYYY}{MM}{DD}-{SEQ:4}',
+                'type' => 'text',
+                'label' => 'Order Number Custom Format',
+                'description' => 'Used when mode is Custom Format. Placeholders: {PREFIX}, {YYYY}, {YY}, {MM}, {DD}, {SEQ:length}, {RAND:length}. Example: {PREFIX}-{YYYY}{MM}{DD}-{SEQ:4}',
+                'is_public' => false,
+                'sort_order' => 16,
             ],
             [
                 'key' => 'stock_enabled',
@@ -204,12 +257,44 @@ class SiteSettingController extends Controller
     }
 
     /**
+     * Ensure navigation settings exist.
+     */
+    protected function ensureNavigationSettingsExist(): void
+    {
+        $defaultMenu = [
+            ['label' => 'All Products', 'url' => '/products', 'type' => 'link'],
+            ['label' => 'Categories', 'url' => '/categories', 'type' => 'link'],
+            ['label' => 'Deals', 'url' => '/products?on_sale=true', 'type' => 'link']
+        ];
+
+        $setting = Setting::firstOrCreate(
+            ['group' => 'navigation', 'key' => 'header_menu'],
+            [
+                'group' => 'navigation',
+                'key' => 'header_menu',
+                'value' => json_encode($defaultMenu),
+                'type' => 'json',
+                'label' => 'Header Menu',
+                'description' => 'A JSON array of menu items: [{"label": "All Products", "url": "/products"}].',
+                'is_public' => true,
+                'sort_order' => 1,
+            ]
+        );
+
+        if ($setting->wasRecentlyCreated) {
+            Setting::clearCache('navigation');
+        }
+    }
+
+    /**
      * Show all settings grouped
      */
     public function index()
     {
         $this->ensureGeneralOrderSettingsExist();
         $this->ensureCheckoutSettingsExist();
+        $this->ensureNavigationSettingsExist();
+        $this->ensureAppearanceSettingsExist();
 
         $settings = Setting::whereNotIn('group', self::RESTRICTED_GROUPS)
             ->orderBy('group')
@@ -243,6 +328,14 @@ class SiteSettingController extends Controller
             $this->ensureCheckoutSettingsExist();
         }
 
+        if ($group === 'navigation') {
+            $this->ensureNavigationSettingsExist();
+        }
+
+        if ($group === 'appearance') {
+            $this->ensureAppearanceSettingsExist();
+        }
+
         $settings = Setting::where('group', $group)->orderBy('sort_order')->get();
         
         if ($settings->isEmpty()) {
@@ -258,6 +351,8 @@ class SiteSettingController extends Controller
             'footer' => 'Footer Settings',
             'banner' => 'Promo Banner',
             'checkout' => 'Checkout Settings',
+            'navigation' => 'Navigation Menu',
+            'appearance' => 'Appearance & Colors',
         ];
 
         if ($group === 'checkout') {
@@ -311,7 +406,8 @@ class SiteSettingController extends Controller
                 'settings.site_description' => 'nullable|string|max:1000',
                 'settings.product_grid_columns' => 'nullable|integer|in:3,4,5,6',
                 'settings.order_number_prefix' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9_-]+$/'],
-                'settings.order_number_generation_mode' => ['nullable', 'string', 'in:timestamp_random,date_sequence,global_sequence'],
+                'settings.order_number_generation_mode' => ['nullable', 'string', 'in:timestamp_random,date_sequence,global_sequence,custom_format'],
+                'settings.order_number_custom_format' => ['nullable', 'string', 'max:100'],
                 'settings.logo_height' => 'nullable|integer|min:20|max:120',
             ]);
 
@@ -427,7 +523,7 @@ class SiteSettingController extends Controller
                     return;
                 }
 
-                $allowedModes = ['timestamp_random', 'date_sequence', 'global_sequence'];
+                $allowedModes = ['timestamp_random', 'date_sequence', 'global_sequence', 'custom_format'];
                 $rawValue = (string) $request->input("settings.{$key}", 'timestamp_random');
                 $newValue = in_array($rawValue, $allowedModes, true) ? $rawValue : 'timestamp_random';
 
@@ -514,7 +610,7 @@ class SiteSettingController extends Controller
             ->orderBy('group')
             ->pluck('group')
             ->toArray();
-        $types = ['text', 'textarea', 'image', 'boolean', 'number', 'json'];
+        $types = ['text', 'textarea', 'image', 'boolean', 'number', 'json', 'color'];
 
         return view('admin.settings.site.create', compact('groups', 'types'));
     }
@@ -528,7 +624,7 @@ class SiteSettingController extends Controller
             'group' => 'required|string|max:255',
             'key' => 'required|string|max:255|unique:settings,key,NULL,id,group,' . $request->group,
             'label' => 'required|string|max:255',
-            'type' => 'required|string|in:text,textarea,image,boolean,number,json',
+            'type' => 'required|string|in:text,textarea,image,boolean,number,json,color',
             'value' => 'nullable',
             'description' => 'nullable|string',
             'is_public' => 'boolean',

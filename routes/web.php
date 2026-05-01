@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\AdminRoleController;
 use App\Http\Controllers\Admin\OrderStatusController;
 use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\ReviewController;
+use App\Http\Controllers\Admin\PageController;
 use App\Http\Controllers\Admin\AbandonedCartController;
 use App\Http\Controllers\Admin\ReturnController;
 use App\Http\Controllers\Admin\BusinessIntelligenceController;
@@ -46,9 +47,24 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Dashboard
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+        
+        // Global Search
+        Route::get('/global-search', [\App\Http\Controllers\Admin\GlobalSearchController::class, 'search'])->name('global-search');
 
         // Categories CRUD
         Route::resource('categories', CategoryController::class)->except(['show']);
+
+        // Pages CRUD
+        Route::resource('pages', PageController::class)->except(['show']);
+
+        // Contact Messages
+        Route::prefix('contact-messages')->name('contact-messages.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\ContactMessageController::class, 'index'])->name('index');
+            Route::get('/{contactMessage}', [\App\Http\Controllers\Admin\ContactMessageController::class, 'show'])->name('show');
+            Route::delete('/{contactMessage}', [\App\Http\Controllers\Admin\ContactMessageController::class, 'destroy'])->name('destroy');
+            Route::post('/{contactMessage}/mark-read', [\App\Http\Controllers\Admin\ContactMessageController::class, 'markAsRead'])->name('mark-read');
+            Route::post('/mark-all-read', [\App\Http\Controllers\Admin\ContactMessageController::class, 'markAllAsRead'])->name('mark-all-read');
+        });
 
         // Products CRUD
         Route::resource('products', ProductController::class);

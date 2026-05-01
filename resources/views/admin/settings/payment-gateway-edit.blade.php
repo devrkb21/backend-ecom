@@ -220,7 +220,7 @@
                         <div class="mb-3">
                             <label for="mode" class="form-label small text-muted">Mode</label>
                             <select class="form-select" id="mode" name="settings[mode]">
-                                <option value="test" {{ $gateway->getSetting('mode') === 'test' ? 'selected' : '' }}>
+                                <option value="test" {{ $gateway->getSetting('mode', 'test') === 'test' ? 'selected' : '' }}>
                                     Test Mode (Use test keys)
                                 </option>
                                 <option value="live" {{ $gateway->getSetting('mode') === 'live' ? 'selected' : '' }}>
@@ -229,30 +229,56 @@
                             </select>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="public_key" class="form-label small text-muted">Publishable Key</label>
-                            <input type="text" class="form-control font-monospace" id="public_key" 
-                                   name="settings[public_key]" 
-                                   value="{{ old('settings.public_key', $gateway->getSetting('public_key')) }}"
-                                   placeholder="pk_test_...">
-                        </div>
+                        <ul class="nav nav-tabs mb-3" id="stripeEnvTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="stripe-test-tab" data-bs-toggle="tab" data-bs-target="#stripe-test" type="button" role="tab">Test Credentials</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="stripe-live-tab" data-bs-toggle="tab" data-bs-target="#stripe-live" type="button" role="tab">Live Credentials</button>
+                            </li>
+                        </ul>
 
-                        <div class="mb-3">
-                            <label for="secret_key" class="form-label small text-muted">Secret Key</label>
-                            <input type="password" class="form-control font-monospace" id="secret_key" 
-                                   name="settings[secret_key]" 
-                                   value="{{ old('settings.secret_key', $gateway->getSetting('secret_key')) }}"
-                                   placeholder="sk_test_...">
-                            <div class="form-text">Keep this secret! Never expose on frontend.</div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="webhook_secret" class="form-label small text-muted">Webhook Secret</label>
-                            <input type="password" class="form-control font-monospace" id="webhook_secret" 
-                                   name="settings[webhook_secret]" 
-                                   value="{{ old('settings.webhook_secret', $gateway->getSetting('webhook_secret')) }}"
-                                   placeholder="whsec_...">
-                            <div class="form-text">For receiving payment confirmations</div>
+                        <div class="tab-content" id="stripeEnvTabContent">
+                            <div class="tab-pane fade show active" id="stripe-test" role="tabpanel">
+                                <div class="mb-3">
+                                    <label class="form-label small text-muted">Test Publishable Key</label>
+                                    <input type="text" class="form-control font-monospace" name="settings[test][public_key]" 
+                                           value="{{ old('settings.test.public_key', $gateway->getSetting('test.public_key', $gateway->getSetting('mode') === 'test' ? $gateway->getSetting('public_key') : '')) }}"
+                                           placeholder="pk_test_...">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small text-muted">Test Secret Key</label>
+                                    <input type="password" class="form-control font-monospace" name="settings[test][secret_key]" 
+                                           value="{{ old('settings.test.secret_key', $gateway->getSetting('test.secret_key', $gateway->getSetting('mode') === 'test' ? $gateway->getSetting('secret_key') : '')) }}"
+                                           placeholder="sk_test_...">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small text-muted">Test Webhook Secret</label>
+                                    <input type="password" class="form-control font-monospace" name="settings[test][webhook_secret]" 
+                                           value="{{ old('settings.test.webhook_secret', $gateway->getSetting('test.webhook_secret', $gateway->getSetting('mode') === 'test' ? $gateway->getSetting('webhook_secret') : '')) }}"
+                                           placeholder="whsec_...">
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="stripe-live" role="tabpanel">
+                                <div class="mb-3">
+                                    <label class="form-label small text-muted">Live Publishable Key</label>
+                                    <input type="text" class="form-control font-monospace" name="settings[live][public_key]" 
+                                           value="{{ old('settings.live.public_key', $gateway->getSetting('live.public_key', $gateway->getSetting('mode') === 'live' ? $gateway->getSetting('public_key') : '')) }}"
+                                           placeholder="pk_live_...">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small text-muted">Live Secret Key</label>
+                                    <input type="password" class="form-control font-monospace" name="settings[live][secret_key]" 
+                                           value="{{ old('settings.live.secret_key', $gateway->getSetting('live.secret_key', $gateway->getSetting('mode') === 'live' ? $gateway->getSetting('secret_key') : '')) }}"
+                                           placeholder="sk_live_...">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small text-muted">Live Webhook Secret</label>
+                                    <input type="password" class="form-control font-monospace" name="settings[live][webhook_secret]" 
+                                           value="{{ old('settings.live.webhook_secret', $gateway->getSetting('live.webhook_secret', $gateway->getSetting('mode') === 'live' ? $gateway->getSetting('webhook_secret') : '')) }}"
+                                           placeholder="whsec_...">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -270,7 +296,7 @@
                         <div class="mb-3">
                             <label for="bkash_mode" class="form-label small text-muted">Mode</label>
                             <select class="form-select" id="bkash_mode" name="settings[mode]">
-                                <option value="sandbox" {{ $gateway->getSetting('mode') === 'sandbox' ? 'selected' : '' }}>
+                                <option value="sandbox" {{ $gateway->getSetting('mode', 'sandbox') === 'sandbox' ? 'selected' : '' }}>
                                     Sandbox (Testing)
                                 </option>
                                 <option value="live" {{ $gateway->getSetting('mode') === 'live' ? 'selected' : '' }}>
@@ -279,40 +305,82 @@
                             </select>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="app_key" class="form-label small text-muted">App Key</label>
-                                    <input type="text" class="form-control font-monospace" id="app_key" 
-                                           name="settings[app_key]" 
-                                           value="{{ old('settings.app_key', $gateway->getSetting('app_key')) }}">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="app_secret" class="form-label small text-muted">App Secret</label>
-                                    <input type="password" class="form-control font-monospace" id="app_secret" 
-                                           name="settings[app_secret]" 
-                                           value="{{ old('settings.app_secret', $gateway->getSetting('app_secret')) }}">
-                                </div>
-                            </div>
-                        </div>
+                        <ul class="nav nav-tabs mb-3" id="bkashEnvTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="bkash-sandbox-tab" data-bs-toggle="tab" data-bs-target="#bkash-sandbox" type="button" role="tab">Sandbox Credentials</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="bkash-live-tab" data-bs-toggle="tab" data-bs-target="#bkash-live" type="button" role="tab">Live Credentials</button>
+                            </li>
+                        </ul>
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="username" class="form-label small text-muted">Username</label>
-                                    <input type="text" class="form-control" id="username" 
-                                           name="settings[username]" 
-                                           value="{{ old('settings.username', $gateway->getSetting('username')) }}">
+                        <div class="tab-content" id="bkashEnvTabContent">
+                            <div class="tab-pane fade show active" id="bkash-sandbox" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label small text-muted">Sandbox App Key</label>
+                                            <input type="text" class="form-control font-monospace" name="settings[sandbox][app_key]" 
+                                                   value="{{ old('settings.sandbox.app_key', $gateway->getSetting('sandbox.app_key', $gateway->getSetting('mode') === 'sandbox' ? $gateway->getSetting('app_key') : '')) }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label small text-muted">Sandbox App Secret</label>
+                                            <input type="password" class="form-control font-monospace" name="settings[sandbox][app_secret]" 
+                                                   value="{{ old('settings.sandbox.app_secret', $gateway->getSetting('sandbox.app_secret', $gateway->getSetting('mode') === 'sandbox' ? $gateway->getSetting('app_secret') : '')) }}">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label small text-muted">Sandbox Username</label>
+                                            <input type="text" class="form-control" name="settings[sandbox][username]" 
+                                                   value="{{ old('settings.sandbox.username', $gateway->getSetting('sandbox.username', $gateway->getSetting('mode') === 'sandbox' ? $gateway->getSetting('username') : '')) }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label small text-muted">Sandbox Password</label>
+                                            <input type="password" class="form-control" name="settings[sandbox][password]" 
+                                                   value="{{ old('settings.sandbox.password', $gateway->getSetting('sandbox.password', $gateway->getSetting('mode') === 'sandbox' ? $gateway->getSetting('password') : '')) }}">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="password" class="form-label small text-muted">Password</label>
-                                    <input type="password" class="form-control" id="password" 
-                                           name="settings[password]" 
-                                           value="{{ old('settings.password', $gateway->getSetting('password')) }}">
+                            <div class="tab-pane fade" id="bkash-live" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label small text-muted">Live App Key</label>
+                                            <input type="text" class="form-control font-monospace" name="settings[live][app_key]" 
+                                                   value="{{ old('settings.live.app_key', $gateway->getSetting('live.app_key', $gateway->getSetting('mode') === 'live' ? $gateway->getSetting('app_key') : '')) }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label small text-muted">Live App Secret</label>
+                                            <input type="password" class="form-control font-monospace" name="settings[live][app_secret]" 
+                                                   value="{{ old('settings.live.app_secret', $gateway->getSetting('live.app_secret', $gateway->getSetting('mode') === 'live' ? $gateway->getSetting('app_secret') : '')) }}">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label small text-muted">Live Username</label>
+                                            <input type="text" class="form-control" name="settings[live][username]" 
+                                                   value="{{ old('settings.live.username', $gateway->getSetting('live.username', $gateway->getSetting('mode') === 'live' ? $gateway->getSetting('username') : '')) }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label small text-muted">Live Password</label>
+                                            <input type="password" class="form-control" name="settings[live][password]" 
+                                                   value="{{ old('settings.live.password', $gateway->getSetting('live.password', $gateway->getSetting('mode') === 'live' ? $gateway->getSetting('password') : '')) }}">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -233,6 +233,80 @@
 
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-semibold"><i class="bi bi-envelope me-2"></i>Mail / SMTP Settings</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3 pb-3 border-bottom">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label class="form-label fw-semibold mb-0" for="mail_enabled">Custom Mail Configuration</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="mail_enabled" name="mail_enabled" value="1" data-integration-toggle="mail_enabled" {{ $isChecked('mail_enabled') ? 'checked' : '' }}>
+                                <label class="form-check-label" for="mail_enabled">Enable</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div data-integration-form="mail_enabled" class="{{ $isChecked('mail_enabled') ? '' : 'd-none' }}">
+                        <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="mail_mailer">Mailer Configuration</label>
+                            <select class="form-select @error('mail_mailer') is-invalid @enderror" id="mail_mailer" name="mail_mailer">
+                                <option value="smtp" {{ $valueOf('mail_mailer', 'smtp') === 'smtp' ? 'selected' : '' }}>SMTP</option>
+                                <option value="sendmail" {{ $valueOf('mail_mailer') === 'sendmail' ? 'selected' : '' }}>PHP Mail (Sendmail)</option>
+                            </select>
+                            @error('mail_mailer')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label" for="mail_host">Mail Host</label>
+                            <input type="text" class="form-control @error('mail_host') is-invalid @enderror" id="mail_host" name="mail_host" value="{{ $valueOf('mail_host') }}" placeholder="smtp.mailtrap.io">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label" for="mail_port">Mail Port</label>
+                            <input type="text" class="form-control @error('mail_port') is-invalid @enderror" id="mail_port" name="mail_port" value="{{ $valueOf('mail_port') }}" placeholder="2525">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label" for="mail_username">Mail Username</label>
+                            <input type="text" class="form-control @error('mail_username') is-invalid @enderror" id="mail_username" name="mail_username" value="{{ $valueOf('mail_username') }}" placeholder="username">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label" for="mail_password">Mail Password</label>
+                            <input type="password" class="form-control @error('mail_password') is-invalid @enderror" id="mail_password" name="mail_password" value="{{ $valueOf('mail_password') }}" placeholder="••••••••">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label" for="mail_encryption">Encryption</label>
+                            <select class="form-select @error('mail_encryption') is-invalid @enderror" id="mail_encryption" name="mail_encryption">
+                                <option value="tls" {{ $valueOf('mail_encryption', 'tls') === 'tls' ? 'selected' : '' }}>TLS</option>
+                                <option value="ssl" {{ $valueOf('mail_encryption') === 'ssl' ? 'selected' : '' }}>SSL</option>
+                                <option value="" {{ $valueOf('mail_encryption') === '' ? 'selected' : '' }}>None</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label" for="mail_from_address">From Address</label>
+                            <input type="email" class="form-control @error('mail_from_address') is-invalid @enderror" id="mail_from_address" name="mail_from_address" value="{{ $valueOf('mail_from_address') }}" placeholder="noreply@example.com">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label" for="mail_from_name">From Name</label>
+                            <input type="text" class="form-control @error('mail_from_name') is-invalid @enderror" id="mail_from_name" name="mail_from_name" value="{{ $valueOf('mail_from_name') }}" placeholder="My Store">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="small text-muted mt-2 {{ $isChecked('mail_enabled') ? 'd-none' : '' }}" data-integration-disabled-note="mail_enabled" style="padding: 0 1.25rem 1.25rem;">
+                    Disabled. Enable this integration to configure custom SMTP or PHP Mail settings. If disabled, Laravel's default mail settings (.env) will be used.
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="mb-0 fw-semibold"><i class="bi bi-chat-square-text me-2"></i>SMS API Integration</h6>
                     <div class="form-check form-switch mb-0">
                         <input class="form-check-input" type="checkbox" id="sms_enabled" name="sms_enabled" value="1" data-integration-toggle="sms_enabled" {{ $isChecked('sms_enabled') ? 'checked' : '' }}>

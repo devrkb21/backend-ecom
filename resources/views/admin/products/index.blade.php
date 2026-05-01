@@ -117,18 +117,26 @@
                                     </div>
                                 @endif
                             </td>
-                            <td>
-                                <a href="{{ route('admin.products.show', $product) }}">{{ $product->name }}</a>
-                                <div class="small text-muted">{{ $product->sku }}</div>
+                            <td style="max-width: 300px;">
+                                <a href="{{ route('admin.products.show', $product) }}" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; white-space: normal;" title="{{ $product->name }}">
+                                    {{ $product->name }}
+                                </a>
+                                <div class="small text-muted mt-1">{{ $product->sku }}</div>
                             </td>
-                            <td>{{ $product->category?->name ?? '-' }}</td>
+                            <td>
+                                @if($product->categories->isNotEmpty())
+                                    {{ $product->categories->pluck('name')->join(', ') }}
+                                @else
+                                    {{ $product->category?->name ?? '-' }}
+                                @endif
+                            </td>
                             <td>
                                 @if($hasPriceRange)
                                     <span>৳{{ number_format((float) ($pricing['price_range_min'] ?? 0), 2) }} - ৳{{ number_format((float) ($pricing['price_range_max'] ?? 0), 2) }}</span>
                                     <div class="small text-muted">Variant price range</div>
                                 @elseif(($pricing['sale_price'] ?? null) !== null)
-                                    <span class="text-decoration-line-through text-muted">৳{{ number_format((float) ($pricing['regular_price'] ?? 0), 2) }}</span>
-                                    <span class="text-danger">৳{{ number_format((float) $pricing['sale_price'], 2) }}</span>
+                                    <div class="text-decoration-line-through text-muted">৳{{ number_format((float) ($pricing['regular_price'] ?? 0), 2) }}</div>
+                                    <div class="text-danger fw-bold">৳{{ number_format((float) $pricing['sale_price'], 2) }}</div>
                                 @else
                                     ৳{{ number_format((float) ($pricing['current_price'] ?? 0), 2) }}
                                 @endif
@@ -140,9 +148,6 @@
                                     <span class="badge bg-warning text-dark">{{ $effectiveStock }}</span>
                                 @else
                                     <span class="badge bg-success">{{ $effectiveStock }}</span>
-                                @endif
-                                @if($product->hasActiveVariants())
-                                    <div class="small text-muted">From active variants</div>
                                 @endif
                             </td>
                             <td>

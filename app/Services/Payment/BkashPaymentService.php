@@ -21,15 +21,26 @@ class BkashPaymentService
     }
 
     /**
+     * Get a setting based on the current mode (sandbox/live)
+     */
+    protected function getModeSetting(string $key): ?string
+    {
+        if (!$this->gateway) return null;
+        $mode = $this->gateway->getSetting('mode', 'sandbox');
+        $env = $mode === 'sandbox' ? 'sandbox' : 'live';
+        return $this->gateway->getSetting("{$env}.{$key}");
+    }
+
+    /**
      * Configure bKash from gateway settings
      */
     protected function configureFromGateway(): void
     {
         // Get settings from database, fall back to .env
-        $appKey = $this->gateway->getSetting('app_key') ?: config('bkash.bkash_app_key');
-        $appSecret = $this->gateway->getSetting('app_secret') ?: config('bkash.bkash_app_secret');
-        $username = $this->gateway->getSetting('username') ?: config('bkash.bkash_username');
-        $password = $this->gateway->getSetting('password') ?: config('bkash.bkash_password');
+        $appKey = $this->getModeSetting('app_key') ?: config('bkash.bkash_app_key');
+        $appSecret = $this->getModeSetting('app_secret') ?: config('bkash.bkash_app_secret');
+        $username = $this->getModeSetting('username') ?: config('bkash.bkash_username');
+        $password = $this->getModeSetting('password') ?: config('bkash.bkash_password');
         $mode = $this->gateway->getSetting('mode', 'sandbox');
         $sandbox = $mode === 'sandbox' || $mode !== 'live';
 
@@ -61,10 +72,10 @@ class BkashPaymentService
             return false;
         }
 
-        $appKey = $this->gateway->getSetting('app_key');
-        $appSecret = $this->gateway->getSetting('app_secret');
-        $username = $this->gateway->getSetting('username');
-        $password = $this->gateway->getSetting('password');
+        $appKey = $this->getModeSetting('app_key');
+        $appSecret = $this->getModeSetting('app_secret');
+        $username = $this->getModeSetting('username');
+        $password = $this->getModeSetting('password');
 
         return !empty($appKey) && !empty($appSecret) && !empty($username) && !empty($password);
     }

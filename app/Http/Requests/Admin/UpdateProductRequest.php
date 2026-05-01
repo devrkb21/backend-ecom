@@ -42,11 +42,12 @@ class UpdateProductRequest extends FormRequest
         }
 
         return [
-            'category_id' => ['required', 'integer', 'exists:categories,id'],
+            'category_id' => ['required', 'array', 'min:1'],
+            'category_id.*' => ['integer', 'exists:categories,id'],
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('products')->ignore($productId)],
             'description' => ['nullable', 'string'],
-            'short_description' => ['nullable', 'string', 'max:500'],
+            'short_description' => ['nullable', 'string', 'max:5000'],
             'regular_price' => $regularPriceRules,
             'sale_price' => $salePriceRules,
             'buy_price' => ['nullable', 'numeric', 'min:0'],

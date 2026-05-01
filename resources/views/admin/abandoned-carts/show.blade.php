@@ -312,12 +312,10 @@
                                                 <br><small class="text-muted">SKU: {{ $item['product_sku'] }}</small>
                                                 @endif
 
-                                                @if($variantLabel !== '')
-                                                    <br><small class="text-info"><strong>Variant:</strong> {{ $variantLabel }}</small>
-                                                @endif
-
-                                                @if($variantAttributes !== '' && $variantAttributes !== $variantName)
+                                                @if($variantAttributes !== '')
                                                     <br><small class="text-muted">{{ $variantAttributes }}</small>
+                                                @elseif($variantLabel !== '')
+                                                    <br><small class="text-muted">{{ $variantLabel }}</small>
                                                 @endif
 
                                                 @if($variantSku !== '')

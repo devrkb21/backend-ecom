@@ -22,11 +22,22 @@ class StripePaymentService
         $this->gateway = PaymentGateway::findByCode('stripe');
         
         if ($this->gateway && $this->gateway->is_active) {
-            $secretKey = $this->gateway->getSetting('secret_key');
+            $secretKey = $this->getModeSetting('secret_key');
             if ($secretKey) {
                 Stripe::setApiKey($secretKey);
             }
         }
+    }
+    
+    /**
+     * Get a setting based on the current mode (test/live)
+     */
+    protected function getModeSetting(string $key): ?string
+    {
+        if (!$this->gateway) return null;
+        $mode = $this->gateway->getSetting('mode', 'test');
+        $env = $mode === 'test' ? 'test' : 'live';
+        return $this->gateway->getSetting("{$env}.{$key}");
     }
 
     /**
@@ -38,8 +49,8 @@ class StripePaymentService
             return false;
         }
 
-        $secretKey = $this->gateway->getSetting('secret_key');
-        $publicKey = $this->gateway->getSetting('public_key');
+        $secretKey = $this->getModeSetting('secret_key');
+        $publicKey = $this->getModeSetting('public_key');
 
         return !empty($secretKey) && !empty($publicKey);
     }
@@ -49,7 +60,7 @@ class StripePaymentService
      */
     public function getPublicKey(): ?string
     {
-        return $this->gateway?->getSetting('public_key');
+        return $this->getModeSetting('public_key');
     }
 
     /**
@@ -355,7 +366,7 @@ class StripePaymentService
      */
     public function verifyWebhookSignature(string $payload, string $sigHeader): \Stripe\Event
     {
-        $webhookSecret = $this->gateway?->getSetting('webhook_secret');
+        $webhookSecret = $this->getModeSetting('webhook_secret');
         
         if (!$webhookSecret) {
             throw new \Exception('Webhook secret not configured.');

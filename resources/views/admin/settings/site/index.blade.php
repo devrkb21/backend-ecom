@@ -26,6 +26,7 @@
                             'footer' => 'bi-layout-text-window-reverse',
                             'banner' => 'bi-megaphone',
                             'checkout' => 'bi-cart-check',
+                            'navigation' => 'bi-list',
                         ];
                         $groupDescriptions = [
                             'hero' => 'Homepage hero section with title, subtitle, and background image',
@@ -35,6 +36,7 @@
                             'footer' => 'Footer text, copyright, and newsletter settings',
                             'banner' => 'Promotional banner displayed at the top of the site',
                             'checkout' => 'Use the dedicated field manager to control checkout visibility, required states, guest access, and location mode',
+                            'navigation' => 'Fully customize your header menu items and links',
                         ];
                     @endphp
 

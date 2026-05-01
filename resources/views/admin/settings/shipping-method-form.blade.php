@@ -260,19 +260,16 @@
                                 </div>
                                 <span class="badge text-bg-light border" id="divisionCountBadge">Visible: 0 | Selected: 0</span>
                             </div>
-                            <select
-                                class="form-select @error('allowed_division_ids') is-invalid @enderror"
-                                id="allowed_division_ids"
-                                name="allowed_division_ids[]"
-                                multiple
-                                size="10"
-                            >
+                            <div class="border rounded p-2" id="allowed_division_ids_container" style="max-height: 250px; overflow-y: auto; background-color: #fff;">
                                 @foreach($divisions as $division)
-                                    <option value="{{ $division->id }}" {{ in_array($division->id, old('allowed_division_ids', $selectedDivisionIds ?? [])) ? 'selected' : '' }}>
-                                        {{ $division->name }}
-                                    </option>
+                                    <div class="form-check mb-1 option-wrapper">
+                                        <input class="form-check-input select-item" type="checkbox" name="allowed_division_ids[]" value="{{ $division->id }}" id="div_{{ $division->id }}" {{ in_array($division->id, old('allowed_division_ids', $selectedDivisionIds ?? [])) ? 'checked' : '' }}>
+                                        <label class="form-check-label w-100" for="div_{{ $division->id }}">
+                                            {{ $division->name }}
+                                        </label>
+                                    </div>
                                 @endforeach
-                            </select>
+                            </div>
                             <div class="form-text">Any selected division will allow this method there.</div>
                             @error('allowed_division_ids')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -292,23 +289,16 @@
                                 </div>
                                 <span class="badge text-bg-light border" id="districtCountBadge">Visible: 0 | Selected: 0</span>
                             </div>
-                            <select
-                                class="form-select @error('allowed_district_ids') is-invalid @enderror"
-                                id="allowed_district_ids"
-                                name="allowed_district_ids[]"
-                                multiple
-                                size="10"
-                            >
+                            <div class="border rounded p-2" id="allowed_district_ids_container" style="max-height: 250px; overflow-y: auto; background-color: #fff;">
                                 @foreach($districts as $district)
-                                    <option
-                                        value="{{ $district->id }}"
-                                        data-division-id="{{ $district->division_id }}"
-                                        {{ in_array($district->id, old('allowed_district_ids', $selectedDistrictIds ?? [])) ? 'selected' : '' }}
-                                    >
-                                        {{ $district->name }} ({{ $district->division?->name ?? '-' }})
-                                    </option>
+                                    <div class="form-check mb-1 option-wrapper">
+                                        <input class="form-check-input select-item" type="checkbox" name="allowed_district_ids[]" value="{{ $district->id }}" id="dist_{{ $district->id }}" data-division-id="{{ $district->division_id }}" {{ in_array($district->id, old('allowed_district_ids', $selectedDistrictIds ?? [])) ? 'checked' : '' }}>
+                                        <label class="form-check-label w-100" for="dist_{{ $district->id }}">
+                                            {{ $district->name }} <small class="text-muted">({{ $district->division?->name ?? '-' }})</small>
+                                        </label>
+                                    </div>
                                 @endforeach
-                            </select>
+                            </div>
                             <div class="form-text">District matches will allow this method directly.</div>
                             @error('allowed_district_ids')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -328,24 +318,16 @@
                                 </div>
                                 <span class="badge text-bg-light border" id="upazilaCountBadge">Visible: 0 | Selected: 0</span>
                             </div>
-                            <select
-                                class="form-select @error('allowed_upazila_ids') is-invalid @enderror"
-                                id="allowed_upazila_ids"
-                                name="allowed_upazila_ids[]"
-                                multiple
-                                size="10"
-                            >
+                            <div class="border rounded p-2" id="allowed_upazila_ids_container" style="max-height: 250px; overflow-y: auto; background-color: #fff;">
                                 @foreach($upazilas as $upazila)
-                                    <option
-                                        value="{{ $upazila->id }}"
-                                        data-district-id="{{ $upazila->district_id }}"
-                                        data-division-id="{{ $upazila->district?->division_id ?? '' }}"
-                                        {{ in_array($upazila->id, old('allowed_upazila_ids', $selectedUpazilaIds ?? [])) ? 'selected' : '' }}
-                                    >
-                                        {{ $upazila->name }} ({{ $upazila->district?->name ?? '-' }})
-                                    </option>
+                                    <div class="form-check mb-1 option-wrapper">
+                                        <input class="form-check-input select-item" type="checkbox" name="allowed_upazila_ids[]" value="{{ $upazila->id }}" id="upa_{{ $upazila->id }}" data-district-id="{{ $upazila->district_id }}" data-division-id="{{ $upazila->district?->division_id ?? '' }}" {{ in_array($upazila->id, old('allowed_upazila_ids', $selectedUpazilaIds ?? [])) ? 'checked' : '' }}>
+                                        <label class="form-check-label w-100" for="upa_{{ $upazila->id }}">
+                                            {{ $upazila->name }} <small class="text-muted">({{ $upazila->district?->name ?? '-' }})</small>
+                                        </label>
+                                    </div>
                                 @endforeach
-                            </select>
+                            </div>
                             <div class="form-text">Most specific match. Useful for courier coverage zones.</div>
                             @error('allowed_upazila_ids')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -429,9 +411,9 @@
         const costPerItem = document.getElementById('cost_per_item');
         const costPerKg = document.getElementById('cost_per_kg');
         const freeThreshold = document.getElementById('free_shipping_threshold');
-        const divisionSelect = document.getElementById('allowed_division_ids');
-        const districtSelect = document.getElementById('allowed_district_ids');
-        const upazilaSelect = document.getElementById('allowed_upazila_ids');
+        const divisionContainer = document.getElementById('allowed_division_ids_container');
+        const districtContainer = document.getElementById('allowed_district_ids_container');
+        const upazilaContainer = document.getElementById('allowed_upazila_ids_container');
         const divisionSearch = document.getElementById('divisionSearch');
         const districtSearch = document.getElementById('districtSearch');
         const upazilaSearch = document.getElementById('upazilaSearch');
@@ -469,108 +451,90 @@
             el.addEventListener('input', updatePreview);
         });
 
-        const selectedValues = (select) => {
-            if (!select) {
-                return [];
-            }
+        const getInputs = (container) => container ? Array.from(container.querySelectorAll('.select-item')) : [];
 
-            return Array.from(select.selectedOptions).map((opt) => String(opt.value));
+        const selectedValues = (container) => {
+            return getInputs(container)
+                .filter(input => input.checked)
+                .map(input => String(input.value));
         };
 
         const searchTerm = (input) => (input?.value || '').trim().toLowerCase();
 
-        const matchesSearch = (option, term) => {
-            if (!term) {
-                return true;
-            }
-
-            return option.textContent.toLowerCase().includes(term);
+        const matchesSearch = (input, term) => {
+            if (!term) return true;
+            return input.nextElementSibling.textContent.toLowerCase().includes(term);
         };
 
-        const toggleOption = (option, visible) => {
+        const toggleOption = (input, visible) => {
+            const wrapper = input.closest('.option-wrapper');
             const shouldHide = !visible;
-            option.hidden = shouldHide;
-            option.disabled = shouldHide;
+            wrapper.style.display = shouldHide ? 'none' : 'block';
+            input.disabled = shouldHide;
 
-            if (shouldHide && option.selected) {
-                option.selected = false;
+            if (shouldHide && input.checked) {
+                input.checked = false;
                 return true;
             }
-
             return false;
         };
 
-        const updateSelectCountBadge = (select, badge) => {
-            if (!select || !badge) {
-                return;
-            }
-
-            const visibleCount = Array.from(select.options).filter((option) => !option.hidden && !option.disabled).length;
-            const selectedCount = select.selectedOptions.length;
+        const updateSelectCountBadge = (container, badge) => {
+            if (!container || !badge) return;
+            const inputs = getInputs(container);
+            const visibleCount = inputs.filter(input => !input.disabled).length;
+            const selectedCount = inputs.filter(input => input.checked).length;
             badge.textContent = `Visible: ${visibleCount} | Selected: ${selectedCount}`;
         };
 
         const updateCountBadges = () => {
-            updateSelectCountBadge(divisionSelect, divisionCountBadge);
-            updateSelectCountBadge(districtSelect, districtCountBadge);
-            updateSelectCountBadge(upazilaSelect, upazilaCountBadge);
+            updateSelectCountBadge(divisionContainer, divisionCountBadge);
+            updateSelectCountBadge(districtContainer, districtCountBadge);
+            updateSelectCountBadge(upazilaContainer, upazilaCountBadge);
         };
 
         const filterDivisionOptions = () => {
-            if (!divisionSelect) {
-                return false;
-            }
-
+            if (!divisionContainer) return false;
             const term = searchTerm(divisionSearch);
             let selectionChanged = false;
 
-            Array.from(divisionSelect.options).forEach((option) => {
-                const visible = matchesSearch(option, term);
-
-                if (toggleOption(option, visible)) {
+            getInputs(divisionContainer).forEach((input) => {
+                const visible = matchesSearch(input, term);
+                if (toggleOption(input, visible)) {
                     selectionChanged = true;
                 }
             });
-
             return selectionChanged;
         };
 
         const filterDistrictOptions = () => {
-            if (!divisionSelect || !districtSelect) {
-                return false;
-            }
-
-            const selectedDivisionIds = selectedValues(divisionSelect);
+            if (!divisionContainer || !districtContainer) return false;
+            const selectedDivisionIds = selectedValues(divisionContainer);
             const term = searchTerm(districtSearch);
             let selectionChanged = false;
 
-            Array.from(districtSelect.options).forEach((option) => {
-                const divisionId = String(option.dataset.divisionId || '');
+            getInputs(districtContainer).forEach((input) => {
+                const divisionId = String(input.dataset.divisionId || '');
                 const visibleByDivision = selectedDivisionIds.length === 0 || selectedDivisionIds.includes(divisionId);
-                const visibleBySearch = matchesSearch(option, term);
+                const visibleBySearch = matchesSearch(input, term);
                 const visible = visibleByDivision && visibleBySearch;
 
-                if (toggleOption(option, visible)) {
+                if (toggleOption(input, visible)) {
                     selectionChanged = true;
                 }
             });
-
             return selectionChanged;
         };
 
         const filterUpazilaOptions = () => {
-            if (!upazilaSelect) {
-                return;
-            }
-
-            const selectedDivisionIds = selectedValues(divisionSelect);
-            const selectedDistrictIds = selectedValues(districtSelect);
+            if (!upazilaContainer) return;
+            const selectedDivisionIds = selectedValues(divisionContainer);
+            const selectedDistrictIds = selectedValues(districtContainer);
             const term = searchTerm(upazilaSearch);
 
-            Array.from(upazilaSelect.options).forEach((option) => {
-                const districtId = String(option.dataset.districtId || '');
-                const divisionId = String(option.dataset.divisionId || '');
-
+            getInputs(upazilaContainer).forEach((input) => {
+                const districtId = String(input.dataset.districtId || '');
+                const divisionId = String(input.dataset.divisionId || '');
                 let visible = true;
 
                 if (selectedDistrictIds.length > 0) {
@@ -579,9 +543,8 @@
                     visible = selectedDivisionIds.includes(divisionId);
                 }
 
-                visible = visible && matchesSearch(option, term);
-
-                toggleOption(option, visible);
+                visible = visible && matchesSearch(input, term);
+                toggleOption(input, visible);
             });
         };
 
@@ -592,14 +555,11 @@
             updateCountBadges();
         };
 
-        const setVisibleSelection = (select, shouldSelect) => {
-            if (!select) {
-                return;
-            }
-
-            Array.from(select.options).forEach((option) => {
-                if (!option.hidden && !option.disabled) {
-                    option.selected = shouldSelect;
+        const setVisibleSelection = (container, shouldSelect) => {
+            if (!container) return;
+            getInputs(container).forEach((input) => {
+                if (!input.disabled) {
+                    input.checked = shouldSelect;
                 }
             });
         };
@@ -608,13 +568,11 @@
             button.addEventListener('click', function () {
                 const targetId = this.dataset.bulkSelectTarget;
                 const mode = this.dataset.bulkSelectMode;
-                const select = targetId ? document.getElementById(targetId) : null;
+                const container = targetId ? document.getElementById(targetId + '_container') : null;
 
-                if (!select) {
-                    return;
-                }
+                if (!container) return;
 
-                setVisibleSelection(select, mode === 'select');
+                setVisibleSelection(container, mode === 'select');
 
                 if (targetId === 'allowed_division_ids') {
                     applyCascadingFilters();
@@ -629,12 +587,12 @@
             });
         });
 
-        divisionSelect?.addEventListener('change', applyCascadingFilters);
-        districtSelect?.addEventListener('change', () => {
+        divisionContainer?.addEventListener('change', applyCascadingFilters);
+        districtContainer?.addEventListener('change', () => {
             filterUpazilaOptions();
             updateCountBadges();
         });
-        upazilaSelect?.addEventListener('change', updateCountBadges);
+        upazilaContainer?.addEventListener('change', updateCountBadges);
         divisionSearch?.addEventListener('input', applyCascadingFilters);
         districtSearch?.addEventListener('input', () => {
             filterDistrictOptions();
