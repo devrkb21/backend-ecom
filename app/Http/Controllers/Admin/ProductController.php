@@ -45,7 +45,12 @@ class ProductController extends Controller
 
         // Category filter
         if ($categoryId = $request->input('category')) {
-            $query->where('category_id', $categoryId);
+            $query->where(function ($q) use ($categoryId) {
+                $q->where('category_id', $categoryId)
+                  ->orWhereHas('categories', function ($q2) use ($categoryId) {
+                      $q2->where('categories.id', $categoryId);
+                  });
+            });
         }
 
         // Status filter
@@ -90,8 +95,15 @@ class ProductController extends Controller
     {
         $data = $this->prepareProductData($request->validated(), $request);
 
-        DB::transaction(function () use ($data, $request) {
+        $categoryIds = $data['category_id'] ?? [];
+        $data['category_id'] = is_array($categoryIds) && count($categoryIds) > 0 ? $categoryIds[0] : null;
+
+        DB::transaction(function () use ($data, $request, $categoryIds) {
             $product = Product::create($data);
+            
+            if (!empty($categoryIds)) {
+                $product->categories()->sync($categoryIds);
+            }
 
             // Handle primary image from media library
             if ($imagePath = $request->input('image_path')) {
@@ -164,8 +176,15 @@ class ProductController extends Controller
         $isJsonRequest = $this->isJsonRequest($request);
         $data = $this->prepareProductData($request->validated(), $request, $product);
 
-        DB::transaction(function () use ($data, $request, $product) {
+        $categoryIds = $data['category_id'] ?? [];
+        $data['category_id'] = is_array($categoryIds) && count($categoryIds) > 0 ? $categoryIds[0] : null;
+
+        DB::transaction(function () use ($data, $request, $product, $categoryIds) {
             $product->update($data);
+
+            if (!empty($categoryIds)) {
+                $product->categories()->sync($categoryIds);
+            }
 
             // Handle primary image removal
             if ($request->boolean('remove_image')) {

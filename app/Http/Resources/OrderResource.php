@@ -27,6 +27,7 @@ class OrderResource extends JsonResource
             'payment_status' => $this->payment_status,
             'transaction_id' => $this->transaction_id,
             'shipping_method' => $this->shipping_method,
+            'shipping_method_name' => \App\Models\ShippingMethod::where('code', $this->shipping_method)->value('name') ?: $this->shipping_method,
             'coupon_code' => $this->coupon_code,
             'discount_amount' => $discountAmount,
             'payment_charge' => $paymentCharge,

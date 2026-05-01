@@ -103,13 +103,21 @@ class ProductController extends Controller
             }
 
             if ($categoryId !== null && $categoryId !== '') {
+                $categoryIds = [];
                 if (is_array($categoryId)) {
-                    $query->whereIn('category_id', array_map('intval', $categoryId));
+                    $categoryIds = array_map('intval', $categoryId);
                 } elseif (is_string($categoryId) && str_contains($categoryId, ',')) {
-                    $query->whereIn('category_id', array_map('intval', explode(',', $categoryId)));
+                    $categoryIds = array_map('intval', explode(',', $categoryId));
                 } else {
-                    $query->where('category_id', (int) $categoryId);
+                    $categoryIds = [(int) $categoryId];
                 }
+                
+                $query->where(function ($q) use ($categoryIds) {
+                    $q->whereIn('category_id', $categoryIds)
+                      ->orWhereHas('categories', function ($q2) use ($categoryIds) {
+                          $q2->whereIn('categories.id', $categoryIds);
+                      });
+                });
             }
 
             if ($hasFeaturedFilter) {

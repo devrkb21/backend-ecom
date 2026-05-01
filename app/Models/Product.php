@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 use App\Traits\Auditable;
@@ -57,8 +58,14 @@ class Product extends Model
             if (empty($product->slug)) {
                 $product->slug = Str::slug($product->name);
             }
-            if (empty($product->sku)) {
+            if (empty($product->sku) && !request()->boolean('is_sku_optional')) {
                 // Generate SKU from 8 digit numeric value
+                $product->sku = (string) random_int(10000000, 99999999);
+            }
+        });
+
+        static::updating(function ($product) {
+            if (empty($product->sku) && !request()->boolean('is_sku_optional')) {
                 $product->sku = (string) random_int(10000000, 99999999);
             }
         });
@@ -67,6 +74,11 @@ class Product extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(Category::class);
     }
 
     public function images(): HasMany

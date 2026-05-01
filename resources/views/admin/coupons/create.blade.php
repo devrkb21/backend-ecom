@@ -143,14 +143,16 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label for="applicable_categories" class="form-label">Applicable Categories</label>
-                            <select class="form-select @error('applicable_categories') is-invalid @enderror" 
-                                    id="applicable_categories" name="applicable_categories[]" multiple>
+                            <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto; background-color: #fff;">
                                 @foreach($categories as $category)
-                                    <option value="{{ $category->id }}" {{ in_array($category->id, old('applicable_categories', [])) ? 'selected' : '' }}>
-                                        {{ $category->name }}
-                                    </option>
+                                    <div class="form-check mb-1">
+                                        <input class="form-check-input" type="checkbox" name="applicable_categories[]" value="{{ $category->id }}" id="app_cat_{{ $category->id }}" {{ in_array($category->id, old('applicable_categories', [])) ? 'checked' : '' }}>
+                                        <label class="form-check-label" for="app_cat_{{ $category->id }}">
+                                            {{ $category->name }}
+                                        </label>
+                                    </div>
                                 @endforeach
-                            </select>
+                            </div>
                             <div class="form-text">Leave empty to apply to all categories</div>
                             @error('applicable_categories')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -158,14 +160,16 @@
                         </div>
                         <div class="col-md-6">
                             <label for="applicable_products" class="form-label">Applicable Products</label>
-                            <select class="form-select @error('applicable_products') is-invalid @enderror" 
-                                    id="applicable_products" name="applicable_products[]" multiple>
+                            <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto; background-color: #fff;">
                                 @foreach($products as $product)
-                                    <option value="{{ $product->id }}" {{ in_array($product->id, old('applicable_products', [])) ? 'selected' : '' }}>
-                                        {{ $product->name }}
-                                    </option>
+                                    <div class="form-check mb-1">
+                                        <input class="form-check-input" type="checkbox" name="applicable_products[]" value="{{ $product->id }}" id="app_prod_{{ $product->id }}" {{ in_array($product->id, old('applicable_products', [])) ? 'checked' : '' }}>
+                                        <label class="form-check-label" for="app_prod_{{ $product->id }}">
+                                            {{ $product->name }}
+                                        </label>
+                                    </div>
                                 @endforeach
-                            </select>
+                            </div>
                             <div class="form-text">Leave empty to apply to all products</div>
                             @error('applicable_products')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -173,14 +177,16 @@
                         </div>
                         <div class="col-12">
                             <label for="excluded_products" class="form-label">Excluded Products</label>
-                            <select class="form-select @error('excluded_products') is-invalid @enderror" 
-                                    id="excluded_products" name="excluded_products[]" multiple>
+                            <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto; background-color: #fff;">
                                 @foreach($products as $product)
-                                    <option value="{{ $product->id }}" {{ in_array($product->id, old('excluded_products', [])) ? 'selected' : '' }}>
-                                        {{ $product->name }}
-                                    </option>
+                                    <div class="form-check mb-1">
+                                        <input class="form-check-input" type="checkbox" name="excluded_products[]" value="{{ $product->id }}" id="exc_prod_{{ $product->id }}" {{ in_array($product->id, old('excluded_products', [])) ? 'checked' : '' }}>
+                                        <label class="form-check-label" for="exc_prod_{{ $product->id }}">
+                                            {{ $product->name }}
+                                        </label>
+                                    </div>
                                 @endforeach
-                            </select>
+                            </div>
                             <div class="form-text">Products that this coupon will never apply to</div>
                             @error('excluded_products')
                                 <div class="invalid-feedback">{{ $message }}</div>

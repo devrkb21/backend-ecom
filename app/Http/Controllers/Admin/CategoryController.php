@@ -21,9 +21,14 @@ class CategoryController extends Controller
 
         // Paginated collection for the flat table
         $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
-        $categories = Category::with(['parent', 'children'])
-            ->withCount('products')
-            ->orderBy('name')
+        $query = Category::with(['parent', 'children'])->withCount('products');
+        
+        if ($search = $request->input('search')) {
+            $query->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+        }
+        
+        $categories = $query->orderBy('name')
             ->paginate($perPage)
             ->withQueryString();
 

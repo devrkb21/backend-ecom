@@ -7,9 +7,20 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span>Manage Attributes (Size, Color, etc.)</span>
-        <a href="{{ route('admin.attributes.create') }}" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus"></i> Add Attribute
-        </a>
+        <div class="d-flex gap-2">
+            <form action="{{ route('admin.attributes.index') }}" method="GET" class="d-flex">
+                <div class="input-group input-group-sm">
+                    <input type="text" name="search" class="form-control" placeholder="Search attributes..." value="{{ request('search') }}">
+                    <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+                    @if(request('search'))
+                        <a href="{{ route('admin.attributes.index') }}" class="btn btn-outline-danger"><i class="bi bi-x"></i></a>
+                    @endif
+                </div>
+            </form>
+            <a href="{{ route('admin.attributes.create') }}" class="btn btn-primary btn-sm text-nowrap">
+                <i class="bi bi-plus"></i> Add Attribute
+            </a>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">

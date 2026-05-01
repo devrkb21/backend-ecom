@@ -44,9 +44,20 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 fw-semibold"><i class="bi bi-tags me-2"></i>All Categories ({{ $allCategories->count() }})</h6>
-                <a href="{{ route('admin.categories.create') }}" class="btn btn-primary btn-sm">
-                    <i class="bi bi-plus"></i> Add Category
-                </a>
+                <div class="d-flex gap-2">
+                    <form action="{{ route('admin.categories.index') }}" method="GET" class="d-flex">
+                        <div class="input-group input-group-sm">
+                            <input type="text" name="search" class="form-control" placeholder="Search categories..." value="{{ request('search') }}">
+                            <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+                            @if(request('search'))
+                                <a href="{{ route('admin.categories.index') }}" class="btn btn-outline-danger"><i class="bi bi-x"></i></a>
+                            @endif
+                        </div>
+                    </form>
+                    <a href="{{ route('admin.categories.create') }}" class="btn btn-primary btn-sm text-nowrap">
+                        <i class="bi bi-plus"></i> Add Category
+                    </a>
+                </div>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">

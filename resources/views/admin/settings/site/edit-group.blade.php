@@ -20,7 +20,15 @@
                 @method('PUT')
                 <div class="card-body">
                     @foreach($settings as $setting)
-                        <div class="mb-4 pb-3 {{ !$loop->last ? 'border-bottom' : '' }}">
+                        <div class="mb-4 pb-3 {{ !$loop->last ? 'border-bottom' : '' }}" 
+                             @if($setting->key === 'order_number_custom_format')
+                                 @php
+                                     $currentMode = old('settings.order_number_generation_mode', $settings->firstWhere('key', 'order_number_generation_mode')?->value ?? 'timestamp_random');
+                                 @endphp
+                                 id="custom_format_wrapper" 
+                                 style="display: {{ $currentMode === 'custom_format' ? 'block' : 'none' }};"
+                             @endif
+                        >
                             <label class="form-label fw-semibold">
                                 {{ $setting->label }}
                                 @if($setting->description)
@@ -189,13 +197,39 @@
                                     @break
 
                                 @case('json')
-                                    <textarea 
-                                        name="settings[{{ $setting->key }}]" 
-                                        class="form-control font-monospace" 
-                                        rows="5"
-                                        placeholder='{"key": "value"}'
-                                    >{{ old("settings.{$setting->key}", $setting->value) }}</textarea>
-                                    <small class="text-muted">Enter valid JSON format</small>
+                                    @if($setting->key === 'header_menu')
+                                        <div id="header-menu-builder">
+                                            <textarea 
+                                                name="settings[{{ $setting->key }}]" 
+                                                id="header_menu_input"
+                                                class="d-none"
+                                            >{{ old("settings.{$setting->key}", $setting->value) }}</textarea>
+                                            
+                                            <div id="menu-items-container" class="list-group mb-3">
+                                                <!-- JS will populate this -->
+                                            </div>
+                                            
+                                            <div class="row g-2 align-items-center bg-light p-3 border rounded">
+                                                <div class="col-md-5">
+                                                    <input type="text" id="new-menu-label" class="form-control" placeholder="Menu Label (e.g., Home)">
+                                                </div>
+                                                <div class="col-md-5">
+                                                    <input type="text" id="new-menu-url" class="form-control" placeholder="URL (e.g., /products)">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <button type="button" class="btn btn-primary w-100" onclick="addMenuItem()">Add</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <textarea 
+                                            name="settings[{{ $setting->key }}]" 
+                                            class="form-control font-monospace" 
+                                            rows="5"
+                                            placeholder='{"key": "value"}'
+                                        >{{ old("settings.{$setting->key}", $setting->value) }}</textarea>
+                                        <small class="text-muted">Enter valid JSON format</small>
+                                    @endif
                                     @break
 
                                 @default
@@ -212,6 +246,9 @@
                                             </option>
                                             <option value="global_sequence" {{ $selectedMode === 'global_sequence' ? 'selected' : '' }}>
                                                 Global Sequence (e.g., ORD-00000001)
+                                            </option>
+                                            <option value="custom_format" {{ $selectedMode === 'custom_format' ? 'selected' : '' }}>
+                                                Custom Format (Use template)
                                             </option>
                                         </select>
                                     @elseif(str_contains($setting->key, 'color'))
@@ -278,6 +315,12 @@
                             @if($setting->key === 'stock_enabled')
                                 <small class="text-muted d-block mt-1">
                                     Enabled: simple products require base stock and variable products use variant stock for availability checks. Disabled: stock is optional and ignored globally.
+                                </small>
+                            @endif
+                            @if($setting->key === 'order_number_custom_format')
+                                <small class="text-muted d-block mt-1">
+                                    Placeholders: <code>{PREFIX}</code>, <code>{YYYY}</code>, <code>{YY}</code>, <code>{MM}</code>, <code>{DD}</code>, <code>{SEQ:N}</code> (N=length), <code>{RAND:N}</code>. 
+                                    Example: <code>{PREFIX}-{YYYY}{MM}{DD}-{SEQ:4}</code>
                                 </small>
                             @endif
                         </div>
@@ -399,6 +442,18 @@
         });
     });
 
+    // Toggle custom format field visibility
+    const modeSelect = document.querySelector('select[name="settings[order_number_generation_mode]"]');
+    if (modeSelect) {
+        function toggleCustomFormatField() {
+            const wrapper = document.getElementById('custom_format_wrapper');
+            if (wrapper) {
+                wrapper.style.display = modeSelect.value === 'custom_format' ? 'block' : 'none';
+            }
+        }
+        modeSelect.addEventListener('change', toggleCustomFormatField);
+    }
+
     // Delete image function
     function deleteImage(group, key) {
         if (confirm('Are you sure you want to delete this image?')) {
@@ -457,5 +512,84 @@
         if (previewImg) previewImg.style.height = val + 'px';
         if (sizeLabel) sizeLabel.textContent = val + 'px';
     }
+
+    // Menu Builder Logic
+    document.addEventListener('DOMContentLoaded', function() {
+        const menuInput = document.getElementById('header_menu_input');
+        if (!menuInput) return;
+
+        let menuItems = [];
+        try {
+            menuItems = JSON.parse(menuInput.value) || [];
+        } catch (e) {
+            menuItems = [];
+        }
+
+        function renderMenu() {
+            const container = document.getElementById('menu-items-container');
+            container.innerHTML = '';
+            
+            menuItems.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = 'list-group-item d-flex justify-content-between align-items-center';
+                row.innerHTML = `
+                    <div class="d-flex align-items-center gap-3 flex-grow-1">
+                        <i class="bi bi-grip-vertical text-muted cursor-move"></i>
+                        <div class="row g-2 flex-grow-1">
+                            <div class="col-md-6">
+                                <input type="text" class="form-control form-control-sm" value="${item.label}" onchange="updateMenuItem(${index}, 'label', this.value)">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="text" class="form-control form-control-sm" value="${item.url}" onchange="updateMenuItem(${index}, 'url', this.value)">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ms-3 d-flex gap-1">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="moveMenuItem(${index}, -1)" ${index === 0 ? 'disabled' : ''}><i class="bi bi-arrow-up"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="moveMenuItem(${index}, 1)" ${index === menuItems.length - 1 ? 'disabled' : ''}><i class="bi bi-arrow-down"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeMenuItem(${index})"><i class="bi bi-trash"></i></button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+            menuInput.value = JSON.stringify(menuItems);
+        }
+
+        window.addMenuItem = function() {
+            const labelInput = document.getElementById('new-menu-label');
+            const urlInput = document.getElementById('new-menu-url');
+            if (labelInput.value.trim() === '' || urlInput.value.trim() === '') return;
+
+            menuItems.push({
+                label: labelInput.value.trim(),
+                url: urlInput.value.trim(),
+                type: 'link'
+            });
+
+            labelInput.value = '';
+            urlInput.value = '';
+            renderMenu();
+        };
+
+        window.removeMenuItem = function(index) {
+            menuItems.splice(index, 1);
+            renderMenu();
+        };
+
+        window.updateMenuItem = function(index, field, value) {
+            menuItems[index][field] = value;
+            menuInput.value = JSON.stringify(menuItems);
+        };
+
+        window.moveMenuItem = function(index, direction) {
+            if (index + direction < 0 || index + direction >= menuItems.length) return;
+            const temp = menuItems[index];
+            menuItems[index] = menuItems[index + direction];
+            menuItems[index + direction] = temp;
+            renderMenu();
+        };
+
+        renderMenu();
+    });
 </script>
 @endpush

@@ -46,6 +46,12 @@
                                 <label for="sku" class="form-label small text-muted">SKU</label>
                                 <input type="text" class="form-control @error('sku') is-invalid @enderror" id="sku" name="sku" value="{{ old('sku', $product->sku) }}">
                                 <div class="form-text">Leave empty to auto-generate numeric SKU.</div>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" id="is_sku_optional" name="is_sku_optional" value="1" {{ old('is_sku_optional', is_null($product->sku)) ? 'checked' : '' }}>
+                                    <label class="form-check-label small text-muted" for="is_sku_optional">
+                                        Check to make the SKU optional
+                                    </label>
+                                </div>
                                 @error('sku')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -54,22 +60,29 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="category_id" class="form-label">Category <span class="text-danger">*</span></label>
-                        <select class="form-select @error('category_id') is-invalid @enderror" id="category_id" name="category_id" required>
-                            <option value="">-- Select Category --</option>
+                        <label for="category_id" class="form-label">Categories <span class="text-danger">*</span></label>
+                        <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto; background-color: #fff;">
                             @php
-                                function renderEditCategoryOptions($categories, $selected = null, $prefix = '') {
+                                function renderEditCategoryCheckboxes($categories, $selected = [], $margin = 0) {
                                     foreach ($categories as $category) {
-                                        $isSelected = $selected == $category->id ? 'selected' : '';
-                                        echo "<option value=\"{$category->id}\" {$isSelected}>{$prefix}{$category->name}</option>";
+                                        $isChecked = in_array($category->id, (array)$selected) ? 'checked' : '';
+                                        $marginLeft = $margin > 0 ? "ms-{$margin}" : "";
+                                        echo "
+                                        <div class=\"form-check {$marginLeft} mb-1\">
+                                            <input class=\"form-check-input\" type=\"checkbox\" name=\"category_id[]\" value=\"{$category->id}\" id=\"category_{$category->id}\" {$isChecked}>
+                                            <label class=\"form-check-label\" for=\"category_{$category->id}\">
+                                                {$category->name}
+                                            </label>
+                                        </div>";
                                         if ($category->children->isNotEmpty()) {
-                                            renderEditCategoryOptions($category->children, $selected, $prefix . '— ');
+                                            renderEditCategoryCheckboxes($category->children, $selected, $margin + 3);
                                         }
                                     }
                                 }
-                                renderEditCategoryOptions($categories->whereNull('parent_id'), old('category_id', $product->category_id));
+                                $selectedCats = old('category_id', $product->categories->pluck('id')->toArray());
+                                renderEditCategoryCheckboxes($categories->whereNull('parent_id'), $selectedCats);
                             @endphp
-                        </select>
+                        </div>
                         @error('category_id')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
@@ -77,8 +90,8 @@
 
                     <div class="mb-3">
                         <label for="short_description" class="form-label">Short Description</label>
-                        <input type="text" class="form-control @error('short_description') is-invalid @enderror" id="short_description" name="short_description" value="{{ old('short_description', $product->short_description) }}" maxlength="255">
-                        <div class="form-text">Brief description for listings (max 255 chars).</div>
+                        <textarea class="form-control @error('short_description') is-invalid @enderror" id="short_description" name="short_description" rows="3">{{ old('short_description', $product->short_description) }}</textarea>
+                        <div class="form-text">Brief description for listings.</div>
                         @error('short_description')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
@@ -2607,5 +2620,24 @@ document.addEventListener('submit', async function(event) {
     // Initial render
     applyPagination();
 })();
+</script>
+<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#description, #short_description').summernote({
+            height: 200,
+            toolbar: [
+                ['style', ['style']],
+                ['font', ['bold', 'underline', 'clear']],
+                ['color', ['color']],
+                ['para', ['ul', 'ol', 'paragraph']],
+                ['table', ['table']],
+                ['insert', ['link', 'picture', 'video']],
+                ['view', ['fullscreen', 'codeview', 'help']]
+            ]
+        });
+    });
 </script>
 @endpush

@@ -147,7 +147,7 @@
         .top-navbar {
             background: #fff;
             border-bottom: 1px solid #dee2e6;
-            padding: 0.75rem 1.5rem;
+            padding: 0.5rem 1rem;
             position: sticky;
             top: 0;
             z-index: 999;
@@ -168,7 +168,7 @@
             }
         }
         .content-wrapper {
-            padding: 1.5rem;
+            padding: 1rem;
         }
         .card {
             border: none;
@@ -178,7 +178,10 @@
         .card-header {
             background-color: #fff;
             border-bottom: 1px solid rgba(0,0,0,0.08);
-            padding: 1rem 1.25rem;
+            padding: 0.75rem 1rem;
+        }
+        .card-body {
+            padding: 1rem;
         }
         .card-footer {
             background-color: #fff;
@@ -191,10 +194,18 @@
             text-transform: uppercase;
             letter-spacing: 0.3px;
             color: #6c757d;
+            padding: 0.5rem 0.75rem;
         }
         .table td {
             vertical-align: middle;
+            padding: 0.5rem 0.75rem;
         }
+        /* Reduce generic spacing overrides */
+        .mb-4, .my-4 { margin-bottom: 1rem !important; }
+        .mt-4, .my-4 { margin-top: 1rem !important; }
+        .py-4 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+        .px-4 { padding-left: 1rem !important; padding-right: 1rem !important; }
+        .gap-4 { gap: 1rem !important; }
         .content-wrapper .table-responsive,
         .content-wrapper .admin-table-scroll {
             width: 100%;
@@ -237,6 +248,49 @@
         .badge-status-shipped { background-color: #6f42c1; }
         .badge-status-delivered { background-color: #28a745; }
         .badge-status-cancelled { background-color: #dc3545; }
+
+        /* Global Search */
+        #globalSearchInput:focus {
+            background-color: #fff !important;
+            box-shadow: none;
+            border-color: #ced4da;
+        }
+        .global-search-result-item {
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid #f8f9fa;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+            transition: background-color: 0.2s;
+        }
+        .global-search-result-item:hover,
+        .global-search-result-item.active {
+            background-color: #f8f9fa;
+        }
+        .global-search-result-item:last-child {
+            border-bottom: none;
+        }
+        .global-search-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #e9ecef;
+            border-radius: 6px;
+            color: #495057;
+        }
+        .global-search-text h6 {
+            margin: 0;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .global-search-text small {
+            font-size: 0.75rem;
+            color: #6c757d;
+        }
+
         .badge-status-completed { background-color: #28a745; }
         .badge-status-failed { background-color: #dc3545; }
         .badge-status-refunded { background-color: #6c757d; }
@@ -289,14 +343,20 @@
     <!-- Sidebar -->
     <nav class="sidebar">
         <div class="sidebar-brand d-flex align-items-center justify-content-center px-3" style="min-height: 60px;">
-            @php $siteLogo = \App\Models\Setting::getValue('general', 'site_logo'); @endphp
-            @if($siteLogo)
-                <img src="{{ $siteLogo }}" alt="{{ \App\Models\Setting::getValue('general', 'site_name') ?: config('app.name') }}" style="max-height: 40px; max-width: 100%;">
-            @else
-                <i class="bi bi-shop me-2"></i> <span>{{ \App\Models\Setting::getValue('general', 'site_name') ?: 'Admin Panel' }}</span>
-            @endif
+            <a href="{{ route('admin.dashboard') }}" class="text-decoration-none text-white d-flex align-items-center justify-content-center w-100">
+                @php $siteLogo = \App\Models\Setting::getValue('general', 'site_logo'); @endphp
+                @if($siteLogo)
+                    <img src="{{ $siteLogo }}" alt="{{ \App\Models\Setting::getValue('general', 'site_name') ?: config('app.name') }}" style="max-height: 40px; max-width: 100%;">
+                @else
+                    <i class="bi bi-shop me-2"></i> <span>{{ \App\Models\Setting::getValue('general', 'site_name') ?: 'Admin Panel' }}</span>
+                @endif
+            </a>
         </div>
-        <div class="sidebar-controls">
+        <div class="sidebar-controls d-flex flex-column gap-2">
+            <a href="{{ config('app.frontend_url') }}" target="_blank" class="btn btn-outline-light btn-sm w-100 sidebar-control-btn" aria-label="View frontend website">
+                <i class="bi bi-box-arrow-up-right me-1"></i>
+                <span>View Frontend</span>
+            </a>
             <button type="button" class="btn btn-outline-light btn-sm w-100 sidebar-control-btn" id="sidebarBulkToggle" aria-label="Toggle all sidebar groups">
                 <i class="bi bi-arrows-expand me-1" data-bulk-icon></i>
                 <span data-bulk-label>Expand All</span>
@@ -322,8 +382,7 @@
 
                 $isCatalogActive = request()->routeIs('admin.products.*')
                     || request()->routeIs('admin.categories.*')
-                    || request()->routeIs('admin.attributes.*')
-                    || request()->routeIs('admin.media.*');
+                    || request()->routeIs('admin.attributes.*');
 
                 $isOrdersActive = request()->routeIs('admin.orders.*')
                     || request()->routeIs('admin.payments.*')
@@ -347,7 +406,8 @@
                 $isUsersActive = request()->routeIs('admin.users.*')
                     || request()->routeIs('admin.roles.*');
 
-                $isSettingsActive = request()->routeIs('admin.settings.*');
+                $isSettingsActive = request()->routeIs('admin.settings.*') && !request()->routeIs('admin.settings.site.*');
+                $isContentActive = request()->routeIs('admin.pages.*') || request()->routeIs('admin.media.*') || request()->routeIs('admin.settings.site.*') || request()->routeIs('admin.contact-messages.*');
             @endphp
 
             <li class="nav-item">
@@ -380,11 +440,6 @@
                     <li class="nav-item">
                         <a class="nav-link submenu-link {{ request()->routeIs('admin.attributes.*') ? 'active' : '' }}" href="{{ route('admin.attributes.index') }}">
                             <i class="bi bi-diagram-3"></i> Attributes
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.media.*') ? 'active' : '' }}" href="{{ route('admin.media.index') }}">
-                            <i class="bi bi-images"></i> Media
                         </a>
                     </li>
                 </ul>
@@ -487,6 +542,39 @@
                 </ul>
             </li>
 
+            <li class="nav-item menu-group {{ $isContentActive ? 'is-open' : '' }}" data-menu-group="content" data-active="{{ $isContentActive ? '1' : '0' }}">
+                <button type="button" class="nav-link nav-group-toggle {{ $isContentActive ? 'active' : '' }}" data-group-toggle aria-expanded="{{ $isContentActive ? 'true' : 'false' }}">
+                    <span class="menu-label"><i class="bi bi-file-earmark-richtext"></i> Content & SEO</span>
+                    <i class="bi bi-chevron-down menu-chevron"></i>
+                </button>
+                <ul class="nav flex-column submenu">
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.pages.*') ? 'active' : '' }}" href="{{ route('admin.pages.index') }}">
+                            <i class="bi bi-file-earmark-text"></i> Pages
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.media.*') ? 'active' : '' }}" href="{{ route('admin.media.index') }}">
+                            <i class="bi bi-images"></i> Media Manager
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.site.*') ? 'active' : '' }}" href="{{ route('admin.settings.site.index') }}">
+                            <i class="bi bi-palette"></i> Storefront & SEO
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.contact-messages.*') ? 'active' : '' }}" href="{{ route('admin.contact-messages.index') }}">
+                            <i class="bi bi-envelope"></i> Contact Messages
+                            @php $unreadMsgCount = \App\Models\ContactMessage::where('is_read', false)->count(); @endphp
+                            @if($unreadMsgCount > 0)
+                                <span class="badge bg-danger ms-1">{{ $unreadMsgCount }}</span>
+                            @endif
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
             <li class="nav-item menu-group {{ $isAnalyticsActive ? 'is-open' : '' }}" data-menu-group="analytics" data-active="{{ $isAnalyticsActive ? '1' : '0' }}">
                 <button type="button" class="nav-link nav-group-toggle {{ $isAnalyticsActive ? 'active' : '' }}" data-group-toggle aria-expanded="{{ $isAnalyticsActive ? 'true' : 'false' }}">
                     <span class="menu-label"><i class="bi bi-bar-chart-line"></i> Analytics</span>
@@ -561,11 +649,6 @@
                 </button>
                 <ul class="nav flex-column submenu">
                     <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.site*') ? 'active' : '' }}" href="{{ route('admin.settings.site.index') }}">
-                            <i class="bi bi-palette"></i> Site Settings
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.integrations*') ? 'active' : '' }}" href="{{ route('admin.settings.integrations') }}">
                             <i class="bi bi-plug"></i> Integrations
                         </a>
@@ -605,10 +688,21 @@
                     <i class="bi bi-layout-sidebar me-1" data-sidebar-collapse-icon></i>
                     <span data-sidebar-collapse-label>Collapse</span>
                 </button>
-                <h5 class="mb-0">@yield('page-title', 'Dashboard')</h5>
+                <h5 class="mb-0 text-nowrap">@yield('page-title', 'Dashboard')</h5>
             </div>
+            
+            <div class="d-none d-md-flex align-items-center flex-grow-1 mx-4 position-relative">
+                <div class="input-group input-group-sm w-100 mx-auto" style="max-width: 500px;">
+                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" id="globalSearchInput" class="form-control border-start-0 bg-light" placeholder="Global search (press Ctrl+K)" autocomplete="off">
+                </div>
+                <div id="globalSearchResults" class="dropdown-menu w-100 mt-1 shadow-sm border-0 position-absolute start-50 translate-middle-x" style="top: 100%; max-width: 500px; display: none; max-height: 400px; overflow-y: auto;">
+                    <!-- Results will be injected here -->
+                </div>
+            </div>
+
             <div class="d-flex align-items-center">
-                <span class="me-3">{{ auth()->user()->name }}</span>
+                <span class="me-3 text-nowrap">{{ auth()->user()->name }}</span>
                 <form action="{{ route('admin.logout') }}" method="POST" class="d-inline">
                     @csrf
                     <button type="submit" class="btn btn-outline-secondary btn-sm">
@@ -1623,6 +1717,108 @@
                 bindGlobalAjax();
             }
         })();
+
+        // Global Search
+        const globalSearchInput = document.getElementById('globalSearchInput');
+        const globalSearchResults = document.getElementById('globalSearchResults');
+        let globalSearchTimeout;
+        let globalSelectedIndex = -1;
+        
+        if (globalSearchInput) {
+            document.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    globalSearchInput.focus();
+                }
+            });
+
+            globalSearchInput.addEventListener('input', function(e) {
+                clearTimeout(globalSearchTimeout);
+                const query = e.target.value.trim();
+                globalSelectedIndex = -1;
+
+                if (query.length < 2) {
+                    globalSearchResults.style.display = 'none';
+                    return;
+                }
+
+                globalSearchTimeout = setTimeout(() => {
+                    fetch(`{{ route('admin.global-search') }}?q=${encodeURIComponent(query)}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.results && data.results.length > 0) {
+                                globalSearchResults.innerHTML = data.results.map((item, index) => `
+                                    <a href="${item.url}" class="text-decoration-none text-dark d-block">
+                                        <div class="global-search-result-item" data-index="${index}">
+                                            <div class="global-search-icon">
+                                                <i class="bi ${item.icon || 'bi-search'}"></i>
+                                            </div>
+                                            <div class="global-search-text">
+                                                <h6>${item.title}</h6>
+                                                <small>${item.subtitle} &bull; ${item.type}</small>
+                                            </div>
+                                        </div>
+                                    </a>
+                                `).join('');
+                                globalSearchResults.style.display = 'block';
+                            } else {
+                                globalSearchResults.innerHTML = `
+                                    <div class="p-3 text-center text-muted">
+                                        <small>No results found for "${query}"</small>
+                                    </div>
+                                `;
+                                globalSearchResults.style.display = 'block';
+                            }
+                        }).catch(err => {
+                            console.error('Global search error:', err);
+                        });
+                }, 300);
+            });
+
+            // Keyboard navigation
+            globalSearchInput.addEventListener('keydown', function(e) {
+                const items = globalSearchResults.querySelectorAll('.global-search-result-item');
+                if (items.length === 0 || globalSearchResults.style.display === 'none') return;
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    globalSelectedIndex = (globalSelectedIndex + 1) % items.length;
+                    updateGlobalSelection(items);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    globalSelectedIndex = globalSelectedIndex <= 0 ? items.length - 1 : globalSelectedIndex - 1;
+                    updateGlobalSelection(items);
+                } else if (e.key === 'Enter' && globalSelectedIndex >= 0) {
+                    e.preventDefault();
+                    items[globalSelectedIndex].parentElement.click();
+                }
+            });
+
+            function updateGlobalSelection(items) {
+                items.forEach((item, index) => {
+                    if (index === globalSelectedIndex) {
+                        item.classList.add('active');
+                        item.scrollIntoView({ block: 'nearest' });
+                    } else {
+                        item.classList.remove('active');
+                    }
+                });
+            }
+
+            // Close when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!globalSearchInput.contains(e.target) && !globalSearchResults.contains(e.target)) {
+                    globalSearchResults.style.display = 'none';
+                }
+            });
+            
+            // Re-open on focus if there is value
+            globalSearchInput.addEventListener('focus', function() {
+                if (this.value.trim().length >= 2 && globalSearchResults.innerHTML.trim() !== '') {
+                    globalSearchResults.style.display = 'block';
+                }
+            });
+        }
     </script>
     @stack('scripts')
 </body>

@@ -60,10 +60,14 @@
                                 <td><code>{{ $product->slug }}</code></td>
                             </tr>
                             <tr>
-                                <th class="text-muted small text-uppercase">Category</th>
+                                <th class="text-muted small text-uppercase">Categories</th>
                                 <td>
-                                    @if($product->category)
-                                        <a href="{{ route('admin.categories.edit', $product->category) }}" class="text-decoration-none">{{ $product->category->name }}</a>
+                                    @if($product->categories->isNotEmpty())
+                                        @foreach($product->categories as $cat)
+                                            <a href="{{ route('admin.categories.edit', $cat) }}" class="text-decoration-none badge bg-light text-dark border">{{ $cat->name }}</a>
+                                        @endforeach
+                                    @elseif($product->category)
+                                        <a href="{{ route('admin.categories.edit', $product->category) }}" class="text-decoration-none badge bg-light text-dark border">{{ $product->category->name }}</a>
                                     @else
                                         -
                                     @endif

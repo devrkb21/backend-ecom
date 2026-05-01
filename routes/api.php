@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BkashController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\PageController;
 use App\Http\Controllers\Api\FrontendSettingController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderExportController;
@@ -77,6 +78,10 @@ Route::prefix('v1')->group(function () {
 
     // Public frontend data routes protected by internal secret
     Route::middleware('internal.api')->group(function () {
+        // Pages
+        Route::get('/pages', [PageController::class, 'index']);
+        Route::get('/pages/{slug}', [PageController::class, 'show']);
+
         // Categories
         Route::get('/categories', [CategoryController::class, 'index']);
         Route::get('/categories/menu', [CategoryController::class, 'menu']);
@@ -156,6 +161,9 @@ Route::prefix('v1')->group(function () {
             Route::post('/validate-purchase', [FlashSaleController::class, 'validatePurchase']);
         });
     });
+
+    // Contact form (public)
+    Route::post('/contact', [\App\Http\Controllers\Api\ContactController::class, 'store']);
 
     // Checkout order placement (supports guests and authenticated users)
     Route::post('/orders', [OrderController::class, 'store']);

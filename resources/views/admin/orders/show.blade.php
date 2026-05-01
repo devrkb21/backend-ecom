@@ -225,15 +225,10 @@
                                             <span class="text-muted">{{ $item->product_name ?: 'Product Deleted' }}</span>
                                         @endif
 
-                                        @if($variantLabel !== '')
-                                            <br>
-                                            <small class="text-muted">
-                                                <span class="fw-semibold">Variant:</span> {{ $variantLabel }}
-                                            </small>
-                                        @endif
-
-                                        @if($variantAttributeSummary !== '' && $variantAttributeSummary !== $variantName)
+                                        @if($variantAttributeSummary !== '')
                                             <br><small class="text-muted">{{ $variantAttributeSummary }}</small>
+                                        @elseif($variantLabel !== '')
+                                            <br><small class="text-muted">{{ $variantLabel }}</small>
                                         @endif
 
                                         @if($variantSku !== '')

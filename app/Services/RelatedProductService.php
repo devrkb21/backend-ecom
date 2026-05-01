@@ -43,6 +43,7 @@ class RelatedProductService
                 ->orderByDesc('score');
         })
             ->where('is_active', true)
+            ->with(['images'])
             ->limit($limit)
             ->get();
     }
@@ -82,6 +83,7 @@ class RelatedProductService
         return Product::where('category_id', $product->category_id)
             ->where('is_active', true)
             ->whereNotIn('id', array_merge($excludeIds, [$product->id]))
+            ->with(['images'])
             ->inRandomOrder()
             ->limit($limit)
             ->get();
@@ -100,17 +102,29 @@ class RelatedProductService
             return collect();
         }
 
-        return Product::select('products.*')
+        $productIds = DB::table('order_items')
+            ->select('product_id')
             ->selectRaw('COUNT(*) as purchase_count')
-            ->join('order_items', 'products.id', '=', 'order_items.product_id')
-            ->whereIn('order_items.order_id', $orderIds)
-            ->where('products.id', '!=', $product->id)
-            ->whereNotIn('products.id', $excludeIds)
-            ->where('products.is_active', true)
-            ->groupBy('products.id')
+            ->whereIn('order_id', $orderIds)
+            ->where('product_id', '!=', $product->id)
+            ->whereNotIn('product_id', $excludeIds)
+            ->groupBy('product_id')
             ->orderByDesc('purchase_count')
             ->limit($limit)
+            ->pluck('product_id');
+
+        if ($productIds->isEmpty()) {
+            return collect();
+        }
+
+        $products = Product::whereIn('id', $productIds)
+            ->where('is_active', true)
+            ->with(['images'])
             ->get();
+
+        return $productIds->map(function ($id) use ($products) {
+            return $products->firstWhere('id', $id);
+        })->filter()->values();
     }
 
     /**
@@ -124,6 +138,7 @@ class RelatedProductService
         return Product::where('is_active', true)
             ->whereBetween('regular_price', [$minPrice, $maxPrice])
             ->whereNotIn('id', array_merge($excludeIds, [$product->id]))
+            ->with(['images'])
             ->inRandomOrder()
             ->limit($limit)
             ->get();
@@ -201,6 +216,7 @@ class RelatedProductService
             // Return popular/featured products
             return Product::where('is_active', true)
                 ->where('is_featured', true)
+                ->with(['images'])
                 ->inRandomOrder()
                 ->limit($limit)
                 ->get();
@@ -211,16 +227,28 @@ class RelatedProductService
             ->pluck('order_id')
             ->unique();
 
-        return Product::select('products.*')
+        $recommendedProductIds = DB::table('order_items')
+            ->select('product_id')
             ->selectRaw('COUNT(*) as relevance_score')
-            ->join('order_items', 'products.id', '=', 'order_items.product_id')
-            ->whereIn('order_items.order_id', $orderIds)
-            ->whereNotIn('products.id', $cartProductIds)
-            ->where('products.is_active', true)
-            ->groupBy('products.id')
+            ->whereIn('order_id', $orderIds)
+            ->whereNotIn('product_id', $cartProductIds)
+            ->groupBy('product_id')
             ->orderByDesc('relevance_score')
             ->limit($limit)
+            ->pluck('product_id');
+
+        if ($recommendedProductIds->isEmpty()) {
+            return collect();
+        }
+
+        $products = Product::whereIn('id', $recommendedProductIds)
+            ->where('is_active', true)
+            ->with(['images'])
             ->get();
+
+        return $recommendedProductIds->map(function ($id) use ($products) {
+            return $products->firstWhere('id', $id);
+        })->filter()->values();
     }
 
     /**
@@ -232,6 +260,7 @@ class RelatedProductService
             ->where('is_active', true)
             ->where('id', '!=', $product->id)
             ->where('regular_price', '>', $product->regular_price)
+            ->with(['images'])
             ->orderBy('regular_price')
             ->limit($limit)
             ->get();
@@ -253,6 +282,7 @@ class RelatedProductService
             $otherCategory = Product::where('category_id', '!=', $product->category_id)
                 ->where('is_active', true)
                 ->whereNotIn('id', $excludeIds)
+                ->with(['images'])
                 ->inRandomOrder()
                 ->limit($remaining)
                 ->get();

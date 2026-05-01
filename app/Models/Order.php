@@ -87,6 +87,7 @@ class Order extends Model
         return match ($mode) {
             'date_sequence' => static::generateSequentialOrderNumber($prefix, true),
             'global_sequence' => static::generateSequentialOrderNumber($prefix, false),
+            'custom_format' => static::generateCustomFormatOrderNumber($prefix),
             default => static::generateTimestampRandomOrderNumber($prefix),
         };
     }
@@ -107,7 +108,7 @@ class Order extends Model
     protected static function resolveOrderNumberGenerationMode(): string
     {
         $rawMode = (string) Setting::getValue('general', 'order_number_generation_mode', 'timestamp_random');
-        $allowedModes = ['timestamp_random', 'date_sequence', 'global_sequence'];
+        $allowedModes = ['timestamp_random', 'date_sequence', 'global_sequence', 'custom_format'];
 
         return in_array($rawMode, $allowedModes, true) ? $rawMode : 'timestamp_random';
     }
@@ -174,6 +175,87 @@ class Order extends Model
 
             if ($suffix !== '' && ctype_digit($suffix)) {
                 $maxSequence = max($maxSequence, (int) $suffix);
+            }
+        }
+
+        return $maxSequence + 1;
+    }
+
+    protected static function generateCustomFormatOrderNumber(string $prefix): string
+    {
+        $format = (string) Setting::getValue('general', 'order_number_custom_format', '{PREFIX}-{YYYY}{MM}{DD}-{SEQ:4}');
+        if (trim($format) === '') {
+            $format = '{PREFIX}-{YYYY}{MM}{DD}-{SEQ:4}';
+        }
+
+        $now = now();
+        $baseFormat = str_replace(
+            ['{PREFIX}', '{YYYY}', '{YY}', '{MM}', '{DD}'],
+            [$prefix, $now->format('Y'), $now->format('y'), $now->format('m'), $now->format('d')],
+            $format
+        );
+
+        for ($attempt = 0; $attempt < 200; $attempt++) {
+            $candidate = $baseFormat;
+
+            // Handle {RAND:N}
+            if (preg_match_all('/\{RAND:(\d+)\}/', $candidate, $matches)) {
+                foreach ($matches[0] as $index => $match) {
+                    $length = (int) $matches[1][$index];
+                    $length = max(1, min($length, 32)); // bound length
+                    $candidate = str_replace($match, strtoupper(Str::random($length)), $candidate);
+                }
+            }
+
+            // Handle {SEQ:N}
+            if (preg_match('/\{SEQ:(\d+)\}/', $candidate, $matches)) {
+                $length = (int) $matches[1];
+                $length = max(1, min($length, 20)); // bound length
+
+                // Find max sequence matching the pattern up to {SEQ}
+                $patternBeforeSeq = substr($baseFormat, 0, strpos($baseFormat, $matches[0]));
+                $startingSequence = static::resolveStartingSequenceForCustomFormat($patternBeforeSeq);
+
+                $candidate = str_replace($matches[0], str_pad((string) ($startingSequence + $attempt), $length, '0', STR_PAD_LEFT), $candidate);
+            }
+
+            if (!static::query()->where('order_number', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        // Fallback
+        return static::generateTimestampRandomOrderNumber($prefix);
+    }
+
+    protected static function resolveStartingSequenceForCustomFormat(string $patternBeforeSeq): int
+    {
+        if ($patternBeforeSeq === '') {
+            return 1;
+        }
+
+        $orderNumbers = static::query()
+            ->where('order_number', 'like', str_replace(['_', '%'], ['\_', '\%'], $patternBeforeSeq) . '%')
+            ->orderByDesc('id')
+            ->limit(300)
+            ->pluck('order_number');
+
+        $maxSequence = 0;
+
+        foreach ($orderNumbers as $orderNumber) {
+            if (!is_string($orderNumber)) {
+                continue;
+            }
+
+            if (!str_starts_with($orderNumber, $patternBeforeSeq)) {
+                continue;
+            }
+
+            $suffix = substr($orderNumber, strlen($patternBeforeSeq));
+
+            // Extract the first sequence of digits in suffix
+            if (preg_match('/^\d+/', $suffix, $matches)) {
+                $maxSequence = max($maxSequence, (int) $matches[0]);
             }
         }
 

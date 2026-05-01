@@ -74,18 +74,33 @@ class PaymentGatewayController extends Controller
                 break;
                 
             case 'stripe':
-                $settings['public_key'] = $request->input('settings.public_key', '');
-                $settings['secret_key'] = $request->input('settings.secret_key', '');
-                $settings['webhook_secret'] = $request->input('settings.webhook_secret', '');
                 $settings['mode'] = $request->input('settings.mode', 'test');
+                $settings['test'] = [
+                    'public_key' => $request->input('settings.test.public_key', ''),
+                    'secret_key' => $request->input('settings.test.secret_key', ''),
+                    'webhook_secret' => $request->input('settings.test.webhook_secret', ''),
+                ];
+                $settings['live'] = [
+                    'public_key' => $request->input('settings.live.public_key', ''),
+                    'secret_key' => $request->input('settings.live.secret_key', ''),
+                    'webhook_secret' => $request->input('settings.live.webhook_secret', ''),
+                ];
                 break;
                 
             case 'bkash':
-                $settings['app_key'] = $request->input('settings.app_key', '');
-                $settings['app_secret'] = $request->input('settings.app_secret', '');
-                $settings['username'] = $request->input('settings.username', '');
-                $settings['password'] = $request->input('settings.password', '');
                 $settings['mode'] = $request->input('settings.mode', 'sandbox');
+                $settings['sandbox'] = [
+                    'app_key' => $request->input('settings.sandbox.app_key', ''),
+                    'app_secret' => $request->input('settings.sandbox.app_secret', ''),
+                    'username' => $request->input('settings.sandbox.username', ''),
+                    'password' => $request->input('settings.sandbox.password', ''),
+                ];
+                $settings['live'] = [
+                    'app_key' => $request->input('settings.live.app_key', ''),
+                    'app_secret' => $request->input('settings.live.app_secret', ''),
+                    'username' => $request->input('settings.live.username', ''),
+                    'password' => $request->input('settings.live.password', ''),
+                ];
                 break;
         }
 
@@ -121,11 +136,15 @@ class PaymentGatewayController extends Controller
      */
     private function requiresConfiguration(PaymentGateway $gateway): bool
     {
+        $mode = $gateway->getSetting('mode', 'test');
+        
         switch ($gateway->code) {
             case 'stripe':
-                return empty($gateway->getSetting('public_key')) || empty($gateway->getSetting('secret_key'));
+                $env = $mode === 'test' ? 'test' : 'live';
+                return empty($gateway->getSetting("{$env}.public_key")) || empty($gateway->getSetting("{$env}.secret_key"));
             case 'bkash':
-                return empty($gateway->getSetting('app_key')) || empty($gateway->getSetting('app_secret'));
+                $env = $mode === 'sandbox' ? 'sandbox' : 'live';
+                return empty($gateway->getSetting("{$env}.app_key")) || empty($gateway->getSetting("{$env}.app_secret"));
             default:
                 return false;
         }

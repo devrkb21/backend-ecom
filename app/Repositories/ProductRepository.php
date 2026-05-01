@@ -82,7 +82,12 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
     public function getByCategory(int $categoryId): Collection
     {
         return $this->model->active()
-            ->where('category_id', $categoryId)
+            ->where(function ($q) use ($categoryId) {
+                $q->where('category_id', $categoryId)
+                  ->orWhereHas('categories', function ($q2) use ($categoryId) {
+                      $q2->where('categories.id', $categoryId);
+                  });
+            })
             ->with($this->listingRelations())
             ->withCount('variants')
             ->get();
@@ -92,7 +97,12 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
     {
         return $this->model
             ->active()
-            ->where('category_id', $categoryId)
+            ->where(function ($q) use ($categoryId) {
+                $q->where('category_id', $categoryId)
+                  ->orWhereHas('categories', function ($q2) use ($categoryId) {
+                      $q2->where('categories.id', $categoryId);
+                  });
+            })
             ->with($this->listingRelations())
             ->withCount('variants')
             ->paginate($perPage);
