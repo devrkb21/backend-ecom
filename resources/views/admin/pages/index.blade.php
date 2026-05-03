@@ -8,7 +8,7 @@
     <div class="card-header d-flex justify-content-between align-items-center">
         <h6 class="mb-0 fw-semibold"><i class="bi bi-file-earmark-text me-2"></i>All Pages</h6>
         <div class="d-flex gap-2">
-            <form action="{{ route('admin.pages.index') }}" method="GET" class="d-flex">
+            <form action="{{ route('admin.pages.index') }}" method="GET" class="d-flex" data-realtime-filter="1">
                 <div class="input-group input-group-sm">
                     <input type="text" name="search" class="form-control" placeholder="Search pages..." value="{{ request('search') }}">
                     <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>

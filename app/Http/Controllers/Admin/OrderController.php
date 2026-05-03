@@ -5,9 +5,18 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateOrderStatusRequest;
 use App\Models\Order;
+use App\Models\OrderActivityLog;
+use App\Models\OrderItem;
 use App\Models\OrderStatus;
+use App\Models\Product;
+use App\Models\ShippingMethod;
+use App\Services\SmsService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\Setting;
 
 class OrderController extends Controller
 {
@@ -149,6 +158,7 @@ class OrderController extends Controller
             'shippingDistrict',
             'shippingUpazila',
             'shippingUnion',
+            'activityLogs',
         ]);
 
         $availableStatuses = OrderStatus::query()
@@ -159,7 +169,178 @@ class OrderController extends Controller
 
         $activeCoupons = \App\Models\Coupon::active()->get();
 
-        return view('admin.orders.show', compact('order', 'availableStatuses', 'activeCoupons'));
+        $smsTemplates = SmsService::getOrderSmsTemplates();
+
+        return view('admin.orders.show', compact('order', 'availableStatuses', 'activeCoupons', 'smsTemplates'));
+    }
+
+    public function create()
+    {
+        $shippingMethods = ShippingMethod::where('is_active', true)->orderBy('sort_order')->get();
+        $statuses = OrderStatus::where('is_active', true)->orderBy('sort_order')->get();
+
+        return view('admin.orders.create', compact('shippingMethods', 'statuses'));
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'shipping_name' => ['required', 'string', 'max:255'],
+            'shipping_phone' => ['required', 'string', 'max:20'],
+            'shipping_email' => ['nullable', 'email', 'max:255'],
+            'shipping_address' => ['required', 'string', 'max:500'],
+            'shipping_city' => ['nullable', 'string', 'max:100'],
+            'shipping_zip' => ['nullable', 'string', 'max:20'],
+            'status' => ['required', 'string'],
+            'payment_method' => ['required', 'string', 'in:cod,bkash,stripe,bank_transfer,other'],
+            'payment_status' => ['required', 'string', 'in:pending,paid,awaiting'],
+            'shipping_method_id' => ['nullable', 'exists:shipping_methods,id'],
+            'shipping_charge' => ['nullable', 'numeric', 'min:0'],
+            'discount_amount' => ['nullable', 'numeric', 'min:0'],
+            'order_source' => ['nullable', 'string', 'max:50'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'exists:products,id'],
+            'items.*.variant_id' => ['nullable', 'exists:product_variants,id'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.price' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        $order = DB::transaction(function () use ($validated) {
+            // Calculate totals
+            $subtotal = 0;
+            foreach ($validated['items'] as $item) {
+                $subtotal += (float) $item['price'] * (int) $item['quantity'];
+            }
+
+            $shippingCost = (float) ($validated['shipping_charge'] ?? 0);
+            $discount = (float) ($validated['discount_amount'] ?? 0);
+            $total = max(0, $subtotal + $shippingCost - $discount);
+
+            // Get shipping method name
+            $shippingMethodName = null;
+            if (!empty($validated['shipping_method_id'])) {
+                $method = ShippingMethod::find($validated['shipping_method_id']);
+                $shippingMethodName = $method?->name;
+                if ($shippingCost <= 0 && $method) {
+                    $shippingCost = (float) $method->base_cost;
+                    $total = max(0, $subtotal + $shippingCost - $discount);
+                }
+            }
+
+            // Create order
+            $order = Order::create([
+                'order_number' => Order::generateOrderNumber(),
+                'status' => $validated['status'],
+                'order_source' => $validated['order_source'] ?? 'admin',
+                'subtotal' => $subtotal,
+                'tax' => 0,
+                'shipping' => $shippingCost,
+                'shipping_method' => $shippingMethodName,
+                'total' => $total,
+                'discount_amount' => $discount,
+                'payment_method' => $validated['payment_method'],
+                'payment_status' => $validated['payment_status'],
+                'shipping_name' => $validated['shipping_name'],
+                'shipping_email' => $validated['shipping_email'] ?? null,
+                'shipping_phone' => $validated['shipping_phone'],
+                'shipping_address' => $validated['shipping_address'],
+                'shipping_city' => $validated['shipping_city'] ?? null,
+                'shipping_zip' => $validated['shipping_zip'] ?? null,
+                'shipping_country' => 'BD',
+                'notes' => $validated['notes'] ?? null,
+            ]);
+
+            OrderActivityLog::log($order, 'order_created', 'Manual Order Created', 'Order was manually created by admin.');
+
+            // Create order items and deduct stock
+            foreach ($validated['items'] as $item) {
+                $product = Product::find($item['product_id']);
+                if (!$product) continue;
+
+                $qty = (int) $item['quantity'];
+
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'product_id' => $product->id,
+                    'product_variant_id' => $item['variant_id'] ?? null,
+                    'product_name' => $product->name,
+                    'product_sku' => $product->sku ?? '',
+                    'quantity' => $qty,
+                    'price' => (float) $item['price'],
+                    'total' => (float) $item['price'] * $qty,
+                ]);
+
+                // Deduct stock
+                if ($product->stock_quantity !== null) {
+                    $product->decrement('stock_quantity', $qty);
+                }
+            }
+
+            return $order;
+        });
+
+        return redirect()
+            ->route('admin.orders.show', $order)
+            ->with('success', 'Order #' . $order->order_number . ' created successfully.');
+    }
+
+    /**
+     * AJAX product search for order creation.
+     */
+    public function searchProducts(Request $request): JsonResponse
+    {
+        $query = trim((string) $request->input('q', ''));
+        if (strlen($query) < 1) {
+            return response()->json(['products' => []]);
+        }
+
+        $products = Product::where('is_active', true)
+            ->where(function ($q) use ($query) {
+                $q->where('name', 'like', "%{$query}%")
+                  ->orWhere('sku', 'like', "%{$query}%");
+            })
+            ->with(['images' => fn($q) => $q->orderByDesc('is_primary')->limit(1)])
+            ->limit(15)
+            ->get()
+            ->map(function (Product $product) {
+                $primaryImage = $product->images->first();
+                $pricing = $product->resolveGlobalPricingSnapshot();
+                $currentPrice = (float) ($pricing['current_price'] ?? $product->price ?? 0);
+                $variants = [];
+
+                if ($product->hasActiveVariants()) {
+                    $variants = $product->variants()
+                        ->where('is_active', true)
+                        ->with('attributeValues.attribute')
+                        ->get()
+                        ->map(function ($v) use ($currentPrice) {
+                            $variantPrice = (float) ($v->sale_price ?: $v->price ?: 0);
+                            if ($variantPrice <= 0) {
+                                $variantPrice = $currentPrice;
+                            }
+                            return [
+                                'id' => $v->id,
+                                'sku' => $v->sku,
+                                'price' => $variantPrice,
+                                'stock' => (int) $v->stock_quantity,
+                                'label' => $v->attributeValues->map(fn($av) => $av->value)->join(' / '),
+                            ];
+                        });
+                }
+
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'sku' => $product->sku,
+                    'price' => $currentPrice,
+                    'stock' => (int) $product->stock_quantity,
+                    'image' => $primaryImage?->url,
+                    'variants' => $variants,
+                ];
+            });
+
+        return response()->json(['products' => $products]);
     }
 
     public function updateStatus(UpdateOrderStatusRequest $request, Order $order)
@@ -177,9 +358,74 @@ class OrderController extends Controller
 
         $order->update(['status' => $newStatus]);
 
+        // Log status change
+        $oldLabel = OrderStatus::where('key', $oldStatus)->value('label') ?? ucfirst($oldStatus);
+        $newLabel = OrderStatus::where('key', $newStatus)->value('label') ?? ucfirst($newStatus);
+        OrderActivityLog::log($order, 'status_change', "Status changed: {$oldLabel} → {$newLabel}", null, [
+            'old_status' => $oldStatus,
+            'new_status' => $newStatus,
+        ]);
+
+        // Send SMS notification
+        try {
+            $smsResult = app(SmsService::class)->sendOrderStatusSms($order, $newStatus);
+            if ($smsResult['success']) {
+                OrderActivityLog::log($order, 'sms_sent', "SMS sent: Status → {$newLabel}", $smsResult['message'] ?? null, [
+                    'status' => $newStatus,
+                    'phone' => $order->shipping_phone,
+                ]);
+            } elseif (str_contains($smsResult['message'] ?? '', 'not enabled')) {
+                // SMS not enabled for this status — don't log
+            } else {
+                OrderActivityLog::log($order, 'sms_failed', 'SMS failed', $smsResult['message'] ?? null, [
+                    'status' => $newStatus,
+                    'error' => $smsResult['message'] ?? 'Unknown error',
+                ]);
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Order SMS failed', ['order_id' => $order->id, 'status' => $newStatus, 'error' => $e->getMessage()]);
+            OrderActivityLog::log($order, 'sms_failed', 'SMS failed (exception)', $e->getMessage());
+        }
+
         return redirect()
             ->route('admin.orders.show', $order)
             ->with('success', 'Order status updated successfully.');
+    }
+
+    /**
+     * Send a custom or template SMS from the order details page.
+     */
+    public function sendSms(Request $request, Order $order)
+    {
+        $validated = $request->validate([
+            'sms_message' => ['required', 'string', 'max:500'],
+        ]);
+
+        $phone = $order->shipping_phone ?? '';
+        if ($phone === '') {
+            return back()->with('error', 'No customer phone number found for this order.');
+        }
+
+        try {
+            $smsService = app(SmsService::class);
+            $result = $smsService->send($phone, $validated['sms_message']);
+
+            if ($result['success']) {
+                OrderActivityLog::log($order, 'manual_sms', 'Manual SMS sent', $validated['sms_message'], [
+                    'phone' => $phone,
+                ]);
+                return back()->with('success', 'SMS sent successfully to ' . $phone);
+            } else {
+                OrderActivityLog::log($order, 'sms_failed', 'Manual SMS failed', $result['message'] ?? 'Unknown error', [
+                    'phone' => $phone,
+                    'attempted_message' => $validated['sms_message'],
+                ]);
+                return back()->with('error', 'SMS failed: ' . ($result['message'] ?? 'Unknown error'));
+            }
+        } catch (\Throwable $e) {
+            OrderActivityLog::log($order, 'sms_failed', 'Manual SMS exception', $e->getMessage());
+            return back()->with('error', 'SMS error: ' . $e->getMessage());
+        }
     }
 
     public function updateSource(Request $request, Order $order)
@@ -195,6 +441,34 @@ class OrderController extends Controller
         return redirect()
             ->route('admin.orders.show', $order)
             ->with('success', 'Order source updated successfully.');
+    }
+
+    public function updatePaymentStatus(Request $request, Order $order)
+    {
+        $request->validate([
+            'payment_status' => 'required|string|in:pending,awaiting,paid,failed,refunded',
+        ]);
+
+        $oldStatus = $order->payment_status;
+        $newStatus = $request->input('payment_status');
+
+        if ($oldStatus === $newStatus) {
+            return back();
+        }
+
+        $order->update([
+            'payment_status' => $newStatus,
+        ]);
+
+        // Log the change
+        OrderActivityLog::log($order, 'status_change', 'Payment Status Updated', "Payment status changed from {$oldStatus} to {$newStatus}.", [
+            'old_payment_status' => $oldStatus,
+            'new_payment_status' => $newStatus,
+        ]);
+
+        return redirect()
+            ->route('admin.orders.show', $order)
+            ->with('success', 'Payment status updated successfully.');
     }
 
     public function applyDiscount(Request $request, Order $order)
@@ -348,6 +622,13 @@ class OrderController extends Controller
 
             $order->update(['status' => $action]);
             $updated++;
+
+            // Send SMS notification
+            try {
+                app(SmsService::class)->sendOrderStatusSms($order, $action);
+            } catch (\Throwable $e) {
+                \Log::warning('Bulk order SMS failed', ['order_id' => $order->id, 'status' => $action, 'error' => $e->getMessage()]);
+            }
         }
 
         if ($updated === 0) {
@@ -382,6 +663,26 @@ class OrderController extends Controller
                 $item->product->incrementStock($item->quantity);
             }
         }
+    }
+
+    public function generateInvoice(Order $order)
+    {
+        $order->load(['items.product', 'items.variant.attributeValues.attribute']);
+        $settings = Setting::getGroup('invoice', false);
+        
+        $pdf = Pdf::loadView('admin.orders.pdf.invoice', compact('order', 'settings'));
+        
+        return $pdf->stream("invoice-{$order->order_number}.pdf");
+    }
+
+    public function generatePackagingSlip(Order $order)
+    {
+        $order->load(['items.product', 'items.variant.attributeValues.attribute']);
+        $settings = Setting::getGroup('invoice', false);
+        
+        $pdf = Pdf::loadView('admin.orders.pdf.packaging-slip', compact('order', 'settings'));
+        
+        return $pdf->stream("packaging-slip-{$order->order_number}.pdf");
     }
 
 }

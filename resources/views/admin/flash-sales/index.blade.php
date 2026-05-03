@@ -64,7 +64,7 @@
         <h6 class="mb-0 fw-semibold"><i class="bi bi-funnel me-2"></i>Filters</h6>
     </div>
     <div class="card-body">
-        <form action="{{ route('admin.flash-sales.index') }}" method="GET">
+        <form action="{{ route('admin.flash-sales.index') }}" method="GET" data-realtime-filter="1">
             <div class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label small text-muted">Search</label>

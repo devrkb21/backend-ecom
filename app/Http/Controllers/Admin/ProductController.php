@@ -26,6 +26,7 @@ class ProductController extends Controller
     {
         $query = Product::with([
             'category',
+            'categories',
             'images',
             'variants' => function ($variantQuery) {
                 $variantQuery
@@ -36,6 +37,7 @@ class ProductController extends Controller
 
         // Search
         if ($search = $request->input('search')) {
+            $search = trim($search);
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('sku', 'like', "%{$search}%")
@@ -54,7 +56,7 @@ class ProductController extends Controller
         }
 
         // Status filter
-        if ($request->has('is_active') && $request->input('is_active') !== '') {
+        if ($request->has('is_active') && $request->input('is_active') !== '' && $request->input('is_active') !== null) {
             $query->where('is_active', $request->boolean('is_active'));
         }
 
@@ -768,7 +770,7 @@ class ProductController extends Controller
 
     public function generateVariants(Request $request, Product $product)
     {
-        $isJsonRequest = $request->expectsJson() || $request->ajax();
+        $isJsonRequest = $request->expectsJson();
         $stockEnabled = Product::isStockEnabled();
 
         $request->validate([
@@ -961,7 +963,7 @@ class ProductController extends Controller
 
     private function isJsonRequest(Request $request): bool
     {
-        return $request->expectsJson() || $request->ajax();
+        return $request->expectsJson();
     }
 
     private function variantMutationJsonResponse(Product $product, string $message, array $extra = [], int $status = 200)

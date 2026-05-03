@@ -21,9 +21,20 @@
                     $headerStatusLabel = $order->statusConfig?->label ?? ucfirst(str_replace('_', ' ', $order->status));
                     $headerStatusColor = $order->statusConfig?->color ?? '#6C757D';
                 @endphp
-                <span class="badge fs-6 text-white" style="background-color: {{ $headerStatusColor }};">
-                    {{ $headerStatusLabel }}
-                </span>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-primary dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-printer me-1"></i> Documents
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow">
+                            <li><a class="dropdown-item py-2" href="{{ route('admin.orders.invoice', $order) }}" target="_blank"><i class="bi bi-file-earmark-pdf me-2 text-danger"></i>Print Invoice</a></li>
+                            <li><a class="dropdown-item py-2" href="{{ route('admin.orders.packaging-slip', $order) }}" target="_blank"><i class="bi bi-box-seam me-2 text-primary"></i>Packaging Slip</a></li>
+                        </ul>
+                    </div>
+                    <span class="badge fs-6 text-white" style="background-color: {{ $headerStatusColor }};">
+                        {{ $headerStatusLabel }}
+                    </span>
+                </div>
             </div>
             <div class="card-body">
                 <div class="row mb-4">
@@ -517,6 +528,21 @@
                             <td>৳{{ number_format($order->payment->amount, 2) }}</td>
                         </tr>
                     </table>
+
+                    <form action="{{ route('admin.orders.update-payment-status', $order) }}" method="POST" class="mt-3 border-top pt-3">
+                        @csrf
+                        @method('PATCH')
+                        <div class="input-group input-group-sm">
+                            <select name="payment_status" class="form-select">
+                                @foreach(['pending', 'awaiting', 'paid', 'failed', 'refunded'] as $ps)
+                                    <option value="{{ $ps }}" {{ $order->payment_status === $ps ? 'selected' : '' }}>
+                                        {{ ucfirst($ps) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <button type="submit" class="btn btn-outline-primary">Update</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         @else
@@ -556,6 +582,21 @@
                             </td>
                         </tr>
                     </table>
+
+                    <form action="{{ route('admin.orders.update-payment-status', $order) }}" method="POST" class="mt-3 border-top pt-3">
+                        @csrf
+                        @method('PATCH')
+                        <div class="input-group input-group-sm">
+                            <select name="payment_status" class="form-select">
+                                @foreach(['pending', 'awaiting', 'paid', 'failed', 'refunded'] as $ps)
+                                    <option value="{{ $ps }}" {{ $order->payment_status === $ps ? 'selected' : '' }}>
+                                        {{ ucfirst($ps) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <button type="submit" class="btn btn-outline-primary">Update</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         @endif
@@ -596,6 +637,108 @@
             </div>
         </div>
     </div>
+
+    {{-- Send SMS --}}
+    <div class="col-12 mt-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-chat-dots me-2"></i>Send SMS to Customer</h6>
+                @if($order->shipping_phone)
+                    <span class="badge bg-light text-dark"><i class="bi bi-phone me-1"></i>{{ $order->shipping_phone }}</span>
+                @endif
+            </div>
+            <div class="card-body">
+                <form action="{{ route('admin.orders.send-sms', $order) }}" method="POST" data-no-admin-ajax="1">
+                    @csrf
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Quick Template</label>
+                            <select class="form-select form-select-sm" id="smsTemplateSelect">
+                                <option value="">-- Custom Message --</option>
+                                @foreach($smsTemplates as $sKey => $sTpl)
+                                    @if($sTpl['template'])
+                                        <option value="{{ $sTpl['template'] }}" data-status="{{ $sKey }}">
+                                            {{ $sTpl['label'] }}: {{ Str::limit($sTpl['template'], 50) }}
+                                        </option>
+                                    @endif
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold">Message <span class="text-danger">*</span></label>
+                            <textarea class="form-control form-control-sm" name="sms_message" id="smsMessageInput" rows="3" maxlength="500" required placeholder="Type your SMS message..."></textarea>
+                            <div class="d-flex justify-content-between mt-1">
+                                <small class="text-muted">Placeholders: <code>{order_number}</code> <code>{customer_name}</code> <code>{status}</code> <code>{total}</code> <code>{site_name}</code></small>
+                                <small class="text-muted"><span id="smsCharCount">0</span>/500</small>
+                            </div>
+                        </div>
+                        <div class="col-12 text-end">
+                            <button type="submit" class="btn btn-primary btn-sm" {{ $order->shipping_phone ? '' : 'disabled' }}>
+                                <i class="bi bi-send me-1"></i> Send SMS
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Activity Log --}}
+    <div class="col-12 mt-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-clock-history me-2"></i>Activity Log</h6>
+                <span class="badge bg-light text-dark">{{ $order->activityLogs->count() }} entries</span>
+            </div>
+            <div class="card-body p-0">
+                @if($order->activityLogs->isEmpty())
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-journal-text fs-3 d-block mb-2"></i>
+                        No activity recorded yet.
+                    </div>
+                @else
+                    <div class="list-group list-group-flush" style="max-height: 500px; overflow-y: auto;">
+                        @foreach($order->activityLogs as $log)
+                            @php
+                                $iconMap = [
+                                    'status_change' => ['icon' => 'bi-arrow-repeat', 'color' => 'primary'],
+                                    'sms_sent' => ['icon' => 'bi-chat-check', 'color' => 'success'],
+                                    'sms_failed' => ['icon' => 'bi-chat-x', 'color' => 'danger'],
+                                    'manual_sms' => ['icon' => 'bi-send-check', 'color' => 'info'],
+                                    'order_created' => ['icon' => 'bi-plus-circle', 'color' => 'success'],
+                                    'note' => ['icon' => 'bi-sticky', 'color' => 'warning'],
+                                ];
+                                $logStyle = $iconMap[$log->type] ?? ['icon' => 'bi-dot', 'color' => 'secondary'];
+                            @endphp
+                            <div class="list-group-item px-3 py-2">
+                                <div class="d-flex align-items-start">
+                                    <div class="me-3 mt-1">
+                                        <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-{{ $logStyle['color'] }} bg-opacity-10" style="width:32px;height:32px;">
+                                            <i class="bi {{ $logStyle['icon'] }} text-{{ $logStyle['color'] }}"></i>
+                                        </span>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <strong class="small">{{ $log->title }}</strong>
+                                                @if($log->description)
+                                                    <p class="mb-0 small text-muted mt-1" style="white-space: pre-wrap;">{{ Str::limit($log->description, 200) }}</p>
+                                                @endif
+                                            </div>
+                                            <div class="text-end ms-3 flex-shrink-0">
+                                                <small class="text-muted d-block">{{ $log->created_at->format('d M, h:i A') }}</small>
+                                                <small class="text-muted">{{ $log->admin_name ?? 'System' }}</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 
@@ -617,6 +760,32 @@
             });
             // trigger on load
             discountTypeSelect.dispatchEvent(new Event('change'));
+        }
+
+        // SMS Template selector
+        const templateSelect = document.getElementById('smsTemplateSelect');
+        const smsInput = document.getElementById('smsMessageInput');
+        const charCount = document.getElementById('smsCharCount');
+
+        if (templateSelect && smsInput) {
+            templateSelect.addEventListener('change', function() {
+                if (this.value) {
+                    let text = this.value;
+                    // Dynamic replacements basic
+                    text = text.replace('{order_number}', '{{ $order->order_number }}');
+                    text = text.replace('{customer_name}', '{{ $order->shipping_name }}');
+                    text = text.replace('{status}', '{{ $order->statusConfig?->label ?? $order->status }}');
+                    text = text.replace('{total}', '{{ number_format($order->total, 2) }}');
+                    text = text.replace('{site_name}', '{{ \App\Models\Setting::getValue("general", "site_name", "Shop") }}');
+                    
+                    smsInput.value = text;
+                    if (charCount) charCount.textContent = smsInput.value.length;
+                }
+            });
+
+            smsInput.addEventListener('input', function() {
+                if (charCount) charCount.textContent = this.value.length;
+            });
         }
     });
 </script>

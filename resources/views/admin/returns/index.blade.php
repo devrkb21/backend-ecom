@@ -77,7 +77,7 @@
             <h6 class="m-0 font-weight-bold text-primary">Filter Returns</h6>
         </div>
         <div class="card-body">
-            <form action="{{ route('admin.returns.index') }}" method="GET" class="row g-3">
+            <form action="{{ route('admin.returns.index') }}" method="GET" class="row g-3" data-realtime-filter="1">
                 <div class="col-md-2">
                     <label class="form-label">Search</label>
                     <input type="text" name="search" class="form-control" placeholder="Return #, Order #, Customer" value="{{ request('search') }}">

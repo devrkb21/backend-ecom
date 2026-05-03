@@ -7,7 +7,7 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span>Saved Payment methods (Stripe)</span>
-        <form method="GET" class="d-flex gap-2">
+        <form method="GET" class="d-flex gap-2" data-realtime-filter="1">
             <input
                 type="text"
                 name="search"

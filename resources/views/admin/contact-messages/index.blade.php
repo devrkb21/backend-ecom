@@ -28,7 +28,7 @@
                 </div>
             </div>
             <div class="card-body">
-                <form action="{{ route('admin.contact-messages.index') }}" method="GET" class="row g-3 mb-4">
+                <form action="{{ route('admin.contact-messages.index') }}" method="GET" class="row g-3 mb-4" data-realtime-filter="1">
                     <div class="col-md-6">
                         <input type="text" class="form-control" name="search" placeholder="Search by name, email or subject..." value="{{ request('search') }}">
                     </div>

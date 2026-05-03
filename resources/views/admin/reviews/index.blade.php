@@ -43,7 +43,7 @@
 {{-- Filters --}}
 <div class="card mb-4">
     <div class="card-body">
-        <form method="GET" class="row g-3">
+        <form method="GET" class="row g-3" data-realtime-filter="1">
             <div class="col-md-3">
                 <select name="status" class="form-select">
                     <option value="">All Status</option>

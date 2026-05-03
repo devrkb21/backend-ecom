@@ -25,7 +25,7 @@ class CategoryRepository extends BaseRepository implements CategoryRepositoryInt
 
     public function getMenuCategories(): Collection
     {
-        return $this->model->active()->menu()->ordered()->get();
+        return $this->model->with('children')->active()->menu()->ordered()->get();
     }
 
     public function findBySlug(string $slug): ?Category

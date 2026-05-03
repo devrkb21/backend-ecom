@@ -406,7 +406,7 @@
                 $isUsersActive = request()->routeIs('admin.users.*')
                     || request()->routeIs('admin.roles.*');
 
-                $isSettingsActive = request()->routeIs('admin.settings.*') && !request()->routeIs('admin.settings.site.*');
+                $isSettingsActive = (request()->routeIs('admin.settings.*') && !request()->routeIs('admin.settings.site.*'));
                 $isContentActive = request()->routeIs('admin.pages.*') || request()->routeIs('admin.media.*') || request()->routeIs('admin.settings.site.*') || request()->routeIs('admin.contact-messages.*');
             @endphp
 
@@ -452,8 +452,13 @@
                 </button>
                 <ul class="nav flex-column submenu">
                     <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.orders.*') ? 'active' : '' }}" href="{{ route('admin.orders.index') }}">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.orders.index') || request()->routeIs('admin.orders.show') ? 'active' : '' }}" href="{{ route('admin.orders.index') }}">
                             <i class="bi bi-receipt-cutoff"></i> Order Management
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.orders.create') ? 'active' : '' }}" href="{{ route('admin.orders.create') }}">
+                            <i class="bi bi-plus-circle"></i> Create Order
                         </a>
                     </li>
                     <li class="nav-item">
@@ -666,6 +671,11 @@
                     <li class="nav-item">
                         <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.order-statuses*') ? 'active' : '' }}" href="{{ route('admin.settings.order-statuses') }}">
                             <i class="bi bi-tags"></i> Order Statuses
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.sms-templates*') ? 'active' : '' }}" href="{{ route('admin.settings.sms-templates') }}">
+                            <i class="bi bi-chat-dots"></i> SMS Templates
                         </a>
                     </li>
                 </ul>
@@ -1487,6 +1497,9 @@
                     }
                 }
 
+                // Reset the AJAX binding guard so it re-binds on the new document
+                window.__adminGlobalAjaxBound = false;
+
                 document.open();
                 document.write(html);
                 document.close();
@@ -1718,67 +1731,98 @@
             }
         })();
 
-        // Global Search
-        const globalSearchInput = document.getElementById('globalSearchInput');
-        const globalSearchResults = document.getElementById('globalSearchResults');
-        let globalSearchTimeout;
-        let globalSelectedIndex = -1;
-        
-        if (globalSearchInput) {
+        // Global Search — uses event delegation so it works after document.write() page swaps
+        (function() {
+            var globalSearchTimeout;
+            var globalSelectedIndex = -1;
+            var SEARCH_URL = '{{ route("admin.global-search") }}';
+
+            function getInput() { return document.getElementById('globalSearchInput'); }
+            function getResults() { return document.getElementById('globalSearchResults'); }
+
+            function updateGlobalSelection(items) {
+                items.forEach(function(item, index) {
+                    if (index === globalSelectedIndex) {
+                        item.classList.add('active');
+                        item.scrollIntoView({ block: 'nearest' });
+                    } else {
+                        item.classList.remove('active');
+                    }
+                });
+            }
+
+            function doSearch(query) {
+                var resultsEl = getResults();
+                if (!resultsEl) return;
+
+                fetch(SEARCH_URL + '?q=' + encodeURIComponent(query))
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        var resultsEl = getResults();
+                        if (!resultsEl) return;
+
+                        if (data.results && data.results.length > 0) {
+                            resultsEl.innerHTML = data.results.map(function(item, index) {
+                                return '<a href="' + item.url + '" class="text-decoration-none text-dark d-block">' +
+                                    '<div class="global-search-result-item" data-index="' + index + '">' +
+                                        '<div class="global-search-icon">' +
+                                            '<i class="bi ' + (item.icon || 'bi-search') + '"></i>' +
+                                        '</div>' +
+                                        '<div class="global-search-text">' +
+                                            '<h6>' + item.title + '</h6>' +
+                                            '<small>' + item.subtitle + ' &bull; ' + item.type + '</small>' +
+                                        '</div>' +
+                                    '</div>' +
+                                '</a>';
+                            }).join('');
+                            resultsEl.style.display = 'block';
+                        } else {
+                            resultsEl.innerHTML = '<div class="p-3 text-center text-muted"><small>No results found for "' + query + '"</small></div>';
+                            resultsEl.style.display = 'block';
+                        }
+                    })
+                    .catch(function(err) {
+                        console.error('Global search error:', err);
+                    });
+            }
+
+            // Ctrl+K shortcut — delegated on document
             document.addEventListener('keydown', function(e) {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                     e.preventDefault();
-                    globalSearchInput.focus();
+                    var input = getInput();
+                    if (input) input.focus();
                 }
             });
 
-            globalSearchInput.addEventListener('input', function(e) {
+            // Input event — delegated
+            document.addEventListener('input', function(e) {
+                if (e.target.id !== 'globalSearchInput') return;
+
                 clearTimeout(globalSearchTimeout);
-                const query = e.target.value.trim();
                 globalSelectedIndex = -1;
+                var query = e.target.value.trim();
+                var resultsEl = getResults();
 
                 if (query.length < 2) {
-                    globalSearchResults.style.display = 'none';
+                    if (resultsEl) resultsEl.style.display = 'none';
                     return;
                 }
 
-                globalSearchTimeout = setTimeout(() => {
-                    fetch(`{{ route('admin.global-search') }}?q=${encodeURIComponent(query)}`)
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.results && data.results.length > 0) {
-                                globalSearchResults.innerHTML = data.results.map((item, index) => `
-                                    <a href="${item.url}" class="text-decoration-none text-dark d-block">
-                                        <div class="global-search-result-item" data-index="${index}">
-                                            <div class="global-search-icon">
-                                                <i class="bi ${item.icon || 'bi-search'}"></i>
-                                            </div>
-                                            <div class="global-search-text">
-                                                <h6>${item.title}</h6>
-                                                <small>${item.subtitle} &bull; ${item.type}</small>
-                                            </div>
-                                        </div>
-                                    </a>
-                                `).join('');
-                                globalSearchResults.style.display = 'block';
-                            } else {
-                                globalSearchResults.innerHTML = `
-                                    <div class="p-3 text-center text-muted">
-                                        <small>No results found for "${query}"</small>
-                                    </div>
-                                `;
-                                globalSearchResults.style.display = 'block';
-                            }
-                        }).catch(err => {
-                            console.error('Global search error:', err);
-                        });
+                globalSearchTimeout = setTimeout(function() {
+                    doSearch(query);
                 }, 300);
             });
 
-            // Keyboard navigation
-            globalSearchInput.addEventListener('keydown', function(e) {
-                const items = globalSearchResults.querySelectorAll('.global-search-result-item');
-                if (items.length === 0 || globalSearchResults.style.display === 'none') return;
+            // Keyboard navigation — delegated
+            document.addEventListener('keydown', function(e) {
+                if (e.target.id !== 'globalSearchInput') return;
+
+                var resultsEl = getResults();
+                if (!resultsEl) return;
+
+                var items = resultsEl.querySelectorAll('.global-search-result-item');
+                if (items.length === 0 || resultsEl.style.display === 'none') return;
 
                 if (e.key === 'ArrowDown') {
                     e.preventDefault();
@@ -1791,35 +1835,187 @@
                 } else if (e.key === 'Enter' && globalSelectedIndex >= 0) {
                     e.preventDefault();
                     items[globalSelectedIndex].parentElement.click();
+                } else if (e.key === 'Escape') {
+                    resultsEl.style.display = 'none';
                 }
             });
 
-            function updateGlobalSelection(items) {
-                items.forEach((item, index) => {
-                    if (index === globalSelectedIndex) {
-                        item.classList.add('active');
-                        item.scrollIntoView({ block: 'nearest' });
-                    } else {
-                        item.classList.remove('active');
-                    }
-                });
-            }
-
-            // Close when clicking outside
+            // Close when clicking outside — delegated
             document.addEventListener('click', function(e) {
-                if (!globalSearchInput.contains(e.target) && !globalSearchResults.contains(e.target)) {
-                    globalSearchResults.style.display = 'none';
+                var input = getInput();
+                var resultsEl = getResults();
+                if (!input || !resultsEl) return;
+
+                if (!input.contains(e.target) && !resultsEl.contains(e.target)) {
+                    resultsEl.style.display = 'none';
                 }
             });
-            
-            // Re-open on focus if there is value
-            globalSearchInput.addEventListener('focus', function() {
-                if (this.value.trim().length >= 2 && globalSearchResults.innerHTML.trim() !== '') {
-                    globalSearchResults.style.display = 'block';
+
+            // Re-open on focus — delegated
+            document.addEventListener('focusin', function(e) {
+                if (e.target.id !== 'globalSearchInput') return;
+                var resultsEl = getResults();
+                if (resultsEl && e.target.value.trim().length >= 2 && resultsEl.innerHTML.trim() !== '') {
+                    resultsEl.style.display = 'block';
                 }
+            });
+        })();
+    </script>
+
+    {{-- Universal Real-time Filter System --}}
+    <script>
+    (function() {
+        function initRealtimeFilters() {
+            document.querySelectorAll('form[data-realtime-filter]').forEach(function(form) {
+                if (form.dataset._rtfBound) return;
+                form.dataset._rtfBound = '1';
+
+                var targetSelector = form.dataset.realtimeTarget || null;
+                var debounceMs = parseInt(form.dataset.realtimeDebounce || '400', 10);
+                var debounceTimer = null;
+                var fetchController = null;
+
+                // Prevent the global AJAX system from handling this form
+                form.dataset.noAdminAjax = '1';
+
+                // Prevent normal form submission
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    clearTimeout(debounceTimer);
+                    doFilter();
+                });
+
+                function buildUrl() {
+                    var formData = new FormData(form);
+                    var params = new URLSearchParams();
+                    for (var pair of formData.entries()) {
+                        if (pair[1] !== '') params.append(pair[0], pair[1]);
+                    }
+                    var action = form.getAttribute('action') || window.location.pathname;
+                    var qs = params.toString();
+                    return qs ? action + '?' + qs : action;
+                }
+
+                function doFilter() {
+                    if (fetchController) fetchController.abort();
+                    fetchController = new AbortController();
+
+                    var url = buildUrl();
+
+                    // Show a subtle loading indicator
+                    form.style.opacity = '0.6';
+                    form.style.pointerEvents = 'none';
+
+                    fetch(url, {
+                        method: 'GET',
+                        headers: { 'Accept': 'text/html', 'X-RTF': '1' },
+                        credentials: 'same-origin',
+                        signal: fetchController.signal
+                    })
+                    .then(function(response) { return response.text(); })
+                    .then(function(html) {
+                        var parser = new DOMParser();
+                        var doc = parser.parseFromString(html, 'text/html');
+
+                        // Swap target containers
+                        if (targetSelector) {
+                            var targets = targetSelector.split(',');
+                            targets.forEach(function(sel) {
+                                sel = sel.trim();
+                                var newEl = doc.querySelector(sel);
+                                var curEl = document.querySelector(sel);
+                                if (newEl && curEl) {
+                                    curEl.innerHTML = newEl.innerHTML;
+                                }
+                            });
+                        } else {
+                            // Default: swap the next .card after the form's card
+                            var formCard = form.closest('.card');
+                            if (formCard) {
+                                var nextCard = formCard.nextElementSibling;
+                                while (nextCard && !nextCard.classList.contains('card')) {
+                                    nextCard = nextCard.nextElementSibling;
+                                }
+                                if (nextCard) {
+                                    var newNextCard = null;
+                                    var newFormCard = doc.querySelector('form[data-realtime-filter]');
+                                    if (newFormCard) {
+                                        var nfc = newFormCard.closest('.card');
+                                        if (nfc) {
+                                            var nnc = nfc.nextElementSibling;
+                                            while (nnc && !nnc.classList.contains('card')) {
+                                                nnc = nnc.nextElementSibling;
+                                            }
+                                            newNextCard = nnc;
+                                        }
+                                    }
+                                    if (newNextCard) {
+                                        nextCard.innerHTML = newNextCard.innerHTML;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Update URL without reload
+                        window.history.replaceState({}, '', url);
+                    })
+                    .catch(function(err) {
+                        if (err.name !== 'AbortError') console.error('RTF error:', err);
+                    })
+                    .finally(function() {
+                        form.style.opacity = '';
+                        form.style.pointerEvents = '';
+                    });
+                }
+
+                // Debounced text inputs
+                form.querySelectorAll('input[type="text"], input[type="search"]').forEach(function(input) {
+                    input.addEventListener('input', function() {
+                        clearTimeout(debounceTimer);
+                        debounceTimer = setTimeout(doFilter, debounceMs);
+                    });
+                    input.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            clearTimeout(debounceTimer);
+                            doFilter();
+                        }
+                    });
+                });
+
+                // Instant filter on select/checkbox/radio change
+                form.querySelectorAll('select, input[type="checkbox"], input[type="radio"]').forEach(function(el) {
+                    el.addEventListener('change', function() {
+                        clearTimeout(debounceTimer);
+                        doFilter();
+                    });
+                });
+
+                // Date inputs
+                form.querySelectorAll('input[type="date"], input[type="datetime-local"]').forEach(function(el) {
+                    el.addEventListener('change', function() {
+                        clearTimeout(debounceTimer);
+                        doFilter();
+                    });
+                });
             });
         }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initRealtimeFilters);
+        } else {
+            initRealtimeFilters();
+        }
+
+        // Re-init after AJAX page swaps
+        var origOpen = document.open;
+        document.addEventListener('DOMContentLoaded', initRealtimeFilters);
+        new MutationObserver(function() {
+            initRealtimeFilters();
+        }).observe(document.documentElement, { childList: true, subtree: true });
+    })();
     </script>
+
     @stack('scripts')
 </body>
 </html>

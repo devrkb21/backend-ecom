@@ -45,7 +45,7 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 fw-semibold"><i class="bi bi-tags me-2"></i>All Categories ({{ $allCategories->count() }})</h6>
                 <div class="d-flex gap-2">
-                    <form action="{{ route('admin.categories.index') }}" method="GET" class="d-flex">
+                    <form action="{{ route('admin.categories.index') }}" method="GET" class="d-flex" data-realtime-filter="1">
                         <div class="input-group input-group-sm">
                             <input type="text" name="search" class="form-control" placeholder="Search categories..." value="{{ request('search') }}">
                             <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>

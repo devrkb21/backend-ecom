@@ -39,7 +39,7 @@
         </a>
     </div>
     <div class="card-body border-bottom">
-        <form action="{{ route('admin.users.index') }}" method="GET" class="row g-2 align-items-end">
+        <form action="{{ route('admin.users.index') }}" method="GET" class="row g-2 align-items-end" data-realtime-filter="1">
             <div class="col-md-4">
                 <label class="form-label small text-muted">Search</label>
                 <input type="text" name="search" class="form-control" placeholder="Name, email, phone" value="{{ $filters['search'] ?? '' }}">

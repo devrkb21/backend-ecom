@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\ReturnController;
 use App\Http\Controllers\Admin\BusinessIntelligenceController;
 use App\Http\Controllers\Admin\FlashSaleController;
 use App\Http\Controllers\Admin\LoyaltyController;
+use App\Http\Controllers\Admin\SmsTemplateController;
 
 /*
 |--------------------------------------------------------------------------
@@ -89,12 +90,19 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Orders (Read + Status Update)
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::get('orders/create', [OrderController::class, 'create'])->name('orders.create');
+        Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
+        Route::get('orders/search-products', [OrderController::class, 'searchProducts'])->name('orders.search-products');
         Route::post('orders/bulk-action', [OrderController::class, 'bulkAction'])->name('orders.bulk-action');
         Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
         Route::patch('orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
         Route::patch('orders/{order}/source', [OrderController::class, 'updateSource'])->name('orders.update-source');
         Route::post('orders/{order}/apply-discount', [OrderController::class, 'applyDiscount'])->name('orders.apply-discount');
         Route::post('orders/{order}/remove-discount', [OrderController::class, 'removeDiscount'])->name('orders.remove-discount');
+        Route::post('orders/{order}/send-sms', [OrderController::class, 'sendSms'])->name('orders.send-sms');
+        Route::patch('orders/{order}/payment-status', [OrderController::class, 'updatePaymentStatus'])->name('orders.update-payment-status');
+        Route::get('orders/{order}/invoice', [OrderController::class, 'generateInvoice'])->name('orders.invoice');
+        Route::get('orders/{order}/packaging-slip', [OrderController::class, 'generatePackagingSlip'])->name('orders.packaging-slip');
 
         // Order Tracking
         Route::get('orders/{order}/tracking', [OrderTrackingController::class, 'edit'])->name('orders.tracking.edit');
@@ -173,6 +181,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('order-statuses', [OrderStatusController::class, 'store'])->name('order-statuses.store');
             Route::put('order-statuses/{orderStatus}', [OrderStatusController::class, 'update'])->name('order-statuses.update');
             Route::delete('order-statuses/{orderStatus}', [OrderStatusController::class, 'destroy'])->name('order-statuses.destroy');
+
+            // SMS Templates
+            Route::get('sms-templates', [SmsTemplateController::class, 'index'])->name('sms-templates');
+            Route::put('sms-templates', [SmsTemplateController::class, 'update'])->name('sms-templates.update');
         });
 
         // Coupons
