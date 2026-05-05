@@ -43,6 +43,7 @@ class AbandonedCart extends Model
         'admin_notes',
         'followed_up_by',
         'followed_up_at',
+        'follow_up_date',
         'reminder_count',
         'first_reminder_sent_at',
         'last_reminder_sent_at',
@@ -62,6 +63,7 @@ class AbandonedCart extends Model
             'discount_amount' => 'decimal:2',
             'recovered_at' => 'datetime',
             'followed_up_at' => 'datetime',
+            'follow_up_date' => 'date',
             'reminder_count' => 'integer',
             'first_reminder_sent_at' => 'datetime',
             'last_reminder_sent_at' => 'datetime',
@@ -289,12 +291,13 @@ class AbandonedCart extends Model
     /**
      * Mark as follow up
      */
-    public function markAsFollowUp(?int $adminId = null, ?string $notes = null): self
+    public function markAsFollowUp(?int $adminId = null, ?string $notes = null, ?string $date = null): self
     {
         $this->update([
             'status' => 'follow_up',
             'followed_up_by' => $adminId,
             'followed_up_at' => now(),
+            'follow_up_date' => $date,
             'admin_notes' => $notes ?? $this->admin_notes,
         ]);
 
@@ -323,6 +326,22 @@ class AbandonedCart extends Model
         $this->update([
             'status' => 'cancelled',
             'admin_notes' => $notes ?? $this->admin_notes,
+        ]);
+
+        return $this;
+    }
+
+    /**
+     * Mark as pending (reset)
+     */
+    public function markAsPending(?string $notes = null): self
+    {
+        $this->update([
+            'status' => 'pending',
+            'admin_notes' => $notes ?? $this->admin_notes,
+            'followed_up_at' => null,
+            'followed_up_by' => null,
+            'follow_up_date' => null,
         ]);
 
         return $this;

@@ -163,27 +163,22 @@ class ReviewController extends Controller
             ], 409);
         }
 
-        // Check if this is a verified purchase
-        $isVerifiedPurchase = false;
-        if ($orderId) {
-            $order = Order::where('id', $orderId)
-                ->where('user_id', $userId)
-                ->whereIn('status', ['delivered', 'completed'])
-                ->whereHas('items', function ($q) use ($productId) {
-                    $q->where('product_id', $productId);
-                })
-                ->first();
-            
-            $isVerifiedPurchase = (bool) $order;
-        } else {
-            // Check if user has any delivered order with this product
-            $isVerifiedPurchase = Order::where('user_id', $userId)
-                ->whereIn('status', ['delivered', 'completed'])
-                ->whereHas('items', function ($q) use ($productId) {
-                    $q->where('product_id', $productId);
-                })
-                ->exists();
+        // Strictly require verified purchase (delivered/completed order)
+        $hasPurchased = Order::where('user_id', $userId)
+            ->whereIn('status', ['delivered', 'completed'])
+            ->whereHas('items', function ($q) use ($productId) {
+                $q->where('product_id', $productId);
+            })
+            ->exists();
+
+        if (!$hasPurchased) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You can only review products you have purchased and received.',
+            ], 403);
         }
+
+        $isVerifiedPurchase = true;
 
         $review = Review::create([
             'user_id' => $userId,
@@ -358,8 +353,9 @@ class ReviewController extends Controller
 
         return response()->json([
             'success' => true,
-            'can_review' => true,
+            'can_review' => $hasPurchased,
             'is_verified_purchase' => $hasPurchased,
+            'reason' => $hasPurchased ? null : 'not_purchased',
         ]);
     }
 }

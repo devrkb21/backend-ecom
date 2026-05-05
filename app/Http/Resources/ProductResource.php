@@ -80,6 +80,8 @@ class ProductResource extends JsonResource
             'images' => ProductImageResource::collection($this->whenLoaded('images')),
             'variants' => ProductVariantResource::collection($this->whenLoaded('variants')),
             'has_variants' => $hasVariants,
+            'average_rating' => $this->average_rating,
+            'review_count' => $this->review_count,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

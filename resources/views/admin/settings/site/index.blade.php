@@ -27,8 +27,6 @@
                             'banner' => 'bi-megaphone',
                             'checkout' => 'bi-cart-check',
                             'navigation' => 'bi-list',
-                            'appearance' => 'bi-palette',
-                            'invoice' => 'bi-file-earmark-pdf',
                         ];
                         $groupDescriptions = [
                             'hero' => 'Homepage hero section with title, subtitle, and background image',
@@ -39,8 +37,6 @@
                             'banner' => 'Promotional banner displayed at the top of the site',
                             'checkout' => 'Use the dedicated field manager to control checkout visibility, required states, guest access, and location mode',
                             'navigation' => 'Fully customize your header menu items and links',
-                            'appearance' => 'Customize primary colors, link colors, and general site styling',
-                            'invoice' => 'Customize your PDF invoices and packaging slips with logo, company details, and theme colors',
                         ];
                     @endphp
 

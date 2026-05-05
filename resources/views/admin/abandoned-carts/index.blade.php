@@ -340,6 +340,9 @@
             <div class="card-body">
                 <div class="d-flex align-items-center gap-3">
                     <span class="text-muted small fw-semibold"><span id="selectedCount">0</span> selected</span>
+                    <button type="submit" name="action" value="pending" class="btn btn-sm btn-outline-warning">
+                        <i class="fas fa-undo me-1"></i> Mark Incomplete
+                    </button>
                     <button type="submit" name="action" value="follow_up" class="btn btn-sm btn-outline-info">
                         <i class="fas fa-phone me-1"></i> Mark Follow Up
                     </button>
@@ -435,8 +438,13 @@
                                 <span class="badge bg-{{ $cart->status_color }}">
                                     {{ $cart->status_label }}
                                 </span>
+                                @if($cart->follow_up_date)
+                                    <br><span class="badge bg-light text-info border border-info mt-1" title="Next Follow Up">
+                                        <i class="fas fa-calendar-alt me-1"></i>{{ $cart->follow_up_date->format('M d') }}
+                                    </span>
+                                @endif
                                 @if($cart->followed_up_at)
-                                    <br><small class="text-muted">{{ $cart->followed_up_at->format('M d') }}</small>
+                                    <br><small class="text-muted">Last: {{ $cart->followed_up_at->format('M d') }}</small>
                                 @endif
                             </td>
                             <td>
@@ -470,14 +478,26 @@
                                     </form>
                                     @endif
 
-                                    @if($cart->status === 'pending')
-                                    <form action="{{ route('admin.abandoned-carts.mark-follow-up', $cart) }}" method="POST" class="d-inline">
+                                    @if($cart->status !== 'pending')
+                                    <form action="{{ route('admin.abandoned-carts.mark-pending', $cart) }}" method="POST" class="d-inline">
                                         @csrf
-                                        <button type="submit" class="btn btn-outline-info btn-sm abandoned-action-btn" title="Mark Follow Up">
-                                            <i class="fas fa-phone"></i>
-                                            <span>Follow Up</span>
+                                        <button type="submit" class="btn btn-outline-warning btn-sm abandoned-action-btn" title="Mark Incomplete / Reset">
+                                            <i class="fas fa-undo"></i>
+                                            <span>Reset</span>
                                         </button>
                                     </form>
+                                    @endif
+
+                                    @if(in_array($cart->status, ['pending', 'follow_up'], true))
+                                    <button type="button" 
+                                            class="btn btn-outline-info btn-sm abandoned-action-btn follow-up-trigger" 
+                                            title="Mark Follow Up"
+                                            data-url="{{ route('admin.abandoned-carts.mark-follow-up', $cart) }}"
+                                            data-notes="{{ $cart->admin_notes }}"
+                                            data-date="{{ $cart->follow_up_date ? $cart->follow_up_date->format('Y-m-d') : '' }}">
+                                        <i class="fas fa-phone"></i>
+                                        <span>Follow Up</span>
+                                    </button>
                                     @endif
                                 </div>
                             </td>
@@ -502,6 +522,35 @@
 </div>
 
 @push('scripts')
+<div class="modal fade" id="followUpModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form id="followUpForm" method="POST">
+            @csrf
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Schedule Follow Up</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Next Follow Up Date</label>
+                        <input type="date" name="follow_up_date" id="follow_up_date" class="form-control" min="{{ date('Y-m-d') }}">
+                        <small class="text-muted">Set a date when you plan to follow up with this customer.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Admin Notes</label>
+                        <textarea name="admin_notes" id="admin_notes" class="form-control" rows="3" placeholder="Add any specific details for this follow up..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Follow Up</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const selectAll = document.getElementById('selectAll');
@@ -522,6 +571,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
     checkboxes.forEach(cb => {
         cb.addEventListener('change', updateBulkBar);
+    });
+
+    // Follow Up Modal Logic
+    const followUpModal = new bootstrap.Modal(document.getElementById('followUpModal'));
+    const followUpForm = document.getElementById('followUpForm');
+    const followUpDateInput = document.getElementById('follow_up_date');
+    const followUpNotesInput = document.getElementById('admin_notes');
+
+    document.querySelectorAll('.follow-up-trigger').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const url = this.getAttribute('data-url');
+            const notes = this.getAttribute('data-notes');
+            const date = this.getAttribute('data-date');
+
+            followUpForm.action = url;
+            followUpNotesInput.value = notes || '';
+            followUpDateInput.value = date || '';
+            
+            followUpModal.show();
+        });
     });
 });
 </script>

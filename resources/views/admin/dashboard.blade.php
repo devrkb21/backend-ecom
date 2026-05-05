@@ -5,7 +5,25 @@
 
 @section('content')
 <!-- Daily Overview -->
-<h5 class="mb-3 fw-bold text-dark"><i class="bi bi-calendar-day me-2"></i>Daily Overview</h5>
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-3">
+    <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-calendar-day me-2"></i>Daily Overview</h5>
+    
+    <form action="{{ route('admin.dashboard') }}" method="GET" class="d-flex align-items-center gap-2" id="filterForm">
+        <select name="range" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+            <option value="today" {{ $range == 'today' ? 'selected' : '' }}>Today</option>
+            <option value="yesterday" {{ $range == 'yesterday' ? 'selected' : '' }}>Yesterday</option>
+            <option value="last_30_days" {{ $range == 'last_30_days' ? 'selected' : '' }}>Last 30 Days</option>
+            <option value="custom" {{ $range == 'custom' ? 'selected' : '' }}>Custom Date</option>
+        </select>
+        
+        @if($range == 'custom')
+            <input type="date" name="start_date" value="{{ $startDate->format('Y-m-d') }}" class="form-control form-control-sm w-auto" onchange="this.form.submit()">
+            <span class="text-muted small">to</span>
+            <input type="date" name="end_date" value="{{ $endDate->format('Y-m-d') }}" class="form-control form-control-sm w-auto" onchange="this.form.submit()">
+        @endif
+    </form>
+</div>
+
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-lg-3">
         <a href="{{ route('admin.bi.sales-reports') }}" class="text-decoration-none d-block h-100 text-dark">
@@ -18,8 +36,8 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h4 class="mb-0">৳{{ number_format($todayStats['revenue'], 2) }}</h4>
-                            <span class="text-muted small">Today's Revenue</span>
+                            <h4 class="mb-0">৳{{ number_format($overviewStats['total_sale'], 2) }}</h4>
+                            <span class="text-muted small">Total Sale ({{ ucfirst(str_replace('_', ' ', $range)) }})</span>
                         </div>
                     </div>
                 </div>
@@ -28,18 +46,18 @@
     </div>
 
     <div class="col-sm-6 col-lg-3">
-        <a href="{{ route('admin.orders.index', ['date' => 'today']) }}" class="text-decoration-none d-block h-100 text-dark">
+        <a href="{{ route('admin.bi.sales-reports') }}" class="text-decoration-none d-block h-100 text-dark">
             <div class="card stat-card h-100 border-start border-success border-4 hover-elevate">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
                             <div class="bg-success bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-cart-check text-success fs-4"></i>
+                                <i class="bi bi-graph-up-arrow text-success fs-4"></i>
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h4 class="mb-0">{{ number_format($todayStats['orders']) }}</h4>
-                            <span class="text-muted small">Today's Orders</span>
+                            <h4 class="mb-0">৳{{ number_format($overviewStats['total_profit'], 2) }}</h4>
+                            <span class="text-muted small">Total Profit ({{ ucfirst(str_replace('_', ' ', $range)) }})</span>
                         </div>
                     </div>
                 </div>
@@ -48,18 +66,18 @@
     </div>
 
     <div class="col-sm-6 col-lg-3">
-        <a href="{{ route('admin.users.index', ['date' => 'today']) }}" class="text-decoration-none d-block h-100 text-dark">
+        <a href="{{ route('admin.orders.index', ['date' => $range == 'today' ? 'today' : '']) }}" class="text-decoration-none d-block h-100 text-dark">
             <div class="card stat-card h-100 border-start border-info border-4 hover-elevate">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
                             <div class="bg-info bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-person-plus text-info fs-4"></i>
+                                <i class="bi bi-cart-check text-info fs-4"></i>
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h4 class="mb-0">{{ number_format($todayStats['new_customers']) }}</h4>
-                            <span class="text-muted small">New Customers (Today)</span>
+                            <h4 class="mb-0">{{ number_format($overviewStats['orders']) }}</h4>
+                            <span class="text-muted small">Orders ({{ ucfirst(str_replace('_', ' ', $range)) }})</span>
                         </div>
                     </div>
                 </div>
@@ -68,18 +86,18 @@
     </div>
 
     <div class="col-sm-6 col-lg-3">
-        <a href="{{ route('admin.products.index', ['stock' => 'low']) }}" class="text-decoration-none d-block h-100 text-dark">
+        <a href="{{ route('admin.users.index', ['date' => $range == 'today' ? 'today' : '']) }}" class="text-decoration-none d-block h-100 text-dark">
             <div class="card stat-card h-100 border-start border-warning border-4 hover-elevate">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
                             <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-exclamation-triangle text-warning fs-4"></i>
+                                <i class="bi bi-person-plus text-warning fs-4"></i>
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h4 class="mb-0">{{ number_format($lowStockCount) }}</h4>
-                            <span class="text-muted small">Low Stock Items</span>
+                            <h4 class="mb-0">{{ number_format($overviewStats['new_customers']) }}</h4>
+                            <span class="text-muted small">New Customers ({{ ucfirst(str_replace('_', ' ', $range)) }})</span>
                         </div>
                     </div>
                 </div>
@@ -176,18 +194,18 @@
 <h5 class="mb-3 fw-bold text-dark"><i class="bi bi-trophy me-2"></i>Lifetime Performance Summary</h5>
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-lg-3">
-        <a href="{{ route('admin.users.index') }}" class="text-decoration-none d-block h-100 text-dark">
-            <div class="card stat-card h-100 hover-elevate">
+        <a href="{{ route('admin.bi.sales-reports') }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 hover-elevate border-start border-primary border-4">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
                             <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-people text-primary fs-4"></i>
+                                <i class="bi bi-currency-dollar text-primary fs-4"></i>
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h3 class="mb-0">{{ number_format($stats['total_users']) }}</h3>
-                            <span class="text-muted small">Total Customers</span>
+                            <h3 class="mb-0">৳{{ number_format($stats['total_sale'], 2) }}</h3>
+                            <span class="text-muted small">Total Sale (Lifetime)</span>
                         </div>
                     </div>
                 </div>
@@ -196,18 +214,18 @@
     </div>
 
     <div class="col-sm-6 col-lg-3">
-        <a href="{{ route('admin.products.index') }}" class="text-decoration-none d-block h-100 text-dark">
-            <div class="card stat-card h-100 hover-elevate">
+        <a href="{{ route('admin.bi.sales-reports') }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 hover-elevate border-start border-success border-4">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
                             <div class="bg-success bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-box text-success fs-4"></i>
+                                <i class="bi bi-graph-up-arrow text-success fs-4"></i>
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h3 class="mb-0">{{ number_format($stats['total_products']) }}</h3>
-                            <span class="text-muted small">Total Products</span>
+                            <h3 class="mb-0">৳{{ number_format($stats['total_profit'], 2) }}</h3>
+                            <span class="text-muted small">Total Profit (Lifetime)</span>
                         </div>
                     </div>
                 </div>
@@ -217,7 +235,7 @@
 
     <div class="col-sm-6 col-lg-3">
         <a href="{{ route('admin.orders.index') }}" class="text-decoration-none d-block h-100 text-dark">
-            <div class="card stat-card h-100 hover-elevate">
+            <div class="card stat-card h-100 hover-elevate border-start border-info border-4">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
@@ -236,18 +254,18 @@
     </div>
 
     <div class="col-sm-6 col-lg-3">
-        <a href="{{ route('admin.bi.sales-reports') }}" class="text-decoration-none d-block h-100 text-dark">
-            <div class="card stat-card h-100 hover-elevate">
+        <a href="{{ route('admin.users.index') }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 hover-elevate border-start border-warning border-4">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
-                            <div class="bg-success bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-currency-dollar text-success fs-4"></i>
+                            <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-people text-warning fs-4"></i>
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h3 class="mb-0">৳{{ number_format($stats['total_revenue'], 2) }}</h3>
-                            <span class="text-muted small">Total Revenue</span>
+                            <h3 class="mb-0">{{ number_format($stats['total_users']) }}</h3>
+                            <span class="text-muted small">Total Customers</span>
                         </div>
                     </div>
                 </div>

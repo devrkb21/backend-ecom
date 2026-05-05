@@ -15,8 +15,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Barryvdh\DomPDF\Facade\Pdf;
-use App\Models\Setting;
 
 class OrderController extends Controller
 {
@@ -663,26 +661,6 @@ class OrderController extends Controller
                 $item->product->incrementStock($item->quantity);
             }
         }
-    }
-
-    public function generateInvoice(Order $order)
-    {
-        $order->load(['items.product', 'items.variant.attributeValues.attribute']);
-        $settings = Setting::getGroup('invoice', false);
-        
-        $pdf = Pdf::loadView('admin.orders.pdf.invoice', compact('order', 'settings'));
-        
-        return $pdf->stream("invoice-{$order->order_number}.pdf");
-    }
-
-    public function generatePackagingSlip(Order $order)
-    {
-        $order->load(['items.product', 'items.variant.attributeValues.attribute']);
-        $settings = Setting::getGroup('invoice', false);
-        
-        $pdf = Pdf::loadView('admin.orders.pdf.packaging-slip', compact('order', 'settings'));
-        
-        return $pdf->stream("packaging-slip-{$order->order_number}.pdf");
     }
 
 }

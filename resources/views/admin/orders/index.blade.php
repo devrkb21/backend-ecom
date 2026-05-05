@@ -308,14 +308,9 @@
                                 </td>
                                 <td>{{ $order->created_at->format('M d, Y H:i') }}</td>
                                 <td>
-                                    <div class="btn-group">
-                                        <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-sm btn-outline-info" title="View Order">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
-                                        <a href="{{ route('admin.orders.invoice', $order) }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Print Invoice">
-                                            <i class="bi bi-printer"></i>
-                                        </a>
-                                    </div>
+                                    <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-sm btn-outline-info">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
                                 </td>
                             </tr>
                         @empty
