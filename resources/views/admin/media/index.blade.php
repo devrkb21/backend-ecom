@@ -21,7 +21,7 @@
         {{-- Search --}}
         <div class="row mb-4">
             <div class="col-md-4">
-                <form action="{{ route('admin.media.index') }}" method="GET">
+                <form action="{{ route('admin.media.index') }}" method="GET" data-realtime-filter="1">
                     <div class="input-group input-group-sm">
                         <input type="text" class="form-control" name="search" placeholder="Search media..." value="{{ request('search') }}">
                         <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-search"></i></button>

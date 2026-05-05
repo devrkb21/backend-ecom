@@ -13,7 +13,7 @@
     </div>
     <div class="card-body">
         {{-- Filters --}}
-        <form action="{{ route('admin.coupons.index') }}" method="GET" class="row g-3 mb-4">
+        <form action="{{ route('admin.coupons.index') }}" method="GET" class="row g-3 mb-4" data-realtime-filter="1">
             <div class="col-md-3">
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>

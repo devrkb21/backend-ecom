@@ -303,24 +303,9 @@
                                                     : ($variantId ? ('Variant #' . $variantId) : ''));
                                         @endphp
                                         <div class="d-flex align-items-center">
-                                            @if(!empty($item['product_image']))
-                                            <img src="{{ $item['product_image'] }}" alt="" class="rounded me-2" style="width: 40px; height: 40px; object-fit: cover;">
-                                            @endif
                                             <div>
-                                                <strong>{{ $item['product_name'] ?? 'Unknown Product' }}</strong>
-                                                @if(!empty($item['product_sku']))
-                                                <br><small class="text-muted">SKU: {{ $item['product_sku'] }}</small>
-                                                @endif
-
-                                                @if($variantAttributes !== '')
-                                                    <br><small class="text-muted">{{ $variantAttributes }}</small>
-                                                @elseif($variantLabel !== '')
-                                                    <br><small class="text-muted">{{ $variantLabel }}</small>
-                                                @endif
-
-                                                @if($variantSku !== '')
-                                                    <br><small class="text-muted">Variant SKU: {{ $variantSku }}</small>
-                                                @endif
+                                                <strong>Item #{{ $loop->iteration }}</strong>
+                                                {{-- Specific product details hidden as requested --}}
                                             </div>
                                         </div>
                                     </td>

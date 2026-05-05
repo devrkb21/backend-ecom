@@ -183,6 +183,212 @@ class SiteSettingController extends Controller
     }
 
     /**
+     * Ensure invoice settings exist.
+     */
+    protected function ensureInvoiceSettingsExist(): void
+    {
+        $definitions = [
+            [
+                'key' => 'invoice_logo',
+                'value' => '',
+                'type' => 'image',
+                'label' => 'Invoice Logo',
+                'description' => 'Logo to display on invoices and packaging slips.',
+                'is_public' => false,
+                'sort_order' => 1,
+            ],
+            [
+                'key' => 'invoice_company_name',
+                'value' => config('app.name', 'Inner Collection'),
+                'type' => 'text',
+                'label' => 'Company Name',
+                'description' => 'Display name of your company on invoices.',
+                'is_public' => false,
+                'sort_order' => 2,
+            ],
+            [
+                'key' => 'invoice_company_address',
+                'value' => '',
+                'type' => 'textarea',
+                'label' => 'Company Address',
+                'description' => 'Physical address of your business.',
+                'is_public' => false,
+                'sort_order' => 3,
+            ],
+            [
+                'key' => 'invoice_company_phone',
+                'value' => '',
+                'type' => 'text',
+                'label' => 'Company Phone',
+                'description' => 'Contact phone number for support.',
+                'is_public' => false,
+                'sort_order' => 4,
+            ],
+            [
+                'key' => 'invoice_company_email',
+                'value' => '',
+                'type' => 'text',
+                'label' => 'Company Email',
+                'description' => 'Contact email address for support.',
+                'is_public' => false,
+                'sort_order' => 5,
+            ],
+            [
+                'key' => 'invoice_primary_color',
+                'value' => '#1e293b',
+                'type' => 'color',
+                'label' => 'Invoice Theme Color',
+                'description' => 'Primary color used for headers and accents in the PDF.',
+                'is_public' => false,
+                'sort_order' => 6,
+            ],
+            [
+                'key' => 'invoice_title',
+                'value' => 'Invoice',
+                'type' => 'text',
+                'label' => 'Invoice Document Title',
+                'description' => 'The main heading on the invoice PDF.',
+                'is_public' => false,
+                'sort_order' => 7,
+            ],
+            [
+                'key' => 'packaging_slip_title',
+                'value' => 'Packaging Slip',
+                'type' => 'text',
+                'label' => 'Packaging Slip Title',
+                'description' => 'The main heading on the packaging slip PDF.',
+                'is_public' => false,
+                'sort_order' => 8,
+            ],
+            [
+                'key' => 'invoice_bill_to_label',
+                'value' => 'Bill To',
+                'type' => 'text',
+                'label' => 'Bill To Label',
+                'description' => 'Label for customer billing information.',
+                'is_public' => false,
+                'sort_order' => 9,
+            ],
+            [
+                'key' => 'invoice_ship_to_label',
+                'value' => 'Ship To',
+                'type' => 'text',
+                'label' => 'Ship To Label',
+                'description' => 'Label for shipping address information.',
+                'is_public' => false,
+                'sort_order' => 10,
+            ],
+            [
+                'key' => 'invoice_item_label',
+                'value' => 'Item Description',
+                'type' => 'text',
+                'label' => 'Item Column Label',
+                'description' => 'Heading for the product details column.',
+                'is_public' => false,
+                'sort_order' => 11,
+            ],
+            [
+                'key' => 'invoice_qty_label',
+                'value' => 'Qty',
+                'type' => 'text',
+                'label' => 'Quantity Column Label',
+                'description' => 'Heading for the quantity column.',
+                'is_public' => false,
+                'sort_order' => 12,
+            ],
+            [
+                'key' => 'invoice_price_label',
+                'value' => 'Price',
+                'type' => 'text',
+                'label' => 'Price Column Label',
+                'description' => 'Heading for the unit price column.',
+                'is_public' => false,
+                'sort_order' => 13,
+            ],
+            [
+                'key' => 'invoice_total_label',
+                'value' => 'Total',
+                'type' => 'text',
+                'label' => 'Total Column Label',
+                'description' => 'Heading for the line total column.',
+                'is_public' => false,
+                'sort_order' => 14,
+            ],
+            [
+                'key' => 'invoice_show_payment_status',
+                'value' => '1',
+                'type' => 'boolean',
+                'label' => 'Show Payment Status',
+                'description' => 'Toggle visibility of the payment status badge.',
+                'is_public' => false,
+                'sort_order' => 15,
+            ],
+            [
+                'key' => 'invoice_show_shipping_method',
+                'value' => '1',
+                'type' => 'boolean',
+                'label' => 'Show Shipping Method',
+                'description' => 'Toggle visibility of the shipping method.',
+                'is_public' => false,
+                'sort_order' => 16,
+            ],
+            [
+                'key' => 'invoice_font_size',
+                'value' => '12',
+                'type' => 'number',
+                'label' => 'Base Font Size (px)',
+                'description' => 'Adjust the global text size for the PDF.',
+                'is_public' => false,
+                'sort_order' => 17,
+            ],
+            [
+                'key' => 'invoice_footer_notes',
+                'value' => 'Thank you for your business!',
+                'type' => 'textarea',
+                'label' => 'Invoice Footer Notes',
+                'description' => 'Notes displayed at the bottom of every invoice.',
+                'is_public' => false,
+                'sort_order' => 18,
+            ],
+            [
+                'key' => 'invoice_terms',
+                'value' => '',
+                'type' => 'textarea',
+                'label' => 'Terms & Conditions',
+                'description' => 'Standard terms and conditions displayed on the invoice.',
+                'is_public' => false,
+                'sort_order' => 19,
+            ],
+            [
+                'key' => 'invoice_custom_css',
+                'value' => '',
+                'type' => 'textarea',
+                'label' => 'Custom CSS',
+                'description' => 'Advanced: Add custom CSS to style the PDF documents.',
+                'is_public' => false,
+                'sort_order' => 20,
+            ],
+        ];
+
+        $created = false;
+
+        foreach ($definitions as $definition) {
+            $setting = Setting::firstOrCreate(
+                ['group' => 'invoice', 'key' => $definition['key']],
+                array_merge(['group' => 'invoice'], $definition)
+            );
+
+            if ($setting->wasRecentlyCreated) {
+                $created = true;
+            }
+        }
+
+        if ($created) {
+            Setting::clearCache('invoice');
+        }
+    }
+
+    /**
      * Ensure checkout field-manager settings exist.
      */
     protected function ensureCheckoutSettingsExist(): void
@@ -295,6 +501,7 @@ class SiteSettingController extends Controller
         $this->ensureCheckoutSettingsExist();
         $this->ensureNavigationSettingsExist();
         $this->ensureAppearanceSettingsExist();
+        $this->ensureInvoiceSettingsExist();
 
         $settings = Setting::whereNotIn('group', self::RESTRICTED_GROUPS)
             ->orderBy('group')
@@ -336,6 +543,10 @@ class SiteSettingController extends Controller
             $this->ensureAppearanceSettingsExist();
         }
 
+        if ($group === 'invoice') {
+            $this->ensureInvoiceSettingsExist();
+        }
+
         $settings = Setting::where('group', $group)->orderBy('sort_order')->get();
         
         if ($settings->isEmpty()) {
@@ -353,6 +564,7 @@ class SiteSettingController extends Controller
             'checkout' => 'Checkout Settings',
             'navigation' => 'Navigation Menu',
             'appearance' => 'Appearance & Colors',
+            'invoice' => 'Invoice & Packaging Slip',
         ];
 
         if ($group === 'checkout') {
@@ -377,11 +589,32 @@ class SiteSettingController extends Controller
             ]);
         }
 
-        return view('admin.settings.site.edit-group', [
+        $data = [
             'settings' => $settings,
             'group' => $group,
             'groupLabel' => $groupLabels[$group] ?? ucfirst($group),
-        ]);
+        ];
+
+        if ($group === 'navigation') {
+            $categories = \App\Models\Category::with('children')->whereNull('parent_id')->active()->ordered()->get();
+            $data['allCategories'] = $this->flattenCategories($categories);
+            $data['allPages'] = \App\Models\Page::active()->get();
+        }
+
+        return view('admin.settings.site.edit-group', $data);
+    }
+
+    private function flattenCategories($categories, $level = 0)
+    {
+        $flattened = collect();
+        foreach ($categories as $category) {
+            $category->name_with_indent = str_repeat('— ', $level) . $category->name;
+            $flattened->push($category);
+            if ($category->children && $category->children->count() > 0) {
+                $flattened = $flattened->merge($this->flattenCategories($category->children, $level + 1));
+            }
+        }
+        return $flattened;
     }
 
     /**

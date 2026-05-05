@@ -5,15 +5,18 @@
 
 @section('content')
 <div class="card mb-4">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <h6 class="mb-0 fw-semibold"><i class="bi bi-funnel me-2"></i>Search & Filters</h6>
     </div>
     <div class="card-body">
-        <form action="{{ route('admin.products.index') }}" method="GET">
+        <form action="{{ route('admin.products.index') }}" method="GET" data-realtime-filter="1">
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label small text-muted">Search</label>
-                    <input type="text" class="form-control form-control-sm" name="search" value="{{ request('search') }}" placeholder="Name, SKU, description...">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control form-control-sm" name="search" value="{{ request('search') }}" placeholder="Name, SKU, description..." autocomplete="off">
+                    </div>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small text-muted">Category</label>
@@ -43,11 +46,8 @@
                     </select>
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-sm btn-primary me-2">
-                        <i class="bi bi-search"></i> Search
-                    </button>
-                    <a href="{{ route('admin.products.index') }}" class="btn btn-sm btn-outline-secondary">
-                        <i class="bi bi-x"></i>
+                    <a href="{{ route('admin.products.index') }}" class="btn btn-sm btn-outline-secondary" title="Clear all filters">
+                        <i class="bi bi-x-lg me-1"></i> Clear
                     </a>
                 </div>
             </div>

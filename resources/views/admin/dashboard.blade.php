@@ -4,7 +4,8 @@
 @section('page-title', 'Dashboard')
 
 @section('content')
-<!-- Today's Stats -->
+<!-- Daily Overview -->
+<h5 class="mb-3 fw-bold text-dark"><i class="bi bi-calendar-day me-2"></i>Daily Overview</h5>
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-lg-3">
         <a href="{{ route('admin.bi.sales-reports') }}" class="text-decoration-none d-block h-100 text-dark">
@@ -58,7 +59,7 @@
                         </div>
                         <div class="flex-grow-1 ms-3">
                             <h4 class="mb-0">{{ number_format($todayStats['new_customers']) }}</h4>
-                            <span class="text-muted small">New Customers</span>
+                            <span class="text-muted small">New Customers (Today)</span>
                         </div>
                     </div>
                 </div>
@@ -87,7 +88,8 @@
     </div>
 </div>
 
-<!-- Abandoned Cart Summary -->
+<!-- Abandoned Cart Analytics -->
+<h5 class="mb-3 fw-bold text-dark"><i class="bi bi-cart-x me-2"></i>Abandoned Cart Analytics</h5>
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-lg-3">
         <a href="{{ route('admin.abandoned-carts.index', ['status' => 'open']) }}" class="text-decoration-none d-block h-100 text-dark">
@@ -101,9 +103,7 @@
                         </div>
                         <div class="flex-grow-1 ms-3">
                             <h4 class="mb-0">{{ number_format($abandonedSummary['open']) }}</h4>
-                            <span class="text-muted small">Open Abandoned Carts</span>
-                            <br>
-                            <small class="text-danger">{{ number_format($abandonedSummary['overdue_follow_up']) }} overdue follow-up</small>
+                            <span class="text-muted small">Open Carts</span>
                         </div>
                     </div>
                 </div>
@@ -124,8 +124,6 @@
                         <div class="flex-grow-1 ms-3">
                             <h4 class="mb-0">{{ number_format($abandonedSummary['reminder_due']) }}</h4>
                             <span class="text-muted small">Reminder Queue</span>
-                            <br>
-                            <small class="text-muted">{{ number_format($abandonedSummary['high_value_open']) }} high-value carts</small>
                         </div>
                     </div>
                 </div>
@@ -146,8 +144,6 @@
                         <div class="flex-grow-1 ms-3">
                             <h4 class="mb-0">৳{{ number_format($abandonedSummary['potential_revenue'], 0) }}</h4>
                             <span class="text-muted small">Potential Revenue</span>
-                            <br>
-                            <small class="text-muted">Avg ৳{{ number_format($abandonedSummary['avg_open_value'], 0) }}/cart</small>
                         </div>
                     </div>
                 </div>
@@ -167,9 +163,7 @@
                         </div>
                         <div class="flex-grow-1 ms-3">
                             <h4 class="mb-0">{{ $abandonedSummary['recovery_rate'] }}%</h4>
-                            <span class="text-muted small">Recovery Rate (30d)</span>
-                            <br>
-                            <small class="text-success">৳{{ number_format($abandonedSummary['recovered_revenue_30d'], 0) }} recovered</small>
+                            <span class="text-muted small">Recovery Rate</span>
                         </div>
                     </div>
                 </div>
@@ -178,7 +172,8 @@
     </div>
 </div>
 
-<!-- Main Stats -->
+<!-- Lifetime Performance -->
+<h5 class="mb-3 fw-bold text-dark"><i class="bi bi-trophy me-2"></i>Lifetime Performance Summary</h5>
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-lg-3">
         <a href="{{ route('admin.users.index') }}" class="text-decoration-none d-block h-100 text-dark">
@@ -253,13 +248,6 @@
                         <div class="flex-grow-1 ms-3">
                             <h3 class="mb-0">৳{{ number_format($stats['total_revenue'], 2) }}</h3>
                             <span class="text-muted small">Total Revenue</span>
-                            @if($revenueChange != 0)
-                                <br>
-                                <small class="{{ $revenueChange > 0 ? 'text-success' : 'text-danger' }}">
-                                    <i class="bi bi-{{ $revenueChange > 0 ? 'arrow-up' : 'arrow-down' }}"></i>
-                                    {{ abs(round($revenueChange, 1)) }}% vs last month
-                                </small>
-                            @endif
                         </div>
                     </div>
                 </div>

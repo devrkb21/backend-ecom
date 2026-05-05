@@ -3,6 +3,15 @@
 @section('title', $groupLabel . ' Settings')
 @section('page-title', $groupLabel . ' Settings')
 
+@push('css')
+<style>
+    .cursor-move { cursor: move; }
+    .btn-xs { padding: 0.15rem 0.35rem; font-size: 0.75rem; border-radius: 0.2rem; }
+    .menu-item-wrapper .card:hover { border-color: var(--bs-primary); }
+    .border-dashed { border-style: dashed !important; }
+</style>
+@endpush
+
 @section('content')
 <div class="row">
     <div class="col-lg-8">
@@ -205,19 +214,54 @@
                                                 class="d-none"
                                             >{{ old("settings.{$setting->key}", $setting->value) }}</textarea>
                                             
-                                            <div id="menu-items-container" class="list-group mb-3">
+                                            <div class="alert alert-info py-2 small mb-3">
+                                                <i class="bi bi-info-circle me-1"></i> Drag and drop menu items to reorder. Add sub-items to create dropdowns.
+                                            </div>
+
+                                            <div id="menu-items-container" class="mb-4">
                                                 <!-- JS will populate this -->
                                             </div>
                                             
-                                            <div class="row g-2 align-items-center bg-light p-3 border rounded">
-                                                <div class="col-md-5">
-                                                    <input type="text" id="new-menu-label" class="form-control" placeholder="Menu Label (e.g., Home)">
-                                                </div>
-                                                <div class="col-md-5">
-                                                    <input type="text" id="new-menu-url" class="form-control" placeholder="URL (e.g., /products)">
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <button type="button" class="btn btn-primary w-100" onclick="addMenuItem()">Add</button>
+                                            <div class="card bg-light border-dashed">
+                                                <div class="card-body p-3">
+                                                    <h6 class="card-title small fw-bold mb-3">Add New Menu Item</h6>
+                                                    <div class="row g-2">
+                                                        <div class="col-md-3">
+                                                            <select id="new-menu-type" class="form-select form-select-sm" onchange="toggleNewMenuInputs()">
+                                                                <option value="link">Custom Link</option>
+                                                                <option value="category">Category</option>
+                                                                <option value="page">CMS Page</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <input type="text" id="new-menu-label" class="form-control form-control-sm" placeholder="Label">
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            {{-- Custom Link Input --}}
+                                                            <input type="text" id="new-menu-url" class="form-control form-control-sm" placeholder="URL (e.g., /products)">
+                                                            
+                                                            {{-- Category Select (Hidden) --}}
+                                                            <select id="new-menu-category" class="form-select form-select-sm d-none">
+                                                                <option value="">Select Category</option>
+                                                                @foreach($allCategories ?? [] as $cat)
+                                                                    <option value="/categories/{{ $cat->slug }}">{{ $cat->name_with_indent }}</option>
+                                                                @endforeach
+                                                            </select>
+
+                                                            {{-- Page Select (Hidden) --}}
+                                                            <select id="new-menu-page" class="form-select form-select-sm d-none">
+                                                                <option value="">Select Page</option>
+                                                                @foreach($allPages ?? [] as $pg)
+                                                                    <option value="/{{ $pg->slug }}">{{ $pg->title }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <button type="button" class="btn btn-primary btn-sm w-100" onclick="addMenuItem()">
+                                                                <i class="bi bi-plus-lg me-1"></i> Add
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -514,6 +558,17 @@
     }
 
     // Menu Builder Logic
+    window.toggleNewMenuInputs = function() {
+        const type = document.getElementById('new-menu-type').value;
+        document.getElementById('new-menu-url').classList.toggle('d-none', type !== 'link');
+        document.getElementById('new-menu-category').classList.toggle('d-none', type !== 'category');
+        document.getElementById('new-menu-page').classList.toggle('d-none', type !== 'page');
+        
+        // Clear inputs when type changes
+        if (type === 'category') document.getElementById('new-menu-category').selectedIndex = 0;
+        if (type === 'page') document.getElementById('new-menu-page').selectedIndex = 0;
+    };
+
     document.addEventListener('DOMContentLoaded', function() {
         const menuInput = document.getElementById('header_menu_input');
         if (!menuInput) return;
@@ -529,63 +584,170 @@
             const container = document.getElementById('menu-items-container');
             container.innerHTML = '';
             
+            if (menuItems.length === 0) {
+                container.innerHTML = '<div class="text-center py-4 bg-light border border-dashed rounded text-muted">No menu items yet. Add your first item below.</div>';
+            }
+
             menuItems.forEach((item, index) => {
-                const row = document.createElement('div');
-                row.className = 'list-group-item d-flex justify-content-between align-items-center';
-                row.innerHTML = `
-                    <div class="d-flex align-items-center gap-3 flex-grow-1">
-                        <i class="bi bi-grip-vertical text-muted cursor-move"></i>
-                        <div class="row g-2 flex-grow-1">
-                            <div class="col-md-6">
-                                <input type="text" class="form-control form-control-sm" value="${item.label}" onchange="updateMenuItem(${index}, 'label', this.value)">
-                            </div>
-                            <div class="col-md-6">
-                                <input type="text" class="form-control form-control-sm" value="${item.url}" onchange="updateMenuItem(${index}, 'url', this.value)">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="ms-3 d-flex gap-1">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="moveMenuItem(${index}, -1)" ${index === 0 ? 'disabled' : ''}><i class="bi bi-arrow-up"></i></button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="moveMenuItem(${index}, 1)" ${index === menuItems.length - 1 ? 'disabled' : ''}><i class="bi bi-arrow-down"></i></button>
-                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeMenuItem(${index})"><i class="bi bi-trash"></i></button>
-                    </div>
-                `;
-                container.appendChild(row);
+                container.appendChild(createMenuItemElement(item, [index]));
             });
             menuInput.value = JSON.stringify(menuItems);
         }
 
+        function createMenuItemElement(item, path) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'menu-item-wrapper mb-2';
+            
+            const content = document.createElement('div');
+            content.className = 'card shadow-sm border-gray-200';
+            
+            const pathStr = path.join(',');
+            const isSubItem = path.includes('children');
+            
+            content.innerHTML = `
+                <div class="card-body p-2 d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2 flex-grow-1">
+                        <i class="bi bi-grip-vertical text-muted"></i>
+                        <input type="text" class="form-control form-control-sm" style="width: 150px" value="${item.label}" onchange="updateItem('${pathStr}', 'label', this.value)" placeholder="Label">
+                        <input type="text" class="form-control form-control-sm flex-grow-1" value="${item.url}" onchange="updateItem('${pathStr}', 'url', this.value)" placeholder="URL">
+                    </div>
+                    <div class="d-flex gap-1">
+                        <button type="button" class="btn btn-xs btn-outline-info" onclick="indentItem('${pathStr}')" title="Indent (Make Sub-item)"><i class="bi bi-chevron-right"></i></button>
+                        <button type="button" class="btn btn-xs btn-outline-info" onclick="outdentItem('${pathStr}')" title="Outdent (Move to Main)"><i class="bi bi-chevron-left"></i></button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary" onclick="moveItem('${pathStr}', -1)" title="Move Up"><i class="bi bi-chevron-up"></i></button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary" onclick="moveItem('${pathStr}', 1)" title="Move Down"><i class="bi bi-chevron-down"></i></button>
+                        <button type="button" class="btn btn-xs btn-outline-danger" onclick="removeItem('${pathStr}')" title="Remove"><i class="bi bi-trash"></i></button>
+                    </div>
+                </div>
+            `;
+            
+            wrapper.appendChild(content);
+            
+            if (item.children && item.children.length > 0) {
+                const childrenContainer = document.createElement('div');
+                childrenContainer.className = 'ms-5 mt-2 border-start ps-3';
+                item.children.forEach((child, cIdx) => {
+                    childrenContainer.appendChild(createMenuItemElement(child, [...path, 'children', cIdx]));
+                });
+                wrapper.appendChild(childrenContainer);
+            }
+            
+            return wrapper;
+        }
+
         window.addMenuItem = function() {
+            const type = document.getElementById('new-menu-type').value;
             const labelInput = document.getElementById('new-menu-label');
-            const urlInput = document.getElementById('new-menu-url');
-            if (labelInput.value.trim() === '' || urlInput.value.trim() === '') return;
+            let url = '';
+            
+            if (type === 'link') url = document.getElementById('new-menu-url').value.trim();
+            else if (type === 'category') url = document.getElementById('new-menu-category').value;
+            else if (type === 'page') url = document.getElementById('new-menu-page').value;
+
+            if (labelInput.value.trim() === '' || url === '') {
+                alert('Please provide both a label and a URL/selection.');
+                return;
+            }
 
             menuItems.push({
                 label: labelInput.value.trim(),
-                url: urlInput.value.trim(),
-                type: 'link'
+                url: url,
+                type: type,
+                children: []
             });
 
             labelInput.value = '';
-            urlInput.value = '';
+            document.getElementById('new-menu-url').value = '';
             renderMenu();
         };
 
-        window.removeMenuItem = function(index) {
-            menuItems.splice(index, 1);
-            renderMenu();
-        };
-
-        window.updateMenuItem = function(index, field, value) {
-            menuItems[index][field] = value;
+        window.updateItem = function(pathStr, field, value) {
+            const path = pathStr.split(',');
+            let target = menuItems;
+            for (let i = 0; i < path.length - 1; i++) {
+                target = target[path[i]];
+            }
+            target[path[path.length - 1]][field] = value;
             menuInput.value = JSON.stringify(menuItems);
         };
 
-        window.moveMenuItem = function(index, direction) {
-            if (index + direction < 0 || index + direction >= menuItems.length) return;
-            const temp = menuItems[index];
-            menuItems[index] = menuItems[index + direction];
-            menuItems[index + direction] = temp;
+        window.removeItem = function(pathStr) {
+            if (!confirm('Are you sure you want to remove this item and all its sub-items?')) return;
+            const path = pathStr.split(',');
+            let target = menuItems;
+            for (let i = 0; i < path.length - 1; i++) {
+                target = target[path[i]];
+            }
+            target.splice(path[path.length - 1], 1);
+            renderMenu();
+        };
+
+        window.indentItem = function(pathStr) {
+            const path = pathStr.split(',');
+            const index = parseInt(path[path.length - 1]);
+            if (index === 0) return; // Cannot indent the first item
+
+            let parentArray = menuItems;
+            for (let i = 0; i < path.length - 1; i++) {
+                parentArray = parentArray[path[i]];
+            }
+
+            const itemToMove = parentArray.splice(index, 1)[0];
+            const prevItem = parentArray[index - 1];
+            
+            if (!prevItem.children) prevItem.children = [];
+            prevItem.children.push(itemToMove);
+            
+            renderMenu();
+        };
+
+        window.outdentItem = function(pathStr) {
+            const path = pathStr.split(',');
+            if (!path.includes('children')) return; // Already at top level
+
+            const index = parseInt(path[path.length - 1]);
+            
+            // Find parent of the parent (to move item to)
+            let grandparentArray = menuItems;
+            let parentIndex = -1;
+            
+            // If path is [0, 'children', 1], grandparentArray is menuItems, parentIndex is 0
+            // item is at menuItems[0].children[1]
+            // we want to move it to menuItems[1]
+            
+            const parentPath = path.slice(0, -2); // Remove last 'children' and 'index'
+            let parentArray = menuItems;
+            for (let i = 0; i < parentPath.length - 1; i++) {
+                parentArray = parentArray[parentPath[i]];
+            }
+            // Now parentArray is the array containing the parent item
+            parentIndex = parseInt(parentPath[parentPath.length - 1]);
+            
+            // Get the item
+            let currentArray = parentArray[parentIndex].children;
+            const itemToMove = currentArray.splice(index, 1)[0];
+            
+            // Insert it after the parent
+            parentArray.splice(parentIndex + 1, 0, itemToMove);
+            
+            renderMenu();
+        };
+
+        window.moveItem = function(pathStr, direction) {
+            const path = pathStr.split(',');
+            const index = parseInt(path[path.length - 1]);
+            let targetArray = menuItems;
+            
+            for (let i = 0; i < path.length - 1; i++) {
+                targetArray = targetArray[path[i]];
+            }
+            
+            if (index + direction < 0 || index + direction >= targetArray.length) return;
+            
+            const temp = targetArray[index];
+            targetArray[index] = targetArray[index + direction];
+            targetArray[index + direction] = temp;
+            
             renderMenu();
         };
 

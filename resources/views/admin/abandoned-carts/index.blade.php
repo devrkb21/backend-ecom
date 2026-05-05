@@ -263,7 +263,7 @@
     <!-- Filters -->
     <div class="card mb-3 abandoned-filter-card">
         <div class="card-body">
-            <form method="GET" class="row g-2">
+            <form method="GET" class="row g-2" data-realtime-filter="1">
                 <div class="col-md-2">
                     <label class="form-label">Status</label>
                     <select name="status" class="form-select form-select-sm">
@@ -408,32 +408,7 @@
                             </td>
                             <td>
                                 <span class="fw-semibold">{{ $cart->item_count }} items</span>
-                                @if($cart->cart_items && count($cart->cart_items) > 0)
-                                    @php
-                                        $cartItemPreview = collect($cart->cart_items)
-                                            ->map(function ($item) {
-                                                $productName = trim((string) ($item['product_name'] ?? 'Unknown Product'));
-                                                $variantName = trim((string) ($item['variant_name'] ?? ''));
-                                                $variantAttributes = trim((string) ($item['variant_attributes'] ?? ''));
-                                                $variantId = !empty($item['variant_id']) ? (int) $item['variant_id'] : null;
-
-                                                $variantLabel = $variantName !== ''
-                                                    ? $variantName
-                                                    : ($variantAttributes !== ''
-                                                        ? $variantAttributes
-                                                        : ($variantId ? ('Variant #' . $variantId) : ''));
-
-                                                return $variantLabel !== ''
-                                                    ? "{$productName} ({$variantLabel})"
-                                                    : $productName;
-                                            })
-                                            ->implode(', ');
-                                    @endphp
-                                    <br>
-                                    <small class="text-muted">
-                                        {{ \Illuminate\Support\Str::limit($cartItemPreview, 70) }}
-                                    </small>
-                                @endif
+                                {{-- Placeholder for future summary logic --}}
                                 @if($cart->coupon_code)
                                     <br><span class="badge bg-success">{{ $cart->coupon_code }}</span>
                                 @endif

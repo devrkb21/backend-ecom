@@ -299,6 +299,11 @@ class Order extends Model
         return $this->hasMany(OrderNote::class);
     }
 
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(OrderActivityLog::class)->orderByDesc('created_at');
+    }
+
     public function statusConfig(): BelongsTo
     {
         return $this->belongsTo(OrderStatus::class, 'status', 'key');

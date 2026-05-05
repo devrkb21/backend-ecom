@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Setting;
+use App\Models\Order;
+use App\Models\OrderStatus;
 use Illuminate\Support\Facades\Http;
 
 class SmsService
@@ -68,10 +70,22 @@ class SmsService
             ->post($sendUrl, $payload);
 
         $raw = trim((string) $response->body());
-        $code = ctype_digit($raw) ? (int) $raw : null;
+        
+        // Attempt to parse JSON response
+        $decoded = json_decode($raw, true);
+        $code = null;
+        $success = false;
+
+        if (is_array($decoded)) {
+            $code = isset($decoded['response_code']) ? (int) $decoded['response_code'] : null;
+            $success = ($code === 202);
+        } elseif (ctype_digit($raw)) {
+            $code = (int) $raw;
+            $success = ($code === 202);
+        }
 
         return [
-            'success' => $code === 202,
+            'success' => $success,
             'code' => $code,
             'message' => $this->resolveCodeMessage($code, $raw),
             'raw' => $raw,
@@ -88,6 +102,77 @@ class SmsService
         $message = "Your {$brand} OTP is {$otp}";
 
         return $this->send($phone, $message);
+    }
+
+    /**
+     * Send order status change SMS notification to the customer.
+     */
+    public function sendOrderStatusSms(Order $order, string $newStatusKey): array
+    {
+        if (!$this->isEnabled()) {
+            return ['success' => false, 'message' => 'SMS integration is disabled.', 'raw' => null];
+        }
+
+        // Check if SMS is enabled for this status
+        $smsEnabled = Setting::getValue('sms_templates', "sms_enabled_{$newStatusKey}", false);
+        if (!$smsEnabled) {
+            return ['success' => false, 'message' => "SMS not enabled for status: {$newStatusKey}", 'raw' => null];
+        }
+
+        // Get the template
+        $template = trim((string) Setting::getValue('sms_templates', "sms_template_{$newStatusKey}", ''));
+        if ($template === '') {
+            return ['success' => false, 'message' => "No SMS template configured for status: {$newStatusKey}", 'raw' => null];
+        }
+
+        // Get customer phone
+        $phone = $order->shipping_phone ?? '';
+        if ($phone === '') {
+            return ['success' => false, 'message' => 'No customer phone number found.', 'raw' => null];
+        }
+
+        // Get status label
+        $statusConfig = OrderStatus::where('key', $newStatusKey)->first();
+        $statusLabel = $statusConfig?->label ?? ucfirst(str_replace('_', ' ', $newStatusKey));
+
+        // Get site name
+        $siteName = Setting::getValue('general', 'site_name', config('app.name', 'Store'));
+
+        // Replace placeholders
+        $message = str_replace(
+            ['{order_number}', '{customer_name}', '{status}', '{total}', '{site_name}', '{phone}'],
+            [
+                $order->order_number ?? '',
+                $order->shipping_name ?? $order->user?->name ?? 'Customer',
+                $statusLabel,
+                number_format((float) ($order->total ?? 0), 2),
+                $siteName,
+                $phone,
+            ],
+            $template
+        );
+
+        return $this->send($phone, $message);
+    }
+
+    /**
+     * Get all SMS templates for order statuses.
+     */
+    public static function getOrderSmsTemplates(): array
+    {
+        $statuses = OrderStatus::where('is_active', true)->orderBy('sort_order')->get();
+        $templates = [];
+
+        foreach ($statuses as $status) {
+            $templates[$status->key] = [
+                'label' => $status->label,
+                'color' => $status->color,
+                'enabled' => (bool) Setting::getValue('sms_templates', "sms_enabled_{$status->key}", false),
+                'template' => (string) Setting::getValue('sms_templates', "sms_template_{$status->key}", ''),
+            ];
+        }
+
+        return $templates;
     }
 
     public function getBalance(): array
@@ -209,6 +294,15 @@ class SmsService
             1031 => 'Account not verified.',
             1032 => 'IP is not whitelisted.',
         ];
+
+        // If it's a JSON response, try to find a message field
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            $msg = $decoded['error_message'] ?? $decoded['success_message'] ?? $decoded['message'] ?? null;
+            if ($msg && trim((string)$msg) !== '') {
+                return trim((string)$msg);
+            }
+        }
 
         if ($code !== null && isset($messages[$code])) {
             return $messages[$code];

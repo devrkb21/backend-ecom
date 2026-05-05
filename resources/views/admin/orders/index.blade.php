@@ -31,14 +31,19 @@
 
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-semibold"><i class="bi bi-receipt me-2"></i>Order Management ({{ $orders->total() }})</h6>
-        @if($activeView === 'trash')
-            <span class="badge bg-secondary">Trash View</span>
-        @endif
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-receipt me-2"></i>Order Management (<span id="ordersResultCount">{{ $orders->total() }}</span>)</h6>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ route('admin.orders.create') }}" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-lg me-1"></i> Create Order
+            </a>
+            @if($activeView === 'trash')
+                <span class="badge bg-secondary">Trash View</span>
+            @endif
+        </div>
     </div>
 
     <div class="card-body border-bottom">
-        <form action="{{ route('admin.orders.index') }}" method="GET">
+        <form action="{{ route('admin.orders.index') }}" method="GET" data-realtime-filter="1" data-realtime-target="#ordersResultCount, #ordersTableWrap, #ordersPaginationWrap">
             @if($activeView !== 'all')
                 <input type="hidden" name="view" value="{{ $activeView }}">
             @endif
@@ -144,7 +149,7 @@
             </div>
         </div>
 
-        <div class="card-body p-0">
+        <div class="card-body p-0" id="ordersTableWrap">
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead>
@@ -303,9 +308,14 @@
                                 </td>
                                 <td>{{ $order->created_at->format('M d, Y H:i') }}</td>
                                 <td>
-                                    <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-sm btn-outline-info">
-                                        <i class="bi bi-eye"></i> View
-                                    </a>
+                                    <div class="btn-group">
+                                        <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-sm btn-outline-info" title="View Order">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="{{ route('admin.orders.invoice', $order) }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Print Invoice">
+                                            <i class="bi bi-printer"></i>
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         @empty
@@ -322,9 +332,9 @@
         </div>
     </form>
 
-    <div class="card-footer">
-            @include('admin.partials.pagination', ['paginator' => $orders])
-        </div>
+    <div class="card-footer" id="ordersPaginationWrap">
+        @include('admin.partials.pagination', ['paginator' => $orders])
+    </div>
 </div>
 @endsection
 
