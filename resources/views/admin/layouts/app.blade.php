@@ -10,6 +10,8 @@
     @endif
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Advanced Color Picker (Pickr) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/nano.min.css"/>
     <style>
         :root {
             --sidebar-width: 250px;
@@ -335,6 +337,25 @@
             .main-content {
                 margin-left: 0;
             }
+        }
+        }
+        
+        /* Pickr Customization */
+        .pickr {
+            display: flex !important;
+            align-items: center;
+        }
+        .pickr .pcr-button {
+            width: 2.5rem !important;
+            height: 2.375rem !important;
+            border: 1px solid #dee2e6 !important;
+            border-radius: 0.375rem 0 0 0.375rem !important;
+        }
+        .pickr .pcr-button::after, .pickr .pcr-button::before {
+            border-radius: 0.25rem !important;
+        }
+        .input-group > .pickr + .form-control {
+            border-left: none !important;
         }
     </style>
     @stack('styles')
@@ -767,6 +788,72 @@
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
+    <script>
+        // Global Color Picker Initializer
+        window.initGlobalColorPickers = function(root = document) {
+            root.querySelectorAll('.color-picker-init:not([data-pickr-initialized])').forEach(function(el) {
+                const targetInputId = el.getAttribute('data-target');
+                const targetInput = document.getElementById(targetInputId) || el.parentElement.querySelector('.hex-input');
+                const defaultColor = targetInput ? (targetInput.value || '#000000') : '#000000';
+
+                const pickr = Pickr.create({
+                    el: el,
+                    theme: 'nano',
+                    default: defaultColor,
+                    swatches: [
+                        '#db2777', '#be185d', '#0d6efd', '#6610f2', 
+                        '#6f42c1', '#d63384', '#dc3545', '#fd7e14', 
+                        '#ffc107', '#198754', '#20c997', '#0dcaf0'
+                    ],
+                    components: {
+                        preview: true,
+                        opacity: true,
+                        hue: true,
+                        interaction: {
+                            hex: true,
+                            rgba: true,
+                            hsla: true,
+                            hsva: true,
+                            cmyk: true,
+                            input: true,
+                            clear: false,
+                            save: true
+                        }
+                    }
+                });
+
+                el.setAttribute('data-pickr-initialized', 'true');
+
+                pickr.on('save', (color, instance) => {
+                    const hex = color.toHEXA().toString();
+                    if (targetInput) {
+                        targetInput.value = hex;
+                        targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    instance.hide();
+                }).on('change', (color) => {
+                    const hex = color.toHEXA().toString();
+                    if (targetInput) {
+                        targetInput.value = hex;
+                        targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                });
+
+                if (targetInput) {
+                    targetInput.addEventListener('change', function() {
+                        try {
+                            pickr.setColor(this.value);
+                        } catch (e) {}
+                    });
+                }
+            });
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            window.initGlobalColorPickers();
+        });
+    </script>
     <script>
         (function () {
             function markCompactAdminTable(table) {

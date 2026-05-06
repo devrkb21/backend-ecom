@@ -164,6 +164,7 @@ class DatabaseSeeder extends Seeder
             PaymentGatewaySeeder::class,
             //ShippingMethodSeeder::class,
             SettingSeeder::class,
+            LoyaltyTierSeeder::class,
             PagesTableSeeder::class,
             //CouponSeeder::class,
         ]);
