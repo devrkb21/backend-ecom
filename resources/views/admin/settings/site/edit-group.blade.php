@@ -329,20 +329,16 @@
                                                 Custom Format (Use template)
                                             </option>
                                         </select>
-                                    @elseif(str_contains($setting->key, 'color'))
-                                        <div class="input-group">
-                                            <input 
-                                                type="color" 
-                                                class="form-control form-control-color" 
-                                                name="settings[{{ $setting->key }}]" 
-                                                value="{{ old("settings.{$setting->key}", $setting->value) ?: '#000000' }}"
-                                            >
+                                    @elseif(str_contains($setting->key, 'color') || $setting->type === 'color')
+                                        <div class="input-group advanced-color-picker">
+                                            <div class="color-picker-init" data-target="setting_{{ $setting->key }}"></div>
                                             <input 
                                                 type="text" 
-                                                class="form-control" 
-                                                value="{{ old("settings.{$setting->key}", $setting->value) }}"
+                                                id="setting_{{ $setting->key }}"
+                                                name="settings[{{ $setting->key }}]" 
+                                                class="form-control hex-input" 
+                                                value="{{ old("settings.{$setting->key}", $setting->value) ?: '#000000' }}"
                                                 placeholder="#000000"
-                                                readonly
                                             >
                                         </div>
                                     @else
@@ -505,12 +501,7 @@
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 
-    // Sync color input with text display
-    document.querySelectorAll('input[type="color"]').forEach(function(colorInput) {
-        colorInput.addEventListener('input', function() {
-            this.nextElementSibling.value = this.value;
-        });
-    });
+
 
     // Toggle label update for switches
     document.querySelectorAll('.form-check-input').forEach(function(checkbox) {

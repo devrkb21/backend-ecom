@@ -73,9 +73,16 @@
                             @enderror
                         </div>
 
-                        <div class="col-12">
+                        <div class="col-12" id="default-value-container">
                             <label class="form-label fw-semibold">Default Value</label>
-                            <textarea name="value" class="form-control" rows="2" placeholder="Enter default value (optional)">{{ old('value') }}</textarea>
+                            <textarea name="value" id="default-value-textarea" class="form-control" rows="2" placeholder="Enter default value (optional)">{{ old('value') }}</textarea>
+                            
+                            <div id="color-picker-wrapper" class="d-none mt-2">
+                                <div class="input-group advanced-color-picker">
+                                    <div class="color-picker-init" data-target="default-value-textarea"></div>
+                                    <div class="form-text ms-2 mt-2">Pick a default color or enter hex code above.</div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="col-12">
@@ -162,5 +169,35 @@
             input.value = '';
         }
     }
+
+    // Handle type change to show/hide color picker
+    document.querySelector('select[name="type"]').addEventListener('change', function() {
+        const wrapper = document.getElementById('color-picker-wrapper');
+        const textarea = document.getElementById('default-value-textarea');
+        
+        if (this.value === 'color') {
+            wrapper.classList.remove('d-none');
+            textarea.rows = 1;
+            textarea.placeholder = '#000000';
+            if (!textarea.value) textarea.value = '#000000';
+            
+            // Initialize if needed
+            if (window.initGlobalColorPickers) {
+                window.initGlobalColorPickers(wrapper);
+            }
+        } else {
+            wrapper.classList.add('d-none');
+            textarea.rows = 2;
+            textarea.placeholder = 'Enter default value (optional)';
+        }
+    });
+
+    // Initial check
+    document.addEventListener('DOMContentLoaded', function() {
+        const typeSelect = document.querySelector('select[name="type"]');
+        if (typeSelect && typeSelect.value === 'color') {
+            typeSelect.dispatchEvent(new Event('change'));
+        }
+    });
 </script>
 @endpush

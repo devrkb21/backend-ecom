@@ -49,14 +49,17 @@
 
                     <div class="mb-3">
                         <label class="form-label" for="status_color">Color</label>
-                        <input
-                            type="color"
-                            class="form-control form-control-color @error('color') is-invalid @enderror"
-                            id="status_color"
-                            name="color"
-                            value="{{ old('color', '#6C757D') }}"
-                            title="Choose status color"
-                        >
+                        <div class="input-group advanced-color-picker">
+                            <div class="color-picker-init" data-target="status_color"></div>
+                            <input
+                                type="text"
+                                class="form-control hex-input @error('color') is-invalid @enderror"
+                                id="status_color"
+                                name="color"
+                                value="{{ old('color', '#6C757D') }}"
+                                placeholder="#6C757D"
+                            >
+                        </div>
                         @error('color')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
@@ -132,13 +135,16 @@
                                                 >
                                             </div>
                                             <div class="col-3">
-                                                <input
-                                                    type="color"
-                                                    name="color"
-                                                    class="form-control form-control-color form-control-sm"
-                                                    value="{{ $status->color }}"
-                                                    title="Status color"
-                                                >
+                                                <div class="input-group input-group-sm advanced-color-picker">
+                                                    <div class="color-picker-init"></div>
+                                                    <input
+                                                        type="text"
+                                                        name="color"
+                                                        class="form-control hex-input d-none"
+                                                        value="{{ $status->color }}"
+                                                        title="Status color"
+                                                    >
+                                                </div>
                                             </div>
                                             <div class="col-2">
                                                 <input

@@ -117,9 +117,9 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small">Color Code (optional)</label>
-                            <div class="input-group">
-                                <input type="color" class="form-control form-control-color" id="color_picker" value="#ffffff" title="Pick a color">
-                                <input type="text" class="form-control" name="color_code" id="color_code" placeholder="#FFFFFF or leave empty">
+                            <div class="input-group advanced-color-picker">
+                                <div class="color-picker-init" data-target="color_code"></div>
+                                <input type="text" class="form-control hex-input" name="color_code" id="color_code" placeholder="#FFFFFF or leave empty">
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -169,9 +169,9 @@
 
                     <div class="mb-3">
                         <label class="form-label">Color Code (optional)</label>
-                        <div class="input-group">
-                            <input type="color" class="form-control form-control-color" id="edit_color_picker" value="#ffffff" title="Pick a color">
-                            <input type="text" class="form-control" name="color_code" id="edit_color_code" placeholder="#FFFFFF or leave empty">
+                        <div class="input-group advanced-color-picker">
+                            <div class="color-picker-init" data-target="edit_color_code"></div>
+                            <input type="text" class="form-control hex-input" name="color_code" id="edit_color_code" placeholder="#FFFFFF or leave empty">
                         </div>
                     </div>
 
@@ -219,29 +219,7 @@
     const editAttributeValueModal = document.getElementById('editAttributeValueModal');
     const editValueUpdateUrlTemplate = @json(route('admin.attributes.values.update', '__VALUE_ID__'));
 
-    if (addColorPicker && addColorCode) {
-        addColorPicker.addEventListener('input', function(e) {
-            addColorCode.value = e.target.value.toUpperCase();
-        });
 
-        addColorCode.addEventListener('input', function(e) {
-            if (e.target.value.match(/^#[0-9A-Fa-f]{6}$/)) {
-                addColorPicker.value = e.target.value;
-            }
-        });
-    }
-
-    if (editColorPicker && editColorCode) {
-        editColorPicker.addEventListener('input', function(e) {
-            editColorCode.value = e.target.value.toUpperCase();
-        });
-
-        editColorCode.addEventListener('input', function(e) {
-            if (e.target.value.match(/^#[0-9A-Fa-f]{6}$/)) {
-                editColorPicker.value = e.target.value;
-            }
-        });
-    }
 
     function handleAttributeValueImageSelect(media) {
         const input = document.getElementById('attribute-value-image-input');
@@ -273,14 +251,12 @@
 
         editAttributeValueForm.action = editValueUpdateUrlTemplate.replace('__VALUE_ID__', valueId);
         document.getElementById('edit_attribute_value_name').value = valueName;
-        document.getElementById('edit_color_code').value = colorCode;
         document.getElementById('edit_attribute_sort_order').value = sortOrder;
         document.getElementById('edit-attribute-value-image-input').value = imagePath;
-
-        if (colorCode.match(/^#[0-9A-Fa-f]{6}$/)) {
-            document.getElementById('edit_color_picker').value = colorCode;
-        } else {
-            document.getElementById('edit_color_picker').value = '#ffffff';
+        if (colorCode) {
+            const input = document.getElementById('edit_color_code');
+            input.value = colorCode;
+            input.dispatchEvent(new Event('change'));
         }
 
         const wrap = document.getElementById('edit-attribute-value-image-preview-wrap');
