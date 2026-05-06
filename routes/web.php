@@ -101,8 +101,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('orders/{order}/remove-discount', [OrderController::class, 'removeDiscount'])->name('orders.remove-discount');
         Route::post('orders/{order}/send-sms', [OrderController::class, 'sendSms'])->name('orders.send-sms');
         Route::patch('orders/{order}/payment-status', [OrderController::class, 'updatePaymentStatus'])->name('orders.update-payment-status');
-        Route::get('orders/{order}/invoice', [OrderController::class, 'generateInvoice'])->name('orders.invoice');
-        Route::get('orders/{order}/packaging-slip', [OrderController::class, 'generatePackagingSlip'])->name('orders.packaging-slip');
 
         // Order Tracking
         Route::get('orders/{order}/tracking', [OrderTrackingController::class, 'edit'])->name('orders.tracking.edit');
@@ -213,6 +211,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/bulk-action', [AbandonedCartController::class, 'bulkAction'])->name('bulk-action');
             Route::get('/{abandonedCart}', [AbandonedCartController::class, 'show'])->name('show');
             Route::post('/{abandonedCart}/mark-follow-up', [AbandonedCartController::class, 'markFollowUp'])->name('mark-follow-up');
+            Route::post('/{abandonedCart}/mark-pending', [AbandonedCartController::class, 'markPending'])->name('mark-pending');
             Route::post('/{abandonedCart}/mark-recovered', [AbandonedCartController::class, 'markRecovered'])->name('mark-recovered');
             Route::post('/{abandonedCart}/mark-cancelled', [AbandonedCartController::class, 'markCancelled'])->name('mark-cancelled');
             Route::put('/{abandonedCart}/notes', [AbandonedCartController::class, 'updateNotes'])->name('update-notes');

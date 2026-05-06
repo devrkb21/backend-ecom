@@ -13,28 +13,48 @@ use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(\Illuminate\Http\Request $request)
     {
-        $today = now()->startOfDay();
+        $range = $request->get('range', 'today');
+        $startDate = now()->startOfDay();
+        $endDate = now()->endOfDay();
+
+        if ($range === 'yesterday') {
+            $startDate = now()->subDay()->startOfDay();
+            $endDate = now()->subDay()->endOfDay();
+        } elseif ($range === 'last_30_days') {
+            $startDate = now()->subDays(30)->startOfDay();
+            $endDate = now()->endOfDay();
+        } elseif ($range === 'custom' && $request->has('start_date') && $request->has('end_date')) {
+            try {
+                $startDate = Carbon::parse($request->get('start_date'))->startOfDay();
+                $endDate = Carbon::parse($request->get('end_date'))->endOfDay();
+            } catch (\Exception $e) {
+                $startDate = now()->startOfDay();
+                $endDate = now()->endOfDay();
+            }
+        }
+
         $thisMonth = now()->startOfMonth();
         $lastMonth = now()->subMonth()->startOfMonth();
         $lastMonthEnd = now()->subMonth()->endOfMonth();
 
-        // Basic stats
-        $stats = [
-            'total_users' => User::where('role', 'customer')->count(),
-            'total_products' => Product::count(),
-            'total_orders' => Order::count(),
-            'pending_orders' => Order::where('status', 'pending')->count(),
-            'processing_orders' => Order::where('status', 'processing')->count(),
-            'total_revenue' => Order::where('status', 'delivered')->sum('total'),
-        ];
+        // Overview stats based on selected range
+        $rangeProfit = DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
+            ->leftJoin('product_variants', 'product_variants.id', '=', 'order_items.product_variant_id')
+            ->where('orders.status', 'delivered')
+            ->whereNull('orders.deleted_at')
+            ->whereBetween('orders.created_at', [$startDate, $endDate])
+            ->select(DB::raw('SUM(order_items.total - (order_items.quantity * COALESCE(product_variants.purchase_price, products.buy_price, 0))) as profit'))
+            ->value('profit') ?? 0;
 
-        // Today's stats
-        $todayStats = [
-            'orders' => Order::whereDate('created_at', $today)->count(),
-            'revenue' => Order::where('status', 'delivered')->whereDate('created_at', $today)->sum('total'),
-            'new_customers' => User::where('role', 'customer')->whereDate('created_at', $today)->count(),
+        $overviewStats = [
+            'orders' => Order::whereBetween('created_at', [$startDate, $endDate])->count(),
+            'total_sale' => Order::where('status', 'delivered')->whereBetween('created_at', [$startDate, $endDate])->sum('total'),
+            'total_profit' => $rangeProfit,
+            'new_customers' => User::where('role', 'customer')->whereBetween('created_at', [$startDate, $endDate])->count(),
         ];
 
         // This month stats
@@ -54,6 +74,26 @@ class DashboardController extends Controller
         $revenueChange = $lastMonthStats['revenue'] > 0 
             ? (($thisMonthStats['revenue'] - $lastMonthStats['revenue']) / $lastMonthStats['revenue']) * 100 
             : 0;
+
+        // Lifetime stats
+        $totalProfit = DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
+            ->leftJoin('product_variants', 'product_variants.id', '=', 'order_items.product_variant_id')
+            ->where('orders.status', 'delivered')
+            ->whereNull('orders.deleted_at')
+            ->select(DB::raw('SUM(order_items.total - (order_items.quantity * COALESCE(product_variants.purchase_price, products.buy_price, 0))) as profit'))
+            ->value('profit') ?? 0;
+
+        $stats = [
+            'total_users' => User::where('role', 'customer')->count(),
+            'total_products' => Product::count(),
+            'total_orders' => Order::count(),
+            'total_sale' => Order::where('status', 'delivered')->sum('total'),
+            'pending_orders' => Order::where('status', 'pending')->count(),
+            'processing_orders' => Order::where('status', 'processing')->count(),
+            'total_profit' => $totalProfit,
+        ];
 
         // Sales data for last 7 days chart
         $salesChart = Order::where('status', 'delivered')
@@ -112,14 +152,17 @@ class DashboardController extends Controller
 
         return view('admin.dashboard', compact(
             'stats',
-            'todayStats',
+            'overviewStats',
             'thisMonthStats',
             'revenueChange',
             'chartData',
             'recentOrders',
             'topProducts',
             'lowStockCount',
-            'abandonedSummary'
+            'abandonedSummary',
+            'range',
+            'startDate',
+            'endDate'
         ));
     }
 }

@@ -113,23 +113,38 @@ class AbandonedCartController extends Controller
         return view('admin.abandoned-carts.show', compact('abandonedCart'));
     }
 
-    /**
-     * Mark as follow up
-     */
     public function markFollowUp(Request $request, AbandonedCart $abandonedCart): RedirectResponse
     {
         $validated = $request->validate([
             'admin_notes' => 'nullable|string|max:1000',
+            'follow_up_date' => 'nullable|date|after_or_equal:today',
         ]);
 
         $abandonedCart->markAsFollowUp(
             auth()->id(),
-            $validated['admin_notes'] ?? null
+            $validated['admin_notes'] ?? null,
+            $validated['follow_up_date'] ?? null
         );
 
         return redirect()
             ->back()
             ->with('success', 'Marked as follow up successfully.');
+    }
+
+    /**
+     * Mark as pending/incomplete
+     */
+    public function markPending(Request $request, AbandonedCart $abandonedCart): RedirectResponse
+    {
+        $validated = $request->validate([
+            'admin_notes' => 'nullable|string|max:1000',
+        ]);
+
+        $abandonedCart->markAsPending($validated['admin_notes'] ?? null);
+
+        return redirect()
+            ->back()
+            ->with('success', 'Marked as incomplete (pending).');
     }
 
     /**
@@ -196,7 +211,7 @@ class AbandonedCartController extends Controller
     public function bulkAction(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'action' => 'required|in:follow_up,recovered,cancelled,delete',
+            'action' => 'required|in:pending,follow_up,recovered,cancelled,delete',
             'ids' => 'required|array',
             'ids.*' => 'exists:abandoned_carts,id',
         ]);
@@ -209,6 +224,9 @@ class AbandonedCartController extends Controller
             /** @var AbandonedCart $cart */
             try {
                 switch ($validated['action']) {
+                    case 'pending':
+                        $cart->markAsPending();
+                        break;
                     case 'follow_up':
                         $cart->markAsFollowUp(auth()->id());
                         break;
@@ -230,6 +248,7 @@ class AbandonedCartController extends Controller
         }
 
         $actionLabel = match ($validated['action']) {
+            'pending' => 'marked as incomplete',
             'follow_up' => 'marked as follow up',
             'recovered' => 'recovered with new orders',
             'cancelled' => 'cancelled',

@@ -118,13 +118,22 @@ class SiteSettingController extends Controller
                 'sort_order' => 9,
             ],
             [
-                'key' => 'product_grid_columns',
+                'key' => 'product_grid_columns_desktop',
                 'value' => '5',
                 'type' => 'number',
-                'label' => 'Product Grid Columns',
-                'description' => 'Number of products shown per row in product grids (allowed: 3, 4, 5, 6).',
+                'label' => 'Product Grid Columns (Desktop)',
+                'description' => 'Number of products shown per row in product grids on desktop (allowed: 3, 4, 5, 6).',
                 'is_public' => true,
                 'sort_order' => 13,
+            ],
+            [
+                'key' => 'product_grid_columns_mobile',
+                'value' => '2',
+                'type' => 'number',
+                'label' => 'Product Grid Columns (Mobile)',
+                'description' => 'Number of products shown per row in product grids on mobile (allowed: 1, 2).',
+                'is_public' => true,
+                'sort_order' => 14,
             ],
             [
                 'key' => 'order_number_prefix',
@@ -154,6 +163,24 @@ class SiteSettingController extends Controller
                 'sort_order' => 16,
             ],
             [
+                'key' => 'logo_height_desktop',
+                'value' => '40',
+                'type' => 'number',
+                'label' => 'Logo Height (Desktop)',
+                'description' => 'Height of the site logo on desktop devices (in pixels).',
+                'is_public' => true,
+                'sort_order' => 4,
+            ],
+            [
+                'key' => 'logo_height_mobile',
+                'value' => '32',
+                'type' => 'number',
+                'label' => 'Logo Height (Mobile)',
+                'description' => 'Height of the site logo on mobile devices (in pixels).',
+                'is_public' => true,
+                'sort_order' => 5,
+            ],
+            [
                 'key' => 'stock_enabled',
                 'value' => '1',
                 'type' => 'boolean',
@@ -179,212 +206,6 @@ class SiteSettingController extends Controller
 
         if ($created) {
             Setting::clearCache('general');
-        }
-    }
-
-    /**
-     * Ensure invoice settings exist.
-     */
-    protected function ensureInvoiceSettingsExist(): void
-    {
-        $definitions = [
-            [
-                'key' => 'invoice_logo',
-                'value' => '',
-                'type' => 'image',
-                'label' => 'Invoice Logo',
-                'description' => 'Logo to display on invoices and packaging slips.',
-                'is_public' => false,
-                'sort_order' => 1,
-            ],
-            [
-                'key' => 'invoice_company_name',
-                'value' => config('app.name', 'Inner Collection'),
-                'type' => 'text',
-                'label' => 'Company Name',
-                'description' => 'Display name of your company on invoices.',
-                'is_public' => false,
-                'sort_order' => 2,
-            ],
-            [
-                'key' => 'invoice_company_address',
-                'value' => '',
-                'type' => 'textarea',
-                'label' => 'Company Address',
-                'description' => 'Physical address of your business.',
-                'is_public' => false,
-                'sort_order' => 3,
-            ],
-            [
-                'key' => 'invoice_company_phone',
-                'value' => '',
-                'type' => 'text',
-                'label' => 'Company Phone',
-                'description' => 'Contact phone number for support.',
-                'is_public' => false,
-                'sort_order' => 4,
-            ],
-            [
-                'key' => 'invoice_company_email',
-                'value' => '',
-                'type' => 'text',
-                'label' => 'Company Email',
-                'description' => 'Contact email address for support.',
-                'is_public' => false,
-                'sort_order' => 5,
-            ],
-            [
-                'key' => 'invoice_primary_color',
-                'value' => '#1e293b',
-                'type' => 'color',
-                'label' => 'Invoice Theme Color',
-                'description' => 'Primary color used for headers and accents in the PDF.',
-                'is_public' => false,
-                'sort_order' => 6,
-            ],
-            [
-                'key' => 'invoice_title',
-                'value' => 'Invoice',
-                'type' => 'text',
-                'label' => 'Invoice Document Title',
-                'description' => 'The main heading on the invoice PDF.',
-                'is_public' => false,
-                'sort_order' => 7,
-            ],
-            [
-                'key' => 'packaging_slip_title',
-                'value' => 'Packaging Slip',
-                'type' => 'text',
-                'label' => 'Packaging Slip Title',
-                'description' => 'The main heading on the packaging slip PDF.',
-                'is_public' => false,
-                'sort_order' => 8,
-            ],
-            [
-                'key' => 'invoice_bill_to_label',
-                'value' => 'Bill To',
-                'type' => 'text',
-                'label' => 'Bill To Label',
-                'description' => 'Label for customer billing information.',
-                'is_public' => false,
-                'sort_order' => 9,
-            ],
-            [
-                'key' => 'invoice_ship_to_label',
-                'value' => 'Ship To',
-                'type' => 'text',
-                'label' => 'Ship To Label',
-                'description' => 'Label for shipping address information.',
-                'is_public' => false,
-                'sort_order' => 10,
-            ],
-            [
-                'key' => 'invoice_item_label',
-                'value' => 'Item Description',
-                'type' => 'text',
-                'label' => 'Item Column Label',
-                'description' => 'Heading for the product details column.',
-                'is_public' => false,
-                'sort_order' => 11,
-            ],
-            [
-                'key' => 'invoice_qty_label',
-                'value' => 'Qty',
-                'type' => 'text',
-                'label' => 'Quantity Column Label',
-                'description' => 'Heading for the quantity column.',
-                'is_public' => false,
-                'sort_order' => 12,
-            ],
-            [
-                'key' => 'invoice_price_label',
-                'value' => 'Price',
-                'type' => 'text',
-                'label' => 'Price Column Label',
-                'description' => 'Heading for the unit price column.',
-                'is_public' => false,
-                'sort_order' => 13,
-            ],
-            [
-                'key' => 'invoice_total_label',
-                'value' => 'Total',
-                'type' => 'text',
-                'label' => 'Total Column Label',
-                'description' => 'Heading for the line total column.',
-                'is_public' => false,
-                'sort_order' => 14,
-            ],
-            [
-                'key' => 'invoice_show_payment_status',
-                'value' => '1',
-                'type' => 'boolean',
-                'label' => 'Show Payment Status',
-                'description' => 'Toggle visibility of the payment status badge.',
-                'is_public' => false,
-                'sort_order' => 15,
-            ],
-            [
-                'key' => 'invoice_show_shipping_method',
-                'value' => '1',
-                'type' => 'boolean',
-                'label' => 'Show Shipping Method',
-                'description' => 'Toggle visibility of the shipping method.',
-                'is_public' => false,
-                'sort_order' => 16,
-            ],
-            [
-                'key' => 'invoice_font_size',
-                'value' => '12',
-                'type' => 'number',
-                'label' => 'Base Font Size (px)',
-                'description' => 'Adjust the global text size for the PDF.',
-                'is_public' => false,
-                'sort_order' => 17,
-            ],
-            [
-                'key' => 'invoice_footer_notes',
-                'value' => 'Thank you for your business!',
-                'type' => 'textarea',
-                'label' => 'Invoice Footer Notes',
-                'description' => 'Notes displayed at the bottom of every invoice.',
-                'is_public' => false,
-                'sort_order' => 18,
-            ],
-            [
-                'key' => 'invoice_terms',
-                'value' => '',
-                'type' => 'textarea',
-                'label' => 'Terms & Conditions',
-                'description' => 'Standard terms and conditions displayed on the invoice.',
-                'is_public' => false,
-                'sort_order' => 19,
-            ],
-            [
-                'key' => 'invoice_custom_css',
-                'value' => '',
-                'type' => 'textarea',
-                'label' => 'Custom CSS',
-                'description' => 'Advanced: Add custom CSS to style the PDF documents.',
-                'is_public' => false,
-                'sort_order' => 20,
-            ],
-        ];
-
-        $created = false;
-
-        foreach ($definitions as $definition) {
-            $setting = Setting::firstOrCreate(
-                ['group' => 'invoice', 'key' => $definition['key']],
-                array_merge(['group' => 'invoice'], $definition)
-            );
-
-            if ($setting->wasRecentlyCreated) {
-                $created = true;
-            }
-        }
-
-        if ($created) {
-            Setting::clearCache('invoice');
         }
     }
 
@@ -501,7 +322,6 @@ class SiteSettingController extends Controller
         $this->ensureCheckoutSettingsExist();
         $this->ensureNavigationSettingsExist();
         $this->ensureAppearanceSettingsExist();
-        $this->ensureInvoiceSettingsExist();
 
         $settings = Setting::whereNotIn('group', self::RESTRICTED_GROUPS)
             ->orderBy('group')
@@ -543,10 +363,6 @@ class SiteSettingController extends Controller
             $this->ensureAppearanceSettingsExist();
         }
 
-        if ($group === 'invoice') {
-            $this->ensureInvoiceSettingsExist();
-        }
-
         $settings = Setting::where('group', $group)->orderBy('sort_order')->get();
         
         if ($settings->isEmpty()) {
@@ -564,7 +380,6 @@ class SiteSettingController extends Controller
             'checkout' => 'Checkout Settings',
             'navigation' => 'Navigation Menu',
             'appearance' => 'Appearance & Colors',
-            'invoice' => 'Invoice & Packaging Slip',
         ];
 
         if ($group === 'checkout') {
@@ -637,11 +452,14 @@ class SiteSettingController extends Controller
             $request->validate([
                 'settings.site_title' => 'nullable|string|max:255',
                 'settings.site_description' => 'nullable|string|max:1000',
-                'settings.product_grid_columns' => 'nullable|integer|in:3,4,5,6',
+                'settings.product_grid_columns_desktop' => 'nullable|integer|in:3,4,5,6',
+            'settings.product_grid_columns_mobile' => 'nullable|integer|in:1,2',
                 'settings.order_number_prefix' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9_-]+$/'],
                 'settings.order_number_generation_mode' => ['nullable', 'string', 'in:timestamp_random,date_sequence,global_sequence,custom_format'],
                 'settings.order_number_custom_format' => ['nullable', 'string', 'max:100'],
-                'settings.logo_height' => 'nullable|integer|min:20|max:120',
+                'settings.logo_height' => 'nullable|integer|min:20|max:200',
+                'settings.logo_height_desktop' => 'nullable|integer|min:10|max:300',
+                'settings.logo_height_mobile' => 'nullable|integer|min:10|max:200',
             ]);
 
             $this->ensureGeneralOrderSettingsExist();
@@ -719,14 +537,15 @@ class SiteSettingController extends Controller
                 }
             }
             // Handle product grid columns as constrained enum values
-            elseif ($setting->group === 'general' && $setting->key === 'product_grid_columns') {
+            elseif ($setting->group === 'general' && ($setting->key === 'product_grid_columns_desktop' || $setting->key === 'product_grid_columns_mobile')) {
                 if (!$request->has("settings.{$key}")) {
                     return;
                 }
 
-                $allowed = [3, 4, 5, 6];
-                $rawValue = (int) $request->input("settings.{$key}", 5);
-                $newValue = (string) (in_array($rawValue, $allowed, true) ? $rawValue : 5);
+                $allowed = $setting->key === 'product_grid_columns_mobile' ? [1, 2] : [3, 4, 5, 6];
+                $default = $setting->key === 'product_grid_columns_mobile' ? 2 : 5;
+                $rawValue = (int) $request->input("settings.{$key}", $default);
+                $newValue = (string) (in_array($rawValue, $allowed, true) ? $rawValue : $default);
 
                 if ($newValue !== $setting->value) {
                     $setting->value = $newValue;
@@ -767,13 +586,19 @@ class SiteSettingController extends Controller
                 }
             }
             // Handle logo height as clamped integer
-            elseif ($setting->group === 'general' && $setting->key === 'logo_height') {
+            elseif ($setting->group === 'general' && in_array($setting->key, ['logo_height', 'logo_height_desktop', 'logo_height_mobile'], true)) {
                 if (!$request->has("settings.{$key}")) {
                     return;
                 }
 
+                $max = match($setting->key) {
+                    'logo_height_desktop' => 300,
+                    'logo_height_mobile' => 200,
+                    default => 200,
+                };
+
                 $rawValue = (int) $request->input("settings.{$key}", 40);
-                $newValue = (string) max(20, min(120, $rawValue));
+                $newValue = (string) max(10, min($max, $rawValue));
 
                 if ($newValue !== $setting->value) {
                     $setting->value = $newValue;

@@ -21,20 +21,9 @@
                     $headerStatusLabel = $order->statusConfig?->label ?? ucfirst(str_replace('_', ' ', $order->status));
                     $headerStatusColor = $order->statusConfig?->color ?? '#6C757D';
                 @endphp
-                <div class="d-flex align-items-center gap-2">
-                    <div class="dropdown">
-                        <button class="btn btn-sm btn-outline-primary dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-printer me-1"></i> Documents
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow">
-                            <li><a class="dropdown-item py-2" href="{{ route('admin.orders.invoice', $order) }}" target="_blank"><i class="bi bi-file-earmark-pdf me-2 text-danger"></i>Print Invoice</a></li>
-                            <li><a class="dropdown-item py-2" href="{{ route('admin.orders.packaging-slip', $order) }}" target="_blank"><i class="bi bi-box-seam me-2 text-primary"></i>Packaging Slip</a></li>
-                        </ul>
-                    </div>
-                    <span class="badge fs-6 text-white" style="background-color: {{ $headerStatusColor }};">
-                        {{ $headerStatusLabel }}
-                    </span>
-                </div>
+                <span class="badge fs-6 text-white" style="background-color: {{ $headerStatusColor }};">
+                    {{ $headerStatusLabel }}
+                </span>
             </div>
             <div class="card-body">
                 <div class="row mb-4">

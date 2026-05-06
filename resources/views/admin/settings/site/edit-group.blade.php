@@ -72,7 +72,7 @@
                                     @break
 
                                 @case('number')
-                                    @if($setting->key === 'product_grid_columns')
+                                    @if($setting->key === 'product_grid_columns_desktop')
                                         <select
                                             name="settings[{{ $setting->key }}]"
                                             class="form-select"
@@ -86,11 +86,32 @@
                                                 </option>
                                             @endforeach
                                         </select>
-                                        <small class="text-muted d-block mt-1">Applies to homepage, product listing, category products, and related products grids.</small>
-                                    @elseif($setting->key === 'logo_height')
+                                        <small class="text-muted d-block mt-1">Number of columns on desktop screens.</small>
+                                    @elseif($setting->key === 'product_grid_columns_mobile')
+                                        <select
+                                            name="settings[{{ $setting->key }}]"
+                                            class="form-select"
+                                        >
+                                            @foreach([1, 2] as $columnCount)
+                                                <option
+                                                    value="{{ $columnCount }}"
+                                                    {{ (string) old("settings.{$setting->key}", $setting->value ?: 2) === (string) $columnCount ? 'selected' : '' }}
+                                                >
+                                                    {{ $columnCount }} products per row
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <small class="text-muted d-block mt-1">Number of columns on mobile devices.</small>
+                                    @elseif($setting->key === 'logo_height' || $setting->key === 'logo_height_desktop' || $setting->key === 'logo_height_mobile')
                                         @php
-                                            $currentLogoHeight = (int) old("settings.{$setting->key}", $setting->value ?: 40);
-                                            $currentLogoHeight = max(20, min(120, $currentLogoHeight));
+                                            $currentVal = (int) old("settings.{$setting->key}", $setting->value ?: ($setting->key === 'logo_height_mobile' ? 32 : 40));
+                                            $maxVal = match($setting->key) {
+                                                'logo_height_desktop' => 300,
+                                                'logo_height_mobile' => 200,
+                                                default => 200,
+                                            };
+                                            $currentVal = max(10, min($maxVal, $currentVal));
+                                            
                                             $logoSetting = $settings->firstWhere('key', 'site_logo');
                                             $logoPath = $logoSetting ? ltrim((string) $logoSetting->value, '/') : '';
                                             $logoPreviewUrl = '';
@@ -101,57 +122,70 @@
                                                         ? asset($logoPath)
                                                         : Storage::disk('public')->url($logoPath));
                                             }
+                                            $deviceId = str_contains($setting->key, 'mobile') ? 'mobile' : 'desktop';
                                         @endphp
-                                        <div class="logo-size-control">
+                                        <div class="logo-size-control" data-device="{{ $deviceId }}">
                                             <div class="d-flex align-items-center gap-3 mb-3">
                                                 <input
                                                     type="range"
                                                     class="form-range flex-grow-1"
-                                                    id="logoHeightSlider"
-                                                    min="20"
-                                                    max="120"
+                                                    id="logoHeightSlider_{{ $setting->key }}"
+                                                    min="10"
+                                                    max="{{ $maxVal }}"
                                                     step="1"
-                                                    value="{{ $currentLogoHeight }}"
-                                                    oninput="updateLogoPreview(this.value)"
+                                                    value="{{ $currentVal }}"
+                                                    oninput="updateLogoPreview('{{ $setting->key }}', this.value)"
                                                 >
                                                 <div class="d-flex align-items-center gap-1">
                                                     <input
                                                         type="number"
                                                         class="form-control form-control-sm text-center"
                                                         style="width: 68px;"
-                                                        id="logoHeightNumber"
+                                                        id="logoHeightNumber_{{ $setting->key }}"
                                                         name="settings[{{ $setting->key }}]"
-                                                        value="{{ $currentLogoHeight }}"
-                                                        min="20"
-                                                        max="120"
-                                                        oninput="updateLogoPreviewFromNumber(this.value)"
+                                                        value="{{ $currentVal }}"
+                                                        min="10"
+                                                        max="{{ $maxVal }}"
+                                                        oninput="updateLogoPreviewFromNumber('{{ $setting->key }}', this.value)"
                                                     >
-                                                    <span class="text-muted small">px</span>
+                                                    <span class="text-muted small me-2">px</span>
+                                                    <button 
+                                                        type="button" 
+                                                        class="btn btn-outline-secondary btn-sm p-1 leading-none border-0" 
+                                                        onclick="resetLogoSize('{{ $setting->key }}')"
+                                                        title="Reset to standard size"
+                                                        style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;"
+                                                    >
+                                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                                    </button>
                                                 </div>
                                             </div>
 
                                             {{-- Live Preview --}}
                                             <div class="border rounded-3 p-3 bg-light">
                                                 <div class="d-flex align-items-center justify-content-between mb-2">
-                                                    <span class="text-muted small fw-semibold"><i class="bi bi-eye me-1"></i>Live Preview</span>
-                                                    <span class="badge bg-secondary" id="logoSizeLabel">{{ $currentLogoHeight }}px</span>
+                                                    <span class="text-muted small fw-semibold">
+                                                        <i class="bi bi-{{ $deviceId === 'mobile' ? 'phone' : 'display' }} me-1"></i>
+                                                        {{ ucfirst($deviceId) }} Preview
+                                                    </span>
+                                                    <span class="badge bg-secondary" id="logoSizeLabel_{{ $setting->key }}">{{ $currentVal }}px</span>
                                                 </div>
-                                                <div class="bg-white border rounded-2 p-3 d-flex align-items-center" style="min-height: 80px;">
+                                                <div class="bg-white border rounded-2 p-3 d-flex align-items-center justify-content-center" style="min-height: 80px;">
                                                     @if($logoPreviewUrl)
                                                         <img
                                                             src="{{ $logoPreviewUrl }}"
                                                             alt="Logo Preview"
-                                                            id="logoPreviewImage"
-                                                            style="height: {{ $currentLogoHeight }}px; width: auto; object-fit: contain; transition: height 0.15s ease;"
+                                                            id="logoPreviewImage_{{ $setting->key }}"
+                                                            style="height: {{ $currentVal }}px; width: auto; object-fit: contain;"
                                                         >
                                                     @else
-                                                        <div class="text-muted small" id="logoPreviewPlaceholder">
-                                                            <i class="bi bi-image me-1"></i>No logo uploaded — upload a Site Logo above to see the preview.
+                                                        <div class="text-muted small" id="logoPreviewPlaceholder_{{ $setting->key }}">
+                                                            <i class="bi bi-image me-1"></i>No logo uploaded.
                                                         </div>
                                                     @endif
                                                 </div>
                                                 <small class="text-muted d-block mt-2">
-                                                    This is how your logo will appear in the frontend header. Height range: 20px – 120px.
+                                                    How the logo appears on {{ $deviceId }} devices. Range: 10px – {{ $maxVal }}px.
                                                 </small>
                                             </div>
                                         </div>
@@ -505,9 +539,7 @@
             form.action = '/admin/settings/site/' + group + '/' + key + '/delete-image';
             form.submit();
         }
-    }
-
-    // Open media picker for settings image
+    }    // Open media picker for settings image
     function openSettingMediaPicker(settingKey) {
         openMediaPicker('setting-input-' + settingKey, false, function(media) {
             // Update hidden input
@@ -515,46 +547,60 @@
             
             // Update preview
             var previewContainer = document.getElementById('setting-image-preview-' + settingKey);
-            previewContainer.innerHTML = '<div class="position-relative d-inline-block">' +
-                '<img src="' + media.url + '" alt="Preview" class="img-thumbnail" style="max-height: 150px; max-width: 300px;">' +
-                '</div>';
+            if (previewContainer) {
+                previewContainer.innerHTML = '<div class="position-relative d-inline-block">' +
+                    '<img src="' + media.url + '" alt="Preview" class="img-thumbnail" style="max-height: 150px; max-width: 300px;">' +
+                    '</div>';
+            }
 
-            // If the site_logo was updated, also update the logo height live preview
+            // If the site_logo was updated, also update all logo height live previews
             if (settingKey === 'site_logo') {
-                var logoPreviewImg = document.getElementById('logoPreviewImage');
-                var logoPlaceholder = document.getElementById('logoPreviewPlaceholder');
-                if (logoPreviewImg) {
-                    logoPreviewImg.src = media.url;
-                } else if (logoPlaceholder) {
-                    var slider = document.getElementById('logoHeightSlider');
-                    var h = slider ? slider.value : 40;
-                    logoPlaceholder.outerHTML = '<img src="' + media.url + '" alt="Logo Preview" id="logoPreviewImage" style="height: ' + h + 'px; width: auto; object-fit: contain; transition: height 0.15s ease;">';
-                }
+                ['logo_height', 'logo_height_desktop', 'logo_height_mobile'].forEach(key => {
+                    var logoPreviewImg = document.getElementById('logoPreviewImage_' + key) || document.getElementById('logoPreviewImage');
+                    var logoPlaceholder = document.getElementById('logoPreviewPlaceholder_' + key) || document.getElementById('logoPreviewPlaceholder');
+                    
+                    if (logoPreviewImg) {
+                        logoPreviewImg.src = media.url;
+                    } else if (logoPlaceholder) {
+                        var slider = document.getElementById('logoHeightSlider_' + key) || document.getElementById('logoHeightSlider');
+                        var h = slider ? slider.value : 40;
+                        logoPlaceholder.outerHTML = '<img src="' + media.url + '" alt="Logo Preview" id="logoPreviewImage_' + key + '" style="height: ' + h + 'px; width: auto; object-fit: contain;">';
+                    }
+                });
             }
         });
     }
 
     // Logo height slider + preview sync
-    function updateLogoPreview(val) {
-        val = Math.max(20, Math.min(120, parseInt(val, 10) || 40));
-        var numberInput = document.getElementById('logoHeightNumber');
-        var previewImg = document.getElementById('logoPreviewImage');
-        var sizeLabel = document.getElementById('logoSizeLabel');
+    function updateLogoPreview(settingKey, val) {
+        const maxVal = settingKey === 'logo_height_desktop' ? 300 : (settingKey === 'logo_height_mobile' ? 200 : 200);
+        val = Math.max(10, Math.min(maxVal, parseInt(val, 10) || 40));
+        
+        var numberInput = document.getElementById('logoHeightNumber_' + settingKey);
+        var previewImg = document.getElementById('logoPreviewImage_' + settingKey);
+        var sizeLabel = document.getElementById('logoSizeLabel_' + settingKey);
 
         if (numberInput) numberInput.value = val;
         if (previewImg) previewImg.style.height = val + 'px';
         if (sizeLabel) sizeLabel.textContent = val + 'px';
     }
 
-    function updateLogoPreviewFromNumber(val) {
-        val = Math.max(20, Math.min(120, parseInt(val, 10) || 40));
-        var slider = document.getElementById('logoHeightSlider');
-        var previewImg = document.getElementById('logoPreviewImage');
-        var sizeLabel = document.getElementById('logoSizeLabel');
+    function updateLogoPreviewFromNumber(settingKey, val) {
+        const maxVal = settingKey === 'logo_height_desktop' ? 300 : (settingKey === 'logo_height_mobile' ? 200 : 200);
+        val = Math.max(10, Math.min(maxVal, parseInt(val, 10) || 40));
+        
+        var slider = document.getElementById('logoHeightSlider_' + settingKey);
+        var previewImg = document.getElementById('logoPreviewImage_' + settingKey);
+        var sizeLabel = document.getElementById('logoSizeLabel_' + settingKey);
 
         if (slider) slider.value = val;
         if (previewImg) previewImg.style.height = val + 'px';
         if (sizeLabel) sizeLabel.textContent = val + 'px';
+    }
+
+    function resetLogoSize(settingKey) {
+        const standardSize = settingKey === 'logo_height_mobile' ? 32 : 40;
+        updateLogoPreview(settingKey, standardSize);
     }
 
     // Menu Builder Logic
