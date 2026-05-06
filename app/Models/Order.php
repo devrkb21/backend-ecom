@@ -123,7 +123,7 @@ class Order extends Model
                 strtoupper(Str::random(4))
             );
 
-            if (!static::query()->where('order_number', $candidate)->exists()) {
+            if (!static::withTrashed()->where('order_number', $candidate)->exists()) {
                 return $candidate;
             }
         }
@@ -143,7 +143,7 @@ class Order extends Model
                 str_pad((string) ($startingSequence + $attempt), 8, '0', STR_PAD_LEFT)
             );
 
-            if (!static::query()->where('order_number', $candidate)->exists()) {
+            if (!static::withTrashed()->where('order_number', $candidate)->exists()) {
                 return $candidate;
             }
         }
@@ -154,7 +154,7 @@ class Order extends Model
 
     protected static function resolveStartingSequenceForPrefix(string $basePrefix): int
     {
-        $orderNumbers = static::query()
+        $orderNumbers = static::withTrashed()
             ->where('order_number', 'like', $basePrefix . '-%')
             ->orderByDesc('id')
             ->limit(300)
@@ -219,7 +219,7 @@ class Order extends Model
                 $candidate = str_replace($matches[0], str_pad((string) ($startingSequence + $attempt), $length, '0', STR_PAD_LEFT), $candidate);
             }
 
-            if (!static::query()->where('order_number', $candidate)->exists()) {
+            if (!static::withTrashed()->where('order_number', $candidate)->exists()) {
                 return $candidate;
             }
         }
@@ -234,7 +234,7 @@ class Order extends Model
             return 1;
         }
 
-        $orderNumbers = static::query()
+        $orderNumbers = static::withTrashed()
             ->where('order_number', 'like', str_replace(['_', '%'], ['\_', '\%'], $patternBeforeSeq) . '%')
             ->orderByDesc('id')
             ->limit(300)

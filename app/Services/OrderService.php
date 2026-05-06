@@ -204,56 +204,45 @@ class OrderService
                 $unionId = $unionId ?? (!empty($resolved['union_id']) ? (int) $resolved['union_id'] : null);
             }
 
-            // Resolve Bangladesh hierarchy when ids are available; keep text-only checkout functional if partial resolution.
-            $division = null;
-            if ($divisionId) {
-                $division = BdDivision::query()->find($divisionId);
-                if (!$division) {
-                    throw new \Exception('Unable to resolve shipping location from address.');
+            // Trust the most specific ID provided and enforce hierarchy consistency.
+            // This prevents mismatch errors if the text resolver found a different parent level.
+            $union = $unionId ? BdUnion::query()->find($unionId) : null;
+            if ($union) {
+                $upazilaId = $union->upazila_id;
+                $upazila = BdUpazila::query()->find($upazilaId);
+                if ($upazila) {
+                    $districtId = $upazila->district_id;
+                    $district = BdDistrict::query()->find($districtId);
+                    if ($district) {
+                        $divisionId = $district->division_id;
+                        $division = BdDivision::query()->find($divisionId);
+                    }
+                }
+            } else {
+                $upazila = $upazilaId ? BdUpazila::query()->find($upazilaId) : null;
+                if ($upazila) {
+                    $districtId = $upazila->district_id;
+                    $district = BdDistrict::query()->find($districtId);
+                    if ($district) {
+                        $divisionId = $district->division_id;
+                        $division = BdDivision::query()->find($divisionId);
+                    }
+                } else {
+                    $district = $districtId ? BdDistrict::query()->find($districtId) : null;
+                    if ($district) {
+                        $divisionId = $district->division_id;
+                        $division = BdDivision::query()->find($divisionId);
+                    } else {
+                        $division = $divisionId ? BdDivision::query()->find($divisionId) : null;
+                    }
                 }
             }
 
-            $district = null;
-            if ($districtId) {
-                $district = BdDistrict::query()
-                    ->where('id', $districtId)
-                    ->when($division?->id, function ($query, int $resolvedDivisionId) {
-                        $query->where('division_id', $resolvedDivisionId);
-                    })
-                    ->first();
-
-                if (!$district) {
-                    throw new \Exception('Unable to resolve shipping location from address.');
-                }
-            }
-
-            $upazila = null;
-            if ($upazilaId) {
-                $upazila = BdUpazila::query()
-                    ->where('id', $upazilaId)
-                    ->when($district?->id, function ($query, int $resolvedDistrictId) {
-                        $query->where('district_id', $resolvedDistrictId);
-                    })
-                    ->first();
-
-                if (!$upazila) {
-                    throw new \Exception('Unable to resolve shipping location from address.');
-                }
-            }
-
-            $union = null;
-            if ($unionId) {
-                $union = BdUnion::query()
-                    ->where('id', $unionId)
-                    ->when($upazila?->id, function ($query, int $resolvedUpazilaId) {
-                        $query->where('upazila_id', $resolvedUpazilaId);
-                    })
-                    ->first();
-
-                if (!$union) {
-                    throw new \Exception('Unable to resolve shipping location from address.');
-                }
-            }
+            // Ensure models are loaded if they weren't resolved via hierarchy enforcement above.
+            $division = $division ?? ($divisionId ? BdDivision::query()->find($divisionId) : null);
+            $district = $district ?? ($districtId ? BdDistrict::query()->find($districtId) : null);
+            $upazila = $upazila ?? ($upazilaId ? BdUpazila::query()->find($upazilaId) : null);
+            $union = $union ?? ($unionId ? BdUnion::query()->find($unionId) : null);
 
             // Calculate shipping cost using selected method
             $baseShipping = $shippingMethod->calculateCost($subtotal, $itemCount, 0);
