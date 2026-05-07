@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\BusinessIntelligenceController;
 use App\Http\Controllers\Admin\FlashSaleController;
 use App\Http\Controllers\Admin\LoyaltyController;
 use App\Http\Controllers\Admin\SmsTemplateController;
+use App\Http\Controllers\Admin\FraudBlockController;
 
 /*
 |--------------------------------------------------------------------------
@@ -57,6 +58,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Pages CRUD
         Route::resource('pages', PageController::class)->except(['show']);
+
+        // Customer Groups & Customer Analytics
+        Route::resource('customer-groups', App\Http\Controllers\Admin\CustomerGroupController::class);
+        Route::get('customers', [App\Http\Controllers\Admin\CustomerController::class, 'index'])->name('customers.index');
+
+        // Loyalty Rewards
+        Route::resource('loyalty-rewards', App\Http\Controllers\Admin\LoyaltyRewardController::class);
+
+        // Fraud Blocker
+        Route::resource('fraud-blocks', App\Http\Controllers\Admin\FraudBlockController::class);
 
         // Contact Messages
         Route::prefix('contact-messages')->name('contact-messages.')->group(function () {
@@ -297,6 +308,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
             // Transactions
             Route::get('/transactions', [LoyaltyController::class, 'transactions'])->name('transactions');
+        });
+
+        // Fraud Blocker
+        Route::prefix('fraud-blocks')->name('fraud-blocks.')->group(function () {
+            Route::get('/', [FraudBlockController::class, 'index'])->name('index');
+            Route::post('/', [FraudBlockController::class, 'store'])->name('store');
+            Route::post('/settings', [FraudBlockController::class, 'saveSettings'])->name('settings.save');
+            Route::post('/quick-block', [FraudBlockController::class, 'quickBlock'])->name('quick-block');
+            Route::post('/quick-unblock', [FraudBlockController::class, 'quickUnblock'])->name('quick-unblock');
+            Route::post('/check', [FraudBlockController::class, 'check'])->name('check');
+            Route::patch('/{fraudBlock}/toggle', [FraudBlockController::class, 'toggle'])->name('toggle');
+            Route::delete('/{fraudBlock}', [FraudBlockController::class, 'destroy'])->name('destroy');
         });
     });
 });

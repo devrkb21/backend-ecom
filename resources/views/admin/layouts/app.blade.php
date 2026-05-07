@@ -408,7 +408,8 @@
                 $isOrdersActive = request()->routeIs('admin.orders.*')
                     || request()->routeIs('admin.payments.*')
                     || request()->routeIs('admin.returns.*')
-                    || request()->routeIs('admin.abandoned-carts.*');
+                    || request()->routeIs('admin.abandoned-carts.*')
+                    || request()->routeIs('admin.fraud-blocks.*');
 
                 $isMarketingActive = request()->routeIs('admin.coupons.*')
                     || request()->routeIs('admin.flash-sales.*')
@@ -426,6 +427,9 @@
 
                 $isUsersActive = request()->routeIs('admin.users.*')
                     || request()->routeIs('admin.roles.*');
+
+                $isCustomersActive = request()->routeIs('admin.customers.*')
+                    || request()->routeIs('admin.customer-groups.*');
 
                 $isSettingsActive = (request()->routeIs('admin.settings.*') && !request()->routeIs('admin.settings.site.*'));
                 $isContentActive = request()->routeIs('admin.pages.*') || request()->routeIs('admin.media.*') || request()->routeIs('admin.settings.site.*') || request()->routeIs('admin.contact-messages.*');
@@ -505,6 +509,15 @@
                             <i class="bi bi-cart-x"></i> Abandoned Carts
                             @if($pendingAbandoned > 0)
                                 <span class="badge bg-danger ms-1">{{ $pendingAbandoned }}</span>
+                            @endif
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.fraud-blocks.*') ? 'active' : '' }}" href="{{ route('admin.fraud-blocks.index') }}">
+                            <i class="bi bi-shield-x"></i> Fraud Blocker
+                            @php $activeFraudBlocks = \App\Models\FraudBlock::active()->count(); @endphp
+                            @if($activeFraudBlocks > 0)
+                                <span class="badge bg-danger ms-1">{{ $activeFraudBlocks }}</span>
                             @endif
                         </a>
                     </li>
@@ -633,6 +646,25 @@
                     <li class="nav-item">
                         <a class="nav-link submenu-link {{ request()->routeIs('admin.bi.product-performance') ? 'active' : '' }}" href="{{ route('admin.bi.product-performance') }}">
                             <i class="bi bi-trophy"></i> Product Performance
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="nav-item menu-group {{ $isCustomersActive ? 'is-open' : '' }}" data-menu-group="customers" data-active="{{ $isCustomersActive ? '1' : '0' }}">
+                <button type="button" class="nav-link nav-group-toggle {{ $isCustomersActive ? 'active' : '' }}" data-group-toggle aria-expanded="{{ $isCustomersActive ? 'true' : 'false' }}">
+                    <span class="menu-label"><i class="bi bi-people"></i> Customers</span>
+                    <i class="bi bi-chevron-down menu-chevron"></i>
+                </button>
+                <ul class="nav flex-column submenu">
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.customers.index') ? 'active' : '' }}" href="{{ route('admin.customers.index') }}">
+                            <i class="bi bi-person-lines-fill"></i> All Customers
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.customer-groups.*') ? 'active' : '' }}" href="{{ route('admin.customer-groups.index') }}">
+                            <i class="bi bi-award"></i> Loyalty Groups
                         </a>
                     </li>
                 </ul>
