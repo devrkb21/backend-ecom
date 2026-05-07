@@ -320,7 +320,7 @@
                                                 {{ $order->order_number }}
                                             </a>
                                         </td>
-                                        <td>{{ $order->user->name ?? 'Guest' }}</td>
+                                        <td>{{ $order->customer_name }}</td>
                                         <td>
                                             <span class="badge badge-status-{{ $order->status }}">
                                                 {{ ucfirst($order->status) }}

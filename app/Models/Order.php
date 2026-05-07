@@ -511,4 +511,40 @@ class Order extends Model
 
         return hash_equals($this->guest_access_token_hash, hash('sha256', $plainToken));
     }
+
+    public function getCustomerNameAttribute(): string
+    {
+        $guestCheckoutEmail = strtolower(trim((string) config('shop.guest_checkout_user_email', 'guest.checkout@innercollection.local')));
+        $checkoutPayload = is_array($this->checkout_fields_payload) ? $this->checkout_fields_payload : [];
+        $rawUserName = trim((string) ($this->user?->name ?? ''));
+        $rawUserEmail = trim((string) ($this->user?->email ?? ''));
+        
+        $isGuestCheckoutOrder = strtolower($rawUserEmail) === $guestCheckoutEmail || strtolower($rawUserName) === 'guest checkout';
+
+        $firstNonEmpty = function (array $candidates): string {
+            foreach ($candidates as $candidate) {
+                $val = trim((string) ($candidate ?? ''));
+                if ($val !== '') return $val;
+            }
+            return '';
+        };
+
+        if ($isGuestCheckoutOrder) {
+            $name = $firstNonEmpty([
+                $this->shipping_name,
+                $checkoutPayload['shipping_name'] ?? null,
+                $checkoutPayload['billing_name'] ?? null,
+                trim(($checkoutPayload['billing_first_name'] ?? '') . ' ' . ($checkoutPayload['billing_last_name'] ?? '')),
+                $rawUserName,
+            ]);
+        } else {
+            $name = $firstNonEmpty([
+                $rawUserName,
+                $this->shipping_name,
+                $checkoutPayload['shipping_name'] ?? null,
+            ]);
+        }
+
+        return $name !== '' ? $name : 'Guest Checkout';
+    }
 }
