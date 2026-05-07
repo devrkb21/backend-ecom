@@ -202,32 +202,12 @@
                                 </td>
                                 <td>
                                     @php
+                                        $customerName = $order->customer_name;
                                         $checkoutPayloadForCustomer = is_array($order->checkout_fields_payload) ? $order->checkout_fields_payload : [];
+                                        
                                         $rawUserName = trim((string) ($order->user?->name ?? ''));
                                         $rawUserEmail = trim((string) ($order->user?->email ?? ''));
                                         $isGuestCheckoutOrder = strtolower($rawUserEmail) === $guestCheckoutEmail || strtolower($rawUserName) === 'guest checkout';
-
-                                        $billingFullName = trim($firstNonEmptyValue([
-                                            $checkoutPayloadForCustomer['billing_first_name'] ?? null,
-                                        ]) . ' ' . $firstNonEmptyValue([
-                                            $checkoutPayloadForCustomer['billing_last_name'] ?? null,
-                                        ]));
-
-                                        if ($isGuestCheckoutOrder) {
-                                            $customerName = $firstNonEmptyValue([
-                                                $order->shipping_name,
-                                                $checkoutPayloadForCustomer['shipping_name'] ?? null,
-                                                $checkoutPayloadForCustomer['billing_name'] ?? null,
-                                                $billingFullName,
-                                                $rawUserName,
-                                            ]);
-                                        } else {
-                                            $customerName = $firstNonEmptyValue([
-                                                $rawUserName,
-                                                $order->shipping_name,
-                                                $checkoutPayloadForCustomer['shipping_name'] ?? null,
-                                            ]);
-                                        }
 
                                         $customerEmailCandidates = $isGuestCheckoutOrder
                                             ? [
@@ -255,10 +235,6 @@
                                                 $customerEmail = $rawEmail;
                                                 break;
                                             }
-                                        }
-
-                                        if ($customerName === '') {
-                                            $customerName = 'Guest Checkout';
                                         }
 
                                         $showUserProfileLink = (bool) ($order->user && !$isGuestCheckoutOrder);
