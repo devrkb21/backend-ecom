@@ -25,6 +25,49 @@ class Media extends Model
 
     protected $appends = ['url', 'thumbnail_url', 'formatted_size'];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::deleting(function ($media) {
+            $path = $media->path;
+            
+            // Delete product images completely
+            \App\Models\ProductImage::where('image', $path)->delete();
+
+            // Nullify references in other tables
+            \App\Models\Category::where('image', $path)->update(['image' => null]);
+            \App\Models\Category::where('banner_image', $path)->update(['banner_image' => null]);
+            
+            \App\Models\ProductVariant::where('image', $path)->update(['image' => null]);
+            \App\Models\ProductAttributeValue::where('image', $path)->update(['image' => null]);
+            
+            \App\Models\LoyaltyReward::where('image', $path)->update(['image' => null]);
+            \App\Models\FlashSale::where('banner_image', $path)->update(['banner_image' => null]);
+
+            // For settings, set the value to empty string if it matches the image
+            \App\Models\Setting::where('value', $path)->update(['value' => '']);
+            
+            // Also handle cases where the full URL might be saved
+            if ($media->disk) {
+                try {
+                    $url = \Illuminate\Support\Facades\Storage::disk($media->disk)->url($path);
+                    
+                    \App\Models\ProductImage::where('image', $url)->delete();
+                    \App\Models\Category::where('image', $url)->update(['image' => null]);
+                    \App\Models\Category::where('banner_image', $url)->update(['banner_image' => null]);
+                    \App\Models\ProductVariant::where('image', $url)->update(['image' => null]);
+                    \App\Models\ProductAttributeValue::where('image', $url)->update(['image' => null]);
+                    \App\Models\LoyaltyReward::where('image', $url)->update(['image' => null]);
+                    \App\Models\FlashSale::where('banner_image', $url)->update(['banner_image' => null]);
+                    \App\Models\Setting::where('value', $url)->update(['value' => '']);
+                } catch (\Exception $e) {
+                    // Ignore URL generation errors
+                }
+            }
+        });
+    }
+
     /**
      * Get the full URL to the media file
      */
