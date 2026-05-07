@@ -516,6 +516,79 @@
                 </div>
             </div>
 
+            {{-- Fraud Blocker Quick Actions --}}
+            <div class="card mb-4 border-danger border-opacity-25">
+                <div class="card-header bg-danger bg-opacity-10 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-shield-alt me-2 text-danger"></i><strong class="text-danger">Fraud Blocker</strong></span>
+                    <a href="{{ route('admin.fraud-blocks.index') }}" class="btn btn-sm btn-outline-danger py-0 px-2">
+                        <small>View All</small>
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    @php
+                        $fraudPhone = trim((string) ($abandonedCart->phone ?? ''));
+                        if ($fraudPhone === '') {
+                            $fraudPhone = trim((string) ($payload['shipping_phone'] ?? ($payload['billing_phone'] ?? '')));
+                        }
+                        
+                        $fraudEmail = trim((string) ($abandonedCart->email ?? ''));
+                        if ($fraudEmail === '') {
+                            $fraudEmail = trim((string) ($payload['shipping_email'] ?? ($payload['billing_email'] ?? '')));
+                        }
+                        
+                        $fraudIp = trim((string) ($abandonedCart->ip_address ?? ''));
+                        $fraudDevice = trim((string) ($abandonedCart->user_agent ?? ''));
+                        
+                        $fraudItems = [];
+                        if ($fraudPhone !== '') {
+                            $fraudItems[] = ['type' => 'phone', 'value' => $fraudPhone, 'icon' => 'fa-phone', 'label' => 'Phone'];
+                        }
+                        if ($fraudEmail !== '' && filter_var($fraudEmail, FILTER_VALIDATE_EMAIL)) {
+                            $fraudItems[] = ['type' => 'email', 'value' => $fraudEmail, 'icon' => 'fa-envelope', 'label' => 'Email'];
+                        }
+                        if ($fraudIp !== '') {
+                            $fraudItems[] = ['type' => 'ip', 'value' => $fraudIp, 'icon' => 'fa-globe', 'label' => 'IP'];
+                        }
+                        if ($fraudDevice !== '') {
+                            $fraudItems[] = ['type' => 'device', 'value' => $fraudDevice, 'icon' => 'fa-laptop', 'label' => 'Device'];
+                        }
+                    @endphp
+
+                    <div class="list-group list-group-flush">
+                        @forelse($fraudItems as $fi)
+                            @php
+                                $isCurrentlyBlocked = \App\Models\FraudBlock::isBlocked($fi['type'], $fi['value']);
+                            @endphp
+                            <div class="list-group-item d-flex justify-content-between align-items-center py-2 fraud-block-item" data-type="{{ $fi['type'] }}" data-value="{{ $fi['value'] }}">
+                                <div class="text-truncate me-2">
+                                    <i class="fas {{ $fi['icon'] }} me-1 text-muted"></i>
+                                    <small class="text-truncate" title="{{ $fi['value'] }}">{{ Str::limit($fi['value'], 25) }}</small>
+                                </div>
+                                @if($isCurrentlyBlocked)
+                                    <button type="button"
+                                        class="btn btn-sm btn-danger fraud-unblock-btn"
+                                        title="Click to unblock">
+                                        <i class="fas fa-shield-alt"></i>
+                                        <small>Blocked</small>
+                                    </button>
+                                @else
+                                    <button type="button"
+                                        class="btn btn-sm btn-outline-danger fraud-open-modal-btn"
+                                        title="Click to block">
+                                        <i class="fas fa-plus"></i>
+                                        <small>Block</small>
+                                    </button>
+                                @endif
+                            </div>
+                        @empty
+                            <div class="list-group-item text-center text-muted py-3">
+                                <small>No blockable data found.</small>
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+
             <!-- Actions -->
             <div class="card border-danger">
                 <div class="card-header bg-danger bg-opacity-10">
@@ -566,6 +639,48 @@
     </div>
 </div>
 
+{{-- Fraud Block Modal --}}
+<div class="modal fade" id="fraudBlockModal" tabindex="-1" aria-labelledby="fraudBlockModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger bg-opacity-10 border-0">
+                <h5 class="modal-title text-danger" id="fraudBlockModalLabel">
+                    <i class="fas fa-shield-alt me-2"></i>Block Confirmation
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label text-muted small text-uppercase">Blocking</label>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-danger bg-opacity-10 text-danger" id="fraudModalTypeLabel"></span>
+                        <code id="fraudModalValue" class="text-dark"></code>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="fraudModalReason" class="form-label fw-semibold">Reason <span class="text-muted fw-normal">(optional)</span></label>
+                    <input type="text" class="form-control" id="fraudModalReason" placeholder="e.g. Fake orders, Spam calls...">
+                </div>
+                <div class="mb-0">
+                    <label for="fraudModalCustomMessage" class="form-label fw-semibold">Custom Message <span class="text-muted fw-normal">(shown to user, optional)</span></label>
+                    <textarea class="form-control" id="fraudModalCustomMessage" rows="2" placeholder="e.g. Your account has been suspended due to policy violations..."></textarea>
+                    <div class="form-text">This message will be shown to the user when they try to checkout.</div>
+                </div>
+                <input type="hidden" id="fraudModalType">
+                <input type="hidden" id="fraudModalValueHidden">
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-danger" id="fraudModalBlockBtn">
+                    <i class="fas fa-shield-alt me-1"></i>Block
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const followUpModal = new bootstrap.Modal(document.getElementById('followUpModal'));
@@ -586,6 +701,124 @@ document.addEventListener('DOMContentLoaded', function() {
             followUpModal.show();
         });
     });
+
+    // Fraud Blocker logic
+    const defaultMessages = {
+        'phone': @json(\App\Models\Setting::getValue('fraud_blocks', 'default_phone_msg', '')),
+        'email': @json(\App\Models\Setting::getValue('fraud_blocks', 'default_email_msg', '')),
+        'ip': @json(\App\Models\Setting::getValue('fraud_blocks', 'default_ip_msg', '')),
+        'device': @json(\App\Models\Setting::getValue('fraud_blocks', 'default_device_msg', ''))
+    };
+
+    const fraudModalEl = document.getElementById('fraudBlockModal');
+    if(fraudModalEl) {
+        const fraudModal = new bootstrap.Modal(fraudModalEl);
+        const modalTypeLabel = document.getElementById('fraudModalTypeLabel');
+        const modalValueText = document.getElementById('fraudModalValue');
+        const modalReason = document.getElementById('fraudModalReason');
+        const modalCustomMessage = document.getElementById('fraudModalCustomMessage');
+        const modalTypeHidden = document.getElementById('fraudModalType');
+        const modalValueHidden = document.getElementById('fraudModalValueHidden');
+        const modalBlockBtn = document.getElementById('fraudModalBlockBtn');
+        let currentBlockButton = null;
+
+        // Open Modal
+        document.querySelectorAll('.fraud-open-modal-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const item = btn.closest('.fraud-block-item');
+                const type = item.dataset.type;
+                const value = item.dataset.value;
+
+                currentBlockButton = btn;
+                modalTypeLabel.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+                modalValueText.textContent = value;
+                modalTypeHidden.value = type;
+                modalValueHidden.value = value;
+                
+                modalReason.value = 'Blocked from Abandoned Cart #{{ $abandonedCart->id }}';
+                modalCustomMessage.value = defaultMessages[type] || '';
+
+                fraudModal.show();
+            });
+        });
+
+        // Submit Block
+        if (modalBlockBtn) {
+            modalBlockBtn.addEventListener('click', function() {
+                const type = modalTypeHidden.value;
+                const value = modalValueHidden.value;
+                const reason = modalReason.value;
+                const customMessage = modalCustomMessage.value;
+
+                modalBlockBtn.disabled = true;
+                modalBlockBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Blocking...';
+
+                fetch('{{ route("admin.fraud-blocks.quick-block") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        type: type,
+                        value: value,
+                        reason: reason,
+                        custom_message: customMessage
+                    })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    modalBlockBtn.disabled = false;
+                    modalBlockBtn.innerHTML = '<i class="fas fa-shield-alt me-1"></i>Block';
+                    
+                    if (data.success && currentBlockButton) {
+                        fraudModal.hide();
+                        window.location.reload();
+                    } else if(data.message) {
+                        alert(data.message);
+                    }
+                })
+                .catch(() => {
+                    modalBlockBtn.disabled = false;
+                    modalBlockBtn.innerHTML = '<i class="fas fa-shield-alt me-1"></i>Block';
+                    alert('An error occurred while blocking.');
+                });
+            });
+        }
+
+        // Unblock
+        document.querySelectorAll('.fraud-unblock-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const item = btn.closest('.fraud-block-item');
+                const type = item.dataset.type;
+                const value = item.dataset.value;
+
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+                fetch('{{ route("admin.fraud-blocks.quick-unblock") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ type: type, value: value })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    }
+                })
+                .catch(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error';
+                });
+            });
+        });
+    }
 });
 </script>
 @endpush

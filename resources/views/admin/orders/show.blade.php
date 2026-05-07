@@ -27,8 +27,8 @@
             </div>
             <div class="card-body">
                 <div class="row mb-4">
-                    <div class="col-md-6">
-                        <h6 class="text-muted small text-uppercase mb-2">Customer Information</h6>
+                    <div class="col-12 mb-4">
+                        <h6 class="text-muted small text-uppercase mb-2">Contact Information</h6>
                         @php
                             $checkoutPayloadForCustomer = is_array($order->checkout_fields_payload) ? $order->checkout_fields_payload : [];
 
@@ -52,7 +52,7 @@
 
                             $rawUserName = trim((string) ($order->user?->name ?? ''));
                             $rawUserEmail = trim((string) ($order->user?->email ?? ''));
-                            $isGuestCheckoutOrder = strtolower($rawUserEmail) === $guestCheckoutEmail || strtolower($rawUserName) === 'guest checkout';
+                            $isGuestCheckoutOrder = !$order->user_id || strtolower($rawUserEmail) === $guestCheckoutEmail || strtolower($rawUserName) === 'guest checkout';
 
                             $billingFullName = trim($firstNonEmptyValue([
                                 $checkoutPayloadForCustomer['billing_first_name'] ?? null,
@@ -89,7 +89,7 @@
                                     $checkoutPayloadForCustomer['billing_email'] ?? null,
                                 ];
 
-                            $customerEmail = 'Not provided';
+                            $customerEmail = null;
                             foreach ($customerEmailCandidates as $emailCandidate) {
                                 $rawEmail = trim((string) ($emailCandidate ?? ''));
                                 $normalizedEmail = strtolower($rawEmail);
@@ -114,56 +114,102 @@
                                 $customerName = 'Guest Checkout';
                             }
                         @endphp
-                        <p class="mb-1"><strong>{{ $customerName }}</strong></p>
-                        <p class="mb-1">{{ $customerEmail }}</p>
-                        @if($customerPhone !== '')
-                            <p class="mb-0">{{ $customerPhone }}</p>
-                        @endif
+                        <div class="row">
+                            <div class="col-md-7">
+                                <table class="table table-borderless mb-0">
+                                    <tr>
+                                        <th class="text-muted text-uppercase small" width="100">Name</th>
+                                        <td><strong>{{ $customerName }}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted text-uppercase small">Phone</th>
+                                        <td>
+                                            @if($customerPhone !== '')
+                                                <a href="tel:{{ $customerPhone }}" class="btn btn-sm btn-success">
+                                                    <i class="bi bi-telephone me-1"></i>{{ $customerPhone }}
+                                                </a>
+                                            @else
+                                                <span class="text-muted">Not provided</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted text-uppercase small">Email</th>
+                                        <td>
+                                            @if($customerEmail)
+                                                <a href="mailto:{{ $customerEmail }}">{{ $customerEmail }}</a>
+                                            @else
+                                                <span class="text-muted">Not provided</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="col-md-5">
+                                @if($isGuestCheckoutOrder)
+                                    <div class="alert alert-secondary mb-0 py-2 px-3">
+                                        <strong><i class="bi bi-person-x me-1"></i> Guest Checkout</strong><br>
+                                        <small class="text-muted">User was not logged in</small>
+                                    </div>
+                                @else
+                                    <div class="alert alert-info mb-0 py-2 px-3">
+                                        <strong><i class="bi bi-person-check me-1"></i> Registered User</strong><br>
+                                        <small>{{ $order->user->name }}</small><br>
+                                        <small class="text-muted">{{ $order->user->email }}</small>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-12">
+                        <hr class="my-3">
                         <h6 class="text-muted small text-uppercase mb-2">Shipping Address</h6>
                         @php
                             $shippingAddress = trim((string) ($order->shipping_address ?? ''));
                             $shippingLocationText = trim((string) ((is_array($order->checkout_fields_payload) ? ($order->checkout_fields_payload['shipping_location_text'] ?? null) : null) ?? ''));
                             $shippingArea = trim((string) ((is_array($order->checkout_fields_payload) ? ($order->checkout_fields_payload['shipping_area'] ?? null) : null) ?? ''));
-                            $shippingHierarchy = implode(', ', array_filter([
+                            
+                            $geoParts = [];
+                            
+                            // Try to gather location parts without duplicating them
+                            $candidates = [
                                 $order->shippingUnion?->name,
                                 $order->shippingUpazila?->name,
+                                $order->shipping_city,
                                 $order->shippingDistrict?->name,
                                 $order->shippingDivision?->name,
-                            ]));
-                            $shippingCityStateZip = implode(', ', array_filter([
-                                $order->shipping_city,
                                 $order->shipping_state,
                                 $order->shipping_zip,
-                            ]));
-                            $shippingCountry = trim((string) ($order->shipping_country ?? ''));
+                                $order->shipping_country
+                            ];
+                            
+                            foreach ($candidates as $candidate) {
+                                $val = trim((string) $candidate);
+                                // don't add if empty, "0000", or already in the parts list
+                                if ($val !== '' && $val !== '0000' && !in_array($val, $geoParts, true)) {
+                                    $geoParts[] = $val;
+                                }
+                            }
+                            
+                            $cleanLocationLine = implode(', ', $geoParts);
                         @endphp
 
                         @if($shippingAddress !== '')
-                            <p class="mb-1">{{ $shippingAddress }}</p>
+                            <p class="mb-1" style="white-space: pre-line;">{{ $shippingAddress }}</p>
                         @else
                             <p class="mb-1 text-muted">Not provided</p>
                         @endif
 
                         @if($shippingLocationText !== '' && $shippingLocationText !== $shippingAddress)
-                            <p class="mb-1"><strong>Location:</strong> {{ $shippingLocationText }}</p>
+                            <p class="mb-1 text-muted small"><i class="bi bi-geo-alt me-1"></i>{{ $shippingLocationText }}</p>
                         @endif
 
                         @if($shippingArea !== '')
-                            <p class="mb-1"><strong>Area:</strong> {{ $shippingArea }}</p>
+                            <p class="mb-1 text-muted small"><i class="bi bi-map me-1"></i>{{ $shippingArea }}</p>
                         @endif
 
-                        @if($shippingHierarchy !== '')
-                            <p class="mb-1"><strong>Division chain:</strong> {{ $shippingHierarchy }}</p>
-                        @endif
-
-                        @if($shippingCityStateZip !== '')
-                            <p class="mb-1">{{ $shippingCityStateZip }}</p>
-                        @endif
-
-                        @if($shippingCountry !== '')
-                            <p class="mb-0">{{ $shippingCountry }}</p>
+                        @if($cleanLocationLine !== '')
+                            <p class="mb-1">{{ $cleanLocationLine }}</p>
                         @endif
                     </div>
                 </div>
@@ -255,6 +301,17 @@
                                         @endif
                                     </td>
                                     <td class="text-end">-৳{{ number_format($order->discount_amount, 2) }}</td>
+                                </tr>
+                            @endif
+                            @if($order->loyalty_discount_amount > 0)
+                                <tr class="text-info">
+                                    <td colspan="3" class="text-end">
+                                        Loyalty Discount
+                                        @if($order->customer_group_name)
+                                            <span class="badge bg-info ms-1">{{ $order->customer_group_name }}</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-end">-৳{{ number_format($order->loyalty_discount_amount, 2) }}</td>
                                 </tr>
                             @endif
                             @if($order->tax > 0)
@@ -625,6 +682,120 @@
                 </form>
             </div>
         </div>
+
+        {{-- Fraud Blocker Quick Actions --}}
+        <div class="card mt-4 border-danger border-opacity-25">
+            <div class="card-header bg-danger bg-opacity-10 d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-shield-x me-2 text-danger"></i><strong class="text-danger">Fraud Blocker</strong></span>
+                <a href="{{ route('admin.fraud-blocks.index') }}" class="btn btn-sm btn-outline-danger py-0 px-2">
+                    <small>View All</small>
+                </a>
+            </div>
+            <div class="card-body p-0">
+                @php
+                    $fraudPhone = trim((string) ($order->shipping_phone ?? ''));
+                    $fraudEmail = trim((string) ($order->shipping_email ?? ''));
+                    if ($fraudEmail === '' || $fraudEmail === 'Not provided') {
+                        $fraudEmail = trim((string) ($checkoutPayloadForCustomer['shipping_email'] ?? ''));
+                    }
+                    
+                    // Try to get IP and device from associated abandoned cart
+                    $relatedAbandonedCart = \App\Models\AbandonedCart::where('recovered_order_id', $order->id)->first()
+                        ?? \App\Models\AbandonedCart::where('phone', $fraudPhone)->where('phone', '!=', '')->latest()->first();
+                    $fraudIp = trim((string) ($checkoutPayloadForCustomer['device_ip'] ?? $relatedAbandonedCart?->ip_address ?? ''));
+                    $fraudDevice = trim((string) ($checkoutPayloadForCustomer['device_user_agent'] ?? $relatedAbandonedCart?->user_agent ?? ''));
+                    
+                    $fraudItems = [];
+                    if ($fraudPhone !== '') {
+                        $fraudItems[] = ['type' => 'phone', 'value' => $fraudPhone, 'icon' => 'bi-telephone', 'label' => 'Phone'];
+                    }
+                    if ($fraudEmail !== '' && $fraudEmail !== 'Not provided' && filter_var($fraudEmail, FILTER_VALIDATE_EMAIL)) {
+                        $fraudItems[] = ['type' => 'email', 'value' => $fraudEmail, 'icon' => 'bi-envelope', 'label' => 'Email'];
+                    }
+                    if ($fraudIp !== '') {
+                        $fraudItems[] = ['type' => 'ip', 'value' => $fraudIp, 'icon' => 'bi-globe2', 'label' => 'IP'];
+                    }
+                    if ($fraudDevice !== '') {
+                        $fraudItems[] = ['type' => 'device', 'value' => $fraudDevice, 'icon' => 'bi-laptop', 'label' => 'Device'];
+                    }
+                @endphp
+
+                <div class="list-group list-group-flush">
+                    @forelse($fraudItems as $fi)
+                        @php
+                            $isCurrentlyBlocked = \App\Models\FraudBlock::isBlocked($fi['type'], $fi['value']);
+                        @endphp
+                        <div class="list-group-item d-flex justify-content-between align-items-center py-2 fraud-block-item" data-type="{{ $fi['type'] }}" data-value="{{ $fi['value'] }}">
+                            <div class="text-truncate me-2">
+                                <i class="bi {{ $fi['icon'] }} me-1 text-muted"></i>
+                                <small class="text-truncate" title="{{ $fi['value'] }}">{{ Str::limit($fi['value'], 25) }}</small>
+                            </div>
+                            @if($isCurrentlyBlocked)
+                                <button type="button"
+                                    class="btn btn-sm btn-danger fraud-unblock-btn"
+                                    title="Click to unblock">
+                                    <i class="bi bi-shield-fill-x"></i>
+                                    <small>Blocked</small>
+                                </button>
+                            @else
+                                <button type="button"
+                                    class="btn btn-sm btn-outline-danger fraud-open-modal-btn"
+                                    title="Click to block">
+                                    <i class="bi bi-shield-plus"></i>
+                                    <small>Block</small>
+                                </button>
+                            @endif
+                        </div>
+                    @empty
+                        <div class="list-group-item text-center text-muted py-3">
+                            <small>No blockable data found for this order.</small>
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Fraud Block Modal --}}
+    <div class="modal fade" id="fraudBlockModal" tabindex="-1" aria-labelledby="fraudBlockModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger bg-opacity-10 border-0">
+                    <h5 class="modal-title text-danger" id="fraudBlockModalLabel">
+                        <i class="bi bi-shield-x me-2"></i>Block Confirmation
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small text-uppercase">Blocking</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-danger bg-opacity-10 text-danger" id="fraudModalTypeLabel"></span>
+                            <code id="fraudModalValue" class="text-dark"></code>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="fraudModalReason" class="form-label fw-semibold">Reason <span class="text-muted fw-normal">(optional)</span></label>
+                        <input type="text" class="form-control" id="fraudModalReason" placeholder="e.g. Fake orders, Spam calls...">
+                    </div>
+                    <div class="mb-0">
+                        <label for="fraudModalCustomMessage" class="form-label fw-semibold">Custom Message <span class="text-muted fw-normal">(shown to user, optional)</span></label>
+                        <textarea class="form-control" id="fraudModalCustomMessage" rows="2" placeholder="e.g. Your account has been suspended due to policy violations..."></textarea>
+                        <div class="form-text">This message will be shown to the user when they try to checkout.</div>
+                    </div>
+                    <input type="hidden" id="fraudModalType">
+                    <input type="hidden" id="fraudModalValueHidden">
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-lg me-1"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-danger" id="fraudModalBlockBtn">
+                        <i class="bi bi-shield-x me-1"></i>Block
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     {{-- Send SMS --}}
@@ -776,6 +947,128 @@
                 if (charCount) charCount.textContent = this.value.length;
             });
         }
+
+        // Fraud Blocker logic
+        const defaultMessages = {
+            'phone': @json(\App\Models\Setting::getValue('fraud_blocks', 'default_phone_msg', '')),
+            'email': @json(\App\Models\Setting::getValue('fraud_blocks', 'default_email_msg', '')),
+            'ip': @json(\App\Models\Setting::getValue('fraud_blocks', 'default_ip_msg', '')),
+            'device': @json(\App\Models\Setting::getValue('fraud_blocks', 'default_device_msg', ''))
+        };
+
+        const fraudModal = new bootstrap.Modal(document.getElementById('fraudBlockModal'));
+        const modalTypeLabel = document.getElementById('fraudModalTypeLabel');
+        const modalValueText = document.getElementById('fraudModalValue');
+        const modalReason = document.getElementById('fraudModalReason');
+        const modalCustomMessage = document.getElementById('fraudModalCustomMessage');
+        const modalTypeHidden = document.getElementById('fraudModalType');
+        const modalValueHidden = document.getElementById('fraudModalValueHidden');
+        const modalBlockBtn = document.getElementById('fraudModalBlockBtn');
+        let currentBlockButton = null;
+
+        // Open Modal
+        document.querySelectorAll('.fraud-open-modal-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const item = btn.closest('.fraud-block-item');
+                const type = item.dataset.type;
+                const value = item.dataset.value;
+
+                currentBlockButton = btn;
+                modalTypeLabel.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+                modalValueText.textContent = value;
+                modalTypeHidden.value = type;
+                modalValueHidden.value = value;
+                
+                modalReason.value = 'Blocked from Order #{{ $order->order_number }}';
+                modalCustomMessage.value = defaultMessages[type] || '';
+
+                fraudModal.show();
+            });
+        });
+
+        // Submit Block
+        if (modalBlockBtn) {
+            modalBlockBtn.addEventListener('click', function() {
+                const type = modalTypeHidden.value;
+                const value = modalValueHidden.value;
+                const reason = modalReason.value;
+                const customMessage = modalCustomMessage.value;
+
+                modalBlockBtn.disabled = true;
+                modalBlockBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Blocking...';
+
+                fetch('{{ route("admin.fraud-blocks.quick-block") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        type: type,
+                        value: value,
+                        order_id: {{ $order->id }},
+                        reason: reason,
+                        custom_message: customMessage
+                    })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    modalBlockBtn.disabled = false;
+                    modalBlockBtn.innerHTML = '<i class="bi bi-shield-x me-1"></i>Block';
+                    
+                    if (data.success && currentBlockButton) {
+                        fraudModal.hide();
+                        // Change button to unblock state
+                        currentBlockButton.className = 'btn btn-sm btn-danger fraud-unblock-btn';
+                        currentBlockButton.innerHTML = '<i class="bi bi-shield-fill-x"></i> <small>Blocked</small>';
+                        currentBlockButton.title = 'Click to unblock';
+                        
+                        // Re-attach listener by reloading page to be safe, or just changing class and attaching event
+                        window.location.reload();
+                    } else if(data.message) {
+                        alert(data.message);
+                    }
+                })
+                .catch(() => {
+                    modalBlockBtn.disabled = false;
+                    modalBlockBtn.innerHTML = '<i class="bi bi-shield-x me-1"></i>Block';
+                    alert('An error occurred while blocking.');
+                });
+            });
+        }
+
+        // Unblock
+        document.querySelectorAll('.fraud-unblock-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const item = btn.closest('.fraud-block-item');
+                const type = item.dataset.type;
+                const value = item.dataset.value;
+
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+                fetch('{{ route("admin.fraud-blocks.quick-unblock") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ type: type, value: value })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    }
+                })
+                .catch(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Error';
+                });
+            });
+        });
     });
 </script>
 @endpush

@@ -46,6 +46,9 @@ Route::get('/health', function () {
 // Public routes
 Route::prefix('v1')->group(function () {
     // Authentication
+    Route::prefix('public')->group(function () {
+        Route::get('/loyalty/check', [App\Http\Controllers\Api\CustomerGroupController::class, 'check']);
+    });
     Route::prefix('auth')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
         Route::post('/login', [AuthController::class, 'login']);

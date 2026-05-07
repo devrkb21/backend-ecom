@@ -293,7 +293,28 @@ class OrderService
             // Calculate payment gateway extra charge (e.g., COD fee)
             $paymentCharge = $this->calculatePaymentCharge($paymentGateway, $subtotal + $tax + $shipping - $discountAmount);
 
-            $total = max(0, $subtotal + $tax + $shipping - $discountAmount + $paymentCharge);
+            // Loyalty Program Integration
+            $loyaltyDiscountAmount = 0;
+            $customerGroupName = null;
+            $shippingPhone = $canonicalShipping['shipping_phone'] ?? null;
+            if ($shippingPhone) {
+                // Find qualifying group for this phone number
+                $orderStats = Order::where('shipping_phone', $shippingPhone)
+                    ->whereNotIn('status', ['cancelled', 'failed', 'returned'])
+                    ->selectRaw('COUNT(id) as total_orders, SUM(total) as total_spent')
+                    ->first();
+
+                $totalOrdersCount = $orderStats->total_orders ?? 0;
+                $totalSpentAmount = (float) ($orderStats->total_spent ?? 0.0);
+
+                $qualifyingGroup = \App\Models\CustomerGroup::getQualifyingGroup($totalOrdersCount, $totalSpentAmount);
+                if ($qualifyingGroup) {
+                    $customerGroupName = $qualifyingGroup->name;
+                    $loyaltyDiscountAmount = round(($subtotal * (float) $qualifyingGroup->discount_percentage) / 100, 2);
+                }
+            }
+
+            $total = max(0, $subtotal + $tax + $shipping - $discountAmount - $loyaltyDiscountAmount + $paymentCharge);
 
             // Check if order amount is within gateway limits
             if (!$paymentGateway->isAvailableFor($total)) {
@@ -313,6 +334,8 @@ class OrderService
                 'coupon_id' => $coupon?->id,
                 'coupon_code' => $coupon?->code,
                 'discount_amount' => $discountAmount,
+                'loyalty_discount_amount' => $loyaltyDiscountAmount,
+                'customer_group_name' => $customerGroupName,
                 'order_number' => Order::generateOrderNumber(),
                 'guest_access_token_hash' => $guestAccessToken !== null ? hash('sha256', $guestAccessToken) : null,
                 'status' => 'pending',

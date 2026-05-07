@@ -23,6 +23,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'internal.api' => \App\Http\Middleware\InternalApiOnly::class,
         ]);
 
+        // Trust all proxies (e.g. Cloudflare, Next.js API Routes)
+        $middleware->trustProxies(at: '*');
+
         // Append API request logging middleware
         $middleware->appendToGroup('api', [
             \App\Http\Middleware\LogApiRequests::class,

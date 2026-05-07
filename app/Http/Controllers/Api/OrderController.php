@@ -125,9 +125,33 @@ class OrderController extends Controller
             $user = $request->user('sanctum') ?? auth()->user();
             $checkoutSessionId = trim((string) $request->header('X-Session-ID', ''));
 
+            // Fraud block check
+            $fraudPhone = trim((string) ($request->input('shipping_phone') ?? ''));
+            $fraudEmail = trim((string) ($request->input('shipping_email') ?? $user?->email ?? ''));
+            $fraudIp = $request->ip();
+            $fraudDevice = $request->userAgent();
+
+            $fraudResult = \App\Models\FraudBlock::checkOrder($fraudPhone, $fraudEmail, $fraudIp, $fraudDevice);
+            if (!empty($fraudResult['types'])) {
+                $defaultMessage = 'Your order could not be processed. Please contact support.';
+                $message = $fraudResult['message'] ?? $defaultMessage;
+
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                    'fraud_blocked' => true,
+                    'fraud_message' => $message,
+                ], 403);
+            }
+
+            $validatedData = $request->validated();
+            $validatedData['checkout_fields'] = $validatedData['checkout_fields'] ?? [];
+            $validatedData['checkout_fields']['device_ip'] = $fraudIp;
+            $validatedData['checkout_fields']['device_user_agent'] = $fraudDevice;
+
             $order = $this->orderService->createOrderFromCart(
                 $user?->id,
-                $request->validated(),
+                $validatedData,
                 $checkoutSessionId !== '' ? $checkoutSessionId : null
             );
 
