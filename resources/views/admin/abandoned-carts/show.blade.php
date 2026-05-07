@@ -88,12 +88,31 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
+                            @php
+                                $payload = is_array($abandonedCart->checkout_fields_payload) ? $abandonedCart->checkout_fields_payload : [];
+                                
+                                $contactName = $abandonedCart->name 
+                                    ?: ($payload['shipping_name'] ?? null)
+                                    ?: ($payload['billing_name'] ?? null)
+                                    ?: trim(($payload['billing_first_name'] ?? '') . ' ' . ($payload['billing_last_name'] ?? ''));
+                                $contactName = $contactName !== '' ? $contactName : null;
+
+                                $contactPhone = $abandonedCart->phone 
+                                    ?: ($payload['shipping_phone'] ?? null)
+                                    ?: ($payload['billing_phone'] ?? null);
+                                $contactPhone = $contactPhone !== '' ? $contactPhone : null;
+
+                                $contactEmail = $abandonedCart->email 
+                                    ?: ($payload['shipping_email'] ?? null)
+                                    ?: ($payload['billing_email'] ?? null);
+                                $contactEmail = $contactEmail !== '' ? $contactEmail : null;
+                            @endphp
                             <table class="table table-borderless mb-0">
                                 <tr>
                                     <th width="120">Name</th>
                                     <td>
-                                        @if($abandonedCart->name)
-                                            <strong>{{ $abandonedCart->name }}</strong>
+                                        @if($contactName)
+                                            <strong>{{ $contactName }}</strong>
                                         @else
                                             <span class="text-muted">Not provided</span>
                                         @endif
@@ -102,9 +121,9 @@
                                 <tr>
                                     <th>Phone</th>
                                     <td>
-                                        @if($abandonedCart->phone)
-                                            <a href="tel:{{ $abandonedCart->phone }}" class="btn btn-sm btn-success">
-                                                <i class="fas fa-phone me-1"></i>{{ $abandonedCart->phone }}
+                                        @if($contactPhone)
+                                            <a href="tel:{{ $contactPhone }}" class="btn btn-sm btn-success">
+                                                <i class="fas fa-phone me-1"></i>{{ $contactPhone }}
                                             </a>
                                         @else
                                             <span class="text-muted">Not provided</span>
@@ -114,8 +133,8 @@
                                 <tr>
                                     <th>Email</th>
                                     <td>
-                                        @if($abandonedCart->email)
-                                            <a href="mailto:{{ $abandonedCart->email }}">{{ $abandonedCart->email }}</a>
+                                        @if($contactEmail)
+                                            <a href="mailto:{{ $contactEmail }}">{{ $contactEmail }}</a>
                                         @else
                                             <span class="text-muted">Not provided</span>
                                         @endif
@@ -310,16 +329,55 @@
                                             $variantSku = trim((string) ($item['variant_sku'] ?? ''));
                                             $variantId = !empty($item['variant_id']) ? (int) $item['variant_id'] : null;
 
-                                            $variantLabel = $variantName !== ''
-                                                ? $variantName
-                                                : ($variantAttributes !== ''
-                                                    ? $variantAttributes
+                                            if ($variantId) {
+                                                $variantModel = \App\Models\ProductVariant::with('attributeValues.attribute')->find($variantId);
+                                                if ($variantModel) {
+                                                    $variantSku = $variantSku !== '' ? $variantSku : trim((string) $variantModel->sku);
+                                                    $variantName = $variantName !== '' ? $variantName : trim((string) $variantModel->name);
+                                                    
+                                                    $dynamicAttributes = $variantModel->attributeValues->map(function ($attrVal) {
+                                                        $attrName = trim((string) ($attrVal->attribute?->name ?? ''));
+                                                        $val = trim((string) ($attrVal->value ?? ''));
+                                                        if ($val === '') return null;
+                                                        return $attrName !== '' ? "{$attrName}: {$val}" : $val;
+                                                    })->filter()->implode(', ');
+                                                    
+                                                    if ($dynamicAttributes !== '') {
+                                                        $variantAttributes = $dynamicAttributes;
+                                                    }
+                                                }
+                                            }
+
+                                            $variantLabel = $variantAttributes !== ''
+                                                ? $variantAttributes
+                                                : ($variantName !== ''
+                                                    ? $variantName
                                                     : ($variantId ? ('Variant #' . $variantId) : ''));
                                         @endphp
                                         <div class="d-flex align-items-center">
+                                            <div class="flex-shrink-0 me-3">
+                                                @php
+                                                    $imgUrl = $item['product_image'] ?? '';
+                                                    if ($imgUrl !== '' && !str_starts_with($imgUrl, 'http') && !str_starts_with($imgUrl, 'data:')) {
+                                                        $imgUrl = Storage::url($imgUrl);
+                                                    }
+                                                @endphp
+                                                @if($imgUrl !== '')
+                                                    <img src="{{ $imgUrl }}" alt="Product Image" class="rounded" style="width: 48px; height: 48px; object-fit: cover;">
+                                                @else
+                                                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                                        <i class="fas fa-image text-muted opacity-50"></i>
+                                                    </div>
+                                                @endif
+                                            </div>
                                             <div>
-                                                <strong>Item #{{ $loop->iteration }}</strong>
-                                                {{-- Specific product details hidden as requested --}}
+                                                <strong>{{ $item['product_name'] ?? ('Product #' . ($item['product_id'] ?? 'Unknown')) }}</strong>
+                                                @if($variantLabel)
+                                                    <div class="small text-muted mt-1">{{ $variantLabel }}</div>
+                                                @endif
+                                                @if(!empty($item['product_sku']))
+                                                    <div class="small text-muted mt-1">SKU: {{ $item['product_sku'] }}</div>
+                                                @endif
                                             </div>
                                         </div>
                                     </td>

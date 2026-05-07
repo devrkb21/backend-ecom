@@ -176,7 +176,7 @@ class AbandonedCartController extends Controller
                     'product_id' => $item->product_id,
                     'product_name' => $item->product?->name ?? 'Unknown Product',
                     'product_sku' => $item->product?->sku,
-                    'product_image' => $item->product?->thumbnail,
+                    'product_image' => $item->product?->primary_image_url,
                     'variant_id' => $item->product_variant_id,
                     'variant_name' => $variantName !== '' ? $variantName : null,
                     'variant_sku' => $variantSku !== '' ? $variantSku : null,
