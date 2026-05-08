@@ -49,6 +49,7 @@ class BkashController extends Controller
         $request->validate([
             'order_id' => ['required', 'integer', 'exists:orders,id'],
             'guest_token' => ['nullable', 'string', 'max:255'],
+            'frontend_origin' => ['nullable', 'string', 'url', 'max:255'],
         ]);
 
         try {
@@ -67,6 +68,14 @@ class BkashController extends Controller
             // Verify order is not already paid
             if ($order->payment_status === 'paid') {
                 return $this->errorResponse('Order is already paid.', 400);
+            }
+
+            // Store the frontend origin so callback knows where to redirect
+            $frontendOrigin = $this->validateFrontendOrigin($request->input('frontend_origin'));
+            if ($frontendOrigin) {
+                $checkoutFields = $order->checkout_fields_payload ?? [];
+                $checkoutFields['bkash_return_origin'] = $frontendOrigin;
+                $order->update(['checkout_fields_payload' => $checkoutFields]);
             }
 
             $result = $this->bkashService->createPayment($order);
@@ -108,7 +117,8 @@ class BkashController extends Controller
             return redirect()->to(config('app.frontend_url', '/') . '/checkout/failed?error=order_not_found');
         }
 
-        $frontendUrl = config('app.frontend_url', '');
+        // Resolve the correct frontend URL to redirect to
+        $frontendUrl = $this->resolveCallbackFrontendUrl($order);
 
         if ($status === 'success') {
             try {
@@ -198,6 +208,65 @@ class BkashController extends Controller
         }
 
         return $order->hasValidGuestAccessToken($guestToken);
+    }
+
+    /**
+     * Validate a frontend origin against the allowed list.
+     * Returns the validated origin or null if not allowed.
+     */
+    protected function validateFrontendOrigin(?string $origin): ?string
+    {
+        if (!$origin) {
+            return null;
+        }
+
+        // Normalize: remove trailing slashes
+        $origin = rtrim(trim($origin), '/');
+
+        if (empty($origin)) {
+            return null;
+        }
+
+        // Check against configured allowed origins
+        $allowedOrigins = config('app.allowed_frontend_origins', []);
+
+        if (empty($allowedOrigins)) {
+            // If no whitelist configured, also accept if it matches the default FRONTEND_URL
+            $defaultFrontendUrl = rtrim(config('app.frontend_url', ''), '/');
+            if ($origin === $defaultFrontendUrl) {
+                return $origin;
+            }
+            return null;
+        }
+
+        foreach ($allowedOrigins as $allowed) {
+            if (rtrim(trim($allowed), '/') === $origin) {
+                return $origin;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve the correct frontend URL for post-callback redirect.
+     * Reads the stored bkash_return_origin from the order's checkout_fields_payload,
+     * validates it, and falls back to config('app.frontend_url').
+     */
+    protected function resolveCallbackFrontendUrl(Order $order): string
+    {
+        $checkoutFields = $order->checkout_fields_payload ?? [];
+        $storedOrigin = $checkoutFields['bkash_return_origin'] ?? null;
+
+        if ($storedOrigin) {
+            // Re-validate the stored origin for safety
+            $validated = $this->validateFrontendOrigin($storedOrigin);
+            if ($validated) {
+                return $validated;
+            }
+        }
+
+        return rtrim(config('app.frontend_url', ''), '/');
     }
 
     /**
