@@ -6,6 +6,7 @@ return [
     'debug' => (bool) env('APP_DEBUG', false),
     'url' => env('APP_URL', 'http://localhost'),
     'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
+    'allowed_frontend_origins' => array_filter(array_map('trim', explode(',', env('ALLOWED_FRONTEND_ORIGINS', '')))),
     'asset_url' => env('ASSET_URL'),
     'timezone' => 'Asia/Dhaka',
     'locale' => 'en',
