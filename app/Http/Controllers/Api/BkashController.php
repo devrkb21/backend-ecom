@@ -170,7 +170,9 @@ class BkashController extends Controller
                 return $this->errorResponse('Unauthorized.', 403);
             }
 
-            if (!$order->transaction_id) {
+            $paymentId = $order->bkash_payment_id ?: $order->transaction_id;
+
+            if (!$paymentId) {
                 return $this->errorResponse('No payment initiated for this order.', 400);
             }
 
@@ -184,7 +186,7 @@ class BkashController extends Controller
             }
 
             // Query bKash for current status
-            $result = $this->bkashService->queryPayment($order->transaction_id);
+            $result = $this->bkashService->queryPayment($paymentId);
 
             return $this->successResponse([
                 'status' => $order->payment_status,

@@ -175,6 +175,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/orders/{id}/payment-summary', [OrderController::class, 'paymentSummary'])->where('id', '[0-9]+');
     Route::get('/orders/number/{orderNumber}', [OrderController::class, 'showByNumber'])
         ->where('orderNumber', '[A-Za-z0-9._-]+');
+    Route::get('/orders/number/{orderNumber}/guest', [OrderController::class, 'showByNumberForGuest'])
+        ->where('orderNumber', '[A-Za-z0-9._-]+');
 
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {

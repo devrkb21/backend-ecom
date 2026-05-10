@@ -89,7 +89,7 @@ class StripePaymentService
 
             $payload = [
                 'amount' => $this->convertToCents((float) $order->total),
-                'currency' => strtolower($options['currency'] ?? 'usd'),
+                'currency' => strtolower($options['currency'] ?? 'bdt'),
                 'metadata' => $metadata,
                 'description' => "Order #{$order->order_number}",
                 'receipt_email' => $order->shipping_email,
@@ -112,7 +112,7 @@ class StripePaymentService
                 'client_secret' => $paymentIntent->client_secret,
                 'payment_intent_id' => $paymentIntent->id,
                 'amount' => $order->total,
-                'currency' => strtoupper($options['currency'] ?? 'USD'),
+                'currency' => strtoupper($options['currency'] ?? 'BDT'),
             ];
         } catch (ApiErrorException $e) {
             throw new \Exception('Stripe Error: ' . $e->getMessage());
