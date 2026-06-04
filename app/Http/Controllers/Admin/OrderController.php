@@ -40,7 +40,7 @@ class OrderController extends Controller
             $view = 'all';
         }
 
-        if ($view === 'all' && $request->filled('status')) {
+        if ($request->filled('status')) {
             $requestedStatus = (string) $request->input('status');
             if (in_array($requestedStatus, $statusKeys, true)) {
                 $view = $requestedStatus;
@@ -87,16 +87,32 @@ class OrderController extends Controller
             $query->where('order_source', $request->input('order_source'));
         }
 
+        $dateType = $request->input('date_type') === 'delivered_at' ? 'delivered_at' : 'created_at';
+
         if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->input('date_from'));
+            $query->whereDate($dateType, '>=', $request->input('date_from'));
         }
 
         if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->input('date_to'));
+            $query->whereDate($dateType, '<=', $request->input('date_to'));
         }
 
         if ($request->input('date') === 'today') {
-            $query->whereDate('created_at', \Carbon\Carbon::today());
+            $query->whereDate($dateType, \Carbon\Carbon::today());
+        }
+
+        if ($request->filled('product_id')) {
+            $query->whereHas('items', function ($q) use ($request) {
+                $q->where('product_id', $request->input('product_id'));
+            });
+        }
+
+        if ($request->filled('shipping_method')) {
+            $query->where('shipping_method', $request->input('shipping_method'));
+        }
+
+        if ($request->filled('shipping_district_id')) {
+            $query->where('shipping_district_id', $request->input('shipping_district_id'));
         }
 
         $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
@@ -140,9 +156,14 @@ class OrderController extends Controller
         // Allowed Payment Statuses
         $paymentStatuses = ['pending', 'awaiting', 'paid', 'failed', 'refunded'];
 
+        $products = \App\Models\Product::select('id', 'name')->where('is_active', true)->orderBy('name')->get();
+        $districts = \App\Models\BdDistrict::select('id', 'name')->orderBy('name')->get();
+        $availableShippingMethods = \App\Models\ShippingMethod::select('id', 'name')->where('is_active', true)->orderBy('name')->get();
+
         return view('admin.orders.index', compact(
             'orders', 'view', 'statuses', 'filterCounts', 'bulkStatuses',
-            'orderSources', 'paymentMethods', 'paymentStatuses'
+            'orderSources', 'paymentMethods', 'paymentStatuses',
+            'products', 'districts', 'availableShippingMethods'
         ));
     }
 
@@ -351,6 +372,9 @@ class OrderController extends Controller
         $newStatus = $request->validated()['status'];
 
         if ((string) $oldStatus === (string) $newStatus) {
+            if ($request->ajax()) {
+                return response()->json(['error' => "Cannot change status from {$oldStatus} to {$newStatus}."]);
+            }
             return back()->with('error', "Cannot change status from {$oldStatus} to {$newStatus}.");
         }
 
@@ -358,7 +382,13 @@ class OrderController extends Controller
             $this->restoreOrderStock($order);
         }
 
-        $order->update(['status' => $newStatus]);
+        $updateData = ['status' => $newStatus];
+        if ($newStatus === 'delivered') {
+            $updateData['delivered_at'] = now();
+        } elseif ($oldStatus === 'delivered' && $newStatus !== 'delivered') {
+            $updateData['delivered_at'] = null;
+        }
+        $order->update($updateData);
 
         // Log status change
         $oldLabel = OrderStatus::where('key', $oldStatus)->value('label') ?? ucfirst($oldStatus);
@@ -643,7 +673,13 @@ class OrderController extends Controller
                 $this->restoreOrderStock($order);
             }
 
-            $order->update(['status' => $action]);
+            $bulkUpdateData = ['status' => $action];
+            if ($action === 'delivered') {
+                $bulkUpdateData['delivered_at'] = now();
+            } elseif ($order->status === 'delivered' && $action !== 'delivered') {
+                $bulkUpdateData['delivered_at'] = null;
+            }
+            $order->update($bulkUpdateData);
             $updated++;
 
             // Send SMS notification
