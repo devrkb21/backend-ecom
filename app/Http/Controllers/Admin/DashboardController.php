@@ -39,6 +39,8 @@ class DashboardController extends Controller
         $lastMonth = now()->subMonth()->startOfMonth();
         $lastMonthEnd = now()->subMonth()->endOfMonth();
 
+        $invalidStatuses = ['cancelled', 'failed', 'returned'];
+
         // Overview stats based on selected range
         $rangeProfit = DB::table('order_items')
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
@@ -52,21 +54,21 @@ class DashboardController extends Controller
             ->value('profit') ?? 0;
 
         $overviewStats = [
-            'orders' => Order::whereBetween('created_at', [$startDate, $endDate])->count(),
-            'total_sale' => Order::where('status', 'delivered')->whereNotNull('delivered_at')->whereBetween('delivered_at', [$startDate, $endDate])->sum('total'),
+            'orders' => Order::whereBetween('created_at', [$startDate, $endDate])->whereNotIn('status', $invalidStatuses)->count(),
+            'total_sale' => Order::whereNotIn('status', $invalidStatuses)->whereBetween('created_at', [$startDate, $endDate])->sum('total'),
             'total_profit' => $rangeProfit,
             'new_customers' => User::where('role', 'customer')->whereBetween('created_at', [$startDate, $endDate])->count(),
         ];
 
         // This month stats
         $thisMonthStats = [
-            'orders' => Order::where('created_at', '>=', $thisMonth)->count(),
-            'revenue' => Order::where('status', 'delivered')->where('created_at', '>=', $thisMonth)->sum('total'),
+            'orders' => Order::where('created_at', '>=', $thisMonth)->whereNotIn('status', $invalidStatuses)->count(),
+            'revenue' => Order::whereNotIn('status', $invalidStatuses)->where('created_at', '>=', $thisMonth)->sum('total'),
         ];
 
         // Last month stats for comparison
         $lastMonthStats = [
-            'revenue' => Order::where('status', 'delivered')
+            'revenue' => Order::whereNotIn('status', $invalidStatuses)
                 ->whereBetween('created_at', [$lastMonth, $lastMonthEnd])
                 ->sum('total'),
         ];
@@ -81,7 +83,7 @@ class DashboardController extends Controller
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
             ->leftJoin('product_variants', 'product_variants.id', '=', 'order_items.product_variant_id')
-            ->where('orders.status', 'delivered')
+            ->whereNotIn('orders.status', $invalidStatuses)
             ->whereNull('orders.deleted_at')
             ->select(DB::raw('SUM(order_items.total - (order_items.quantity * COALESCE(product_variants.purchase_price, products.buy_price, 0))) as profit'))
             ->value('profit') ?? 0;
@@ -89,8 +91,8 @@ class DashboardController extends Controller
         $stats = [
             'total_users' => User::where('role', 'customer')->count(),
             'total_products' => Product::count(),
-            'total_orders' => Order::count(),
-            'total_sale' => Order::where('status', 'delivered')->sum('total'),
+            'total_orders' => Order::whereNotIn('status', $invalidStatuses)->count(),
+            'total_sale' => Order::whereNotIn('status', $invalidStatuses)->sum('total'),
             'pending_orders' => Order::where('status', 'pending')->count(),
             'processing_orders' => Order::where('status', 'processing')->count(),
             'total_profit' => $totalProfit,
