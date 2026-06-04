@@ -48,60 +48,127 @@
                 <input type="hidden" name="view" value="{{ $activeView }}">
             @endif
 
-            <div class="row g-2 align-items-end">
+            <div class="row g-3">
                 <div class="col-md-3">
-                    <label class="form-label small text-muted mb-1">Search</label>
-                    <input
-                        type="text"
-                        name="search"
-                        value="{{ request('search') }}"
-                        class="form-control form-control-sm"
-                        placeholder="Order #, Name, Email"
-                    >
+                    <label class="form-label small text-muted mb-1 fw-bold">Search</label>
+                    <input type="text" name="search" value="{{ request('search') }}" class="form-control form-control-sm" placeholder="Order #, Name, Email, Phone">
                 </div>
                 
-                <div class="col-md-2">
-                    <label class="form-label small text-muted mb-1">Payment Method</label>
-                    <select name="payment_method" class="form-select form-select-sm">
-                        <option value="">All Methods</option>
-                        @foreach($paymentMethods as $method)
-                            <option value="{{ $method }}" {{ request('payment_method') === $method ? 'selected' : '' }}>
-                                {{ ucfirst($method) }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="col-md-2">
-                    <label class="form-label small text-muted mb-1">Payment Status</label>
-                    <select name="payment_status" class="form-select form-select-sm">
-                        <option value="">All Statuses</option>
-                        @foreach($paymentStatuses as $status)
-                            <option value="{{ $status }}" {{ request('payment_status') === $status ? 'selected' : '' }}>
-                                {{ ucfirst($status) }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="col-md-2">
-                    <label class="form-label small text-muted mb-1">Order Source</label>
-                    <select name="order_source" class="form-select form-select-sm">
-                        <option value="">All Sources</option>
-                        @foreach($orderSources as $source)
-                            <option value="{{ $source }}" {{ request('order_source') === $source ? 'selected' : '' }}>
-                                {{ ucfirst($source) }}
-                            </option>
-                        @endforeach
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1 fw-bold">Product</label>
+                    <select name="product_id" class="form-select form-select-sm select2">
+                        <option value="">All Products</option>
+                        @if(isset($products))
+                            @foreach($products as $product)
+                                <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>
+                                    {{ $product->name }}
+                                </option>
+                            @endforeach
+                        @endif
                     </select>
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label small text-muted mb-1">Date Range</label>
+                    <label class="form-label small text-muted mb-1 fw-bold">Date Filter Type</label>
+                    <select name="date_type" class="form-select form-select-sm">
+                        <option value="created_at" {{ request('date_type') === 'created_at' ? 'selected' : '' }}>Order Date</option>
+                        <option value="delivered_at" {{ request('date_type') === 'delivered_at' ? 'selected' : '' }}>Delivery Date</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1 fw-bold">Date Range</label>
                     <div class="input-group input-group-sm">
                         <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}" title="Start Date">
                         <span class="input-group-text border-0 bg-transparent px-1">-</span>
                         <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}" title="End Date">
+                    </div>
+                </div>
+
+                <!-- Collapsible Advanced Filters -->
+                <div class="col-12 mt-2">
+                    <button class="btn btn-sm btn-link text-decoration-none p-0" type="button" data-bs-toggle="collapse" data-bs-target="#advancedFilters" aria-expanded="{{ request()->hasAny(['status', 'payment_method', 'payment_status', 'order_source', 'shipping_method', 'shipping_district_id']) ? 'true' : 'false' }}">
+                        <i class="bi bi-sliders"></i> Advanced Filters
+                    </button>
+                    
+                    <div class="collapse mt-2 {{ request()->hasAny(['status', 'payment_method', 'payment_status', 'order_source', 'shipping_method', 'shipping_district_id']) ? 'show' : '' }}" id="advancedFilters">
+                        <div class="row g-2 p-3 bg-light rounded border">
+                            <div class="col-md-2">
+                                <label class="form-label small text-muted mb-1">Order Status</label>
+                                <select name="status" class="form-select form-select-sm">
+                                    <option value="">All Statuses</option>
+                                    @foreach($statuses as $st)
+                                        <option value="{{ $st->key }}" {{ (request('status') === $st->key || $activeView === $st->key) ? 'selected' : '' }}>
+                                            {{ $st->label }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small text-muted mb-1">Payment Method</label>
+                                <select name="payment_method" class="form-select form-select-sm">
+                                    <option value="">All Methods</option>
+                                    @foreach($paymentMethods as $method)
+                                        <option value="{{ $method }}" {{ request('payment_method') === $method ? 'selected' : '' }}>
+                                            {{ ucfirst($method) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small text-muted mb-1">Payment Status</label>
+                                <select name="payment_status" class="form-select form-select-sm">
+                                    <option value="">All Statuses</option>
+                                    @foreach($paymentStatuses as $status)
+                                        <option value="{{ $status }}" {{ request('payment_status') === $status ? 'selected' : '' }}>
+                                            {{ ucfirst($status) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small text-muted mb-1">Order Source</label>
+                                <select name="order_source" class="form-select form-select-sm">
+                                    <option value="">All Sources</option>
+                                    @foreach($orderSources as $source)
+                                        <option value="{{ $source }}" {{ request('order_source') === $source ? 'selected' : '' }}>
+                                            {{ ucfirst($source) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted mb-1">Shipping Method</label>
+                                <select name="shipping_method" class="form-select form-select-sm">
+                                    <option value="">All Shipping Methods</option>
+                                    @if(isset($availableShippingMethods))
+                                        @foreach($availableShippingMethods as $method)
+                                            <option value="{{ $method->name }}" {{ request('shipping_method') === $method->name ? 'selected' : '' }}>
+                                                {{ $method->name }}
+                                            </option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted mb-1">District</label>
+                                <select name="shipping_district_id" class="form-select form-select-sm select2">
+                                    <option value="">All Districts</option>
+                                    @if(isset($districts))
+                                        @foreach($districts as $district)
+                                            <option value="{{ $district->id }}" {{ request('shipping_district_id') == $district->id ? 'selected' : '' }}>
+                                                {{ $district->name }}
+                                            </option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -283,7 +350,24 @@
                                         {{ $statusLabel }}
                                     </span>
                                 </td>
-                                <td>{{ $order->created_at->format('M d, Y H:i') }}</td>
+                                <td>
+                                    @php
+                                        $createdAt = $order->created_at;
+                                        if ($createdAt->diffInHours(now()) < 24) {
+                                            $dateDisplay = $createdAt->diffForHumans();
+                                        } else {
+                                            $dateDisplay = $createdAt->format('d M, Y h:i:s A');
+                                        }
+                                        $delAt = $order->delivered_at;
+                                    @endphp
+                                    <div class="small fw-semibold">{{ $dateDisplay }}</div>
+                                    @if($delAt)
+                                        <div class="small text-muted" style="font-size: 0.75rem;" title="Delivered At">
+                                            <i class="bi bi-truck me-1"></i>
+                                            {{ $delAt->diffInHours(now()) < 24 ? $delAt->diffForHumans() : $delAt->format('d M, Y h:i A') }}
+                                        </div>
+                                    @endif
+                                </td>
                                 <td>
                                     <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-sm btn-outline-info">
                                         <i class="bi bi-eye"></i> View

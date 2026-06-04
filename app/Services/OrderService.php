@@ -280,15 +280,26 @@ class OrderService
                 $shippingArea = $shippingLocationText;
             }
 
-            $shippingAddressParts = array_filter([
-                $canonicalShipping['shipping_address'] ?? null,
+            $baseShippingAddress = trim((string) ($canonicalShipping['shipping_address'] ?? ''));
+            $baseShippingAddressLower = strtolower($baseShippingAddress);
+            $shippingAddressParts = [$baseShippingAddress];
+
+            $candidates = [
                 $shippingArea,
                 $union?->name,
                 $upazila?->name,
                 $district?->name,
-            ]);
+            ];
 
-            $normalizedShippingAddress = implode(', ', $shippingAddressParts);
+            foreach ($candidates as $candidate) {
+                $val = trim((string) $candidate);
+                if ($val !== '' && stripos($baseShippingAddressLower, $val) === false) {
+                    $shippingAddressParts[] = $val;
+                    $baseShippingAddressLower .= ', ' . strtolower($val);
+                }
+            }
+
+            $normalizedShippingAddress = implode(', ', array_filter($shippingAddressParts, fn($p) => $p !== ''));
 
             // Calculate payment gateway extra charge (e.g., COD fee)
             $paymentCharge = $this->calculatePaymentCharge($paymentGateway, $subtotal + $tax + $shipping - $discountAmount);
