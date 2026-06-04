@@ -765,6 +765,7 @@
             </div>
 
             <div class="d-flex align-items-center">
+                <span id="realtimeClock" class="me-3 text-muted small fw-semibold d-none d-lg-inline" style="font-variant-numeric: tabular-nums;"></span>
                 <span class="me-3 text-nowrap">{{ auth()->user()->name }}</span>
                 <form action="{{ route('admin.logout') }}" method="POST" class="d-inline">
                     @csrf
@@ -780,6 +781,23 @@
             @yield('content')
         </div>
     </div>
+
+    <script>
+        function updateRealtimeClock() {
+            const clockEl = document.getElementById('realtimeClock');
+            if (clockEl) {
+                const now = new Date();
+                const options = { 
+                    year: 'numeric', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    hour12: true
+                };
+                clockEl.textContent = now.toLocaleString('en-US', options);
+            }
+        }
+        setInterval(updateRealtimeClock, 1000);
+        updateRealtimeClock();
+    </script>
 
     <div id="adminAjaxProgress" aria-hidden="true">
         <div class="admin-ajax-progress-bar"></div>

@@ -163,13 +163,13 @@
                 @if($product->short_description)
                     <hr>
                     <h6>Short Description</h6>
-                    <p class="text-muted">{{ $product->short_description }}</p>
+                    <div class="text-muted">{!! $product->short_description !!}</div>
                 @endif
 
                 @if($product->description)
                     <hr>
                     <h6>Full Description</h6>
-                    <p class="text-muted">{!! nl2br(e($product->description)) !!}</p>
+                    <div class="text-muted">{!! $product->description !!}</div>
                 @endif
             </div>
         </div>
