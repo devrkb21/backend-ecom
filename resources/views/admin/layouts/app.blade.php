@@ -1829,6 +1829,10 @@
 
                 document.addEventListener('submit', handleGlobalFormSubmit);
 
+                window.addEventListener('popstate', function(event) {
+                    window.location.reload();
+                });
+
                 document.addEventListener('click', function (event) {
                     const anchor = event.target.closest('a[href]');
                     if (shouldSkipLink(anchor, event)) {

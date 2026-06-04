@@ -130,6 +130,7 @@
                         <option value="">Bulk Mark / Action</option>
                         @if($activeView === 'trash')
                             <option value="restore">Restore Selected</option>
+                            <option value="force_delete" class="text-danger">Permanently Delete</option>
                         @else
                             @foreach($bulkStatuses as $statusOption)
                                 <option value="{{ $statusOption->key }}">Mark as {{ $statusOption->label }}</option>
@@ -366,9 +367,12 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const confirmationMessage = actionSelect.value === 'trash'
-            ? 'Are you sure you want to move selected orders to trash?'
-            : 'Are you sure you want to apply this bulk action?';
+        let confirmationMessage = 'Are you sure you want to apply this bulk action?';
+        if (actionSelect.value === 'trash') {
+            confirmationMessage = 'Are you sure you want to move selected orders to trash?';
+        } else if (actionSelect.value === 'force_delete') {
+            confirmationMessage = 'WARNING: Are you sure you want to permanently delete selected orders? This action cannot be undone!';
+        }
 
         if (!window.confirm(confirmationMessage)) {
             event.preventDefault();

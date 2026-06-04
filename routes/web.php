@@ -62,6 +62,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Customer Groups & Customer Analytics
         Route::resource('customer-groups', App\Http\Controllers\Admin\CustomerGroupController::class);
         Route::get('customers', [App\Http\Controllers\Admin\CustomerController::class, 'index'])->name('customers.index');
+        Route::get('customers/{phone}', [App\Http\Controllers\Admin\CustomerController::class, 'show'])->name('customers.show');
+        Route::put('customers/{phone}', [App\Http\Controllers\Admin\CustomerController::class, 'update'])->name('customers.update');
+        Route::delete('customers/{phone}', [App\Http\Controllers\Admin\CustomerController::class, 'destroy'])->name('customers.destroy');
+        Route::post('customers/{phone}/assign-group', [App\Http\Controllers\Admin\CustomerController::class, 'assignGroup'])->name('customers.assign-group');
 
         // Loyalty Rewards
         Route::resource('loyalty-rewards', App\Http\Controllers\Admin\LoyaltyRewardController::class);
@@ -104,14 +108,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('orders/create', [OrderController::class, 'create'])->name('orders.create');
         Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
         Route::get('orders/search-products', [OrderController::class, 'searchProducts'])->name('orders.search-products');
+        Route::get('orders/district-shipping-rate', [OrderController::class, 'getDistrictShippingRate'])->name('orders.district-shipping-rate');
         Route::post('orders/bulk-action', [OrderController::class, 'bulkAction'])->name('orders.bulk-action');
-        Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
+        Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show')->withTrashed();
+        Route::post('orders/{order}/restore', [OrderController::class, 'restore'])->name('orders.restore')->withTrashed();
         Route::patch('orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
         Route::patch('orders/{order}/source', [OrderController::class, 'updateSource'])->name('orders.update-source');
         Route::post('orders/{order}/apply-discount', [OrderController::class, 'applyDiscount'])->name('orders.apply-discount');
         Route::post('orders/{order}/remove-discount', [OrderController::class, 'removeDiscount'])->name('orders.remove-discount');
         Route::post('orders/{order}/send-sms', [OrderController::class, 'sendSms'])->name('orders.send-sms');
         Route::patch('orders/{order}/payment-status', [OrderController::class, 'updatePaymentStatus'])->name('orders.update-payment-status');
+        Route::patch('orders/{order}/customer-info', [OrderController::class, 'updateCustomerInfo'])->name('orders.update-customer-info');
+        Route::post('orders/{order}/items', [OrderController::class, 'updateItems'])->name('orders.update-items');
 
         // Order Tracking
         Route::get('orders/{order}/tracking', [OrderTrackingController::class, 'edit'])->name('orders.tracking.edit');
