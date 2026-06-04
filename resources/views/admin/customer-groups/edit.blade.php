@@ -49,6 +49,14 @@
                         <i class="bi bi-info-circle me-1"></i> A customer is placed in this group if they meet <strong>EITHER</strong> the minimum order count <strong>OR</strong> the minimum total spent threshold.
                     </div>
 
+                    <h6 class="mt-4 mb-3 text-muted text-uppercase small border-bottom pb-2">Manual Assignment</h6>
+                    <div class="mb-3">
+                        <label class="form-label">Manual Phone Numbers</label>
+                        <textarea name="manual_numbers" class="form-control @error('manual_numbers') is-invalid @enderror" rows="3" placeholder="017xxxxxxxx, 018xxxxxxxx, ...">{{ old('manual_numbers', $customerGroup->manual_numbers ?? '') }}</textarea>
+                        <div class="form-text">Enter comma-separated phone numbers. Customers with these numbers will ALWAYS be assigned to this group regardless of order count/spent.</div>
+                        @error('manual_numbers')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+
                     <h6 class="mt-4 mb-3 text-muted text-uppercase small border-bottom pb-2">Benefits & Messaging</h6>
                     <div class="mb-3">
                         <label class="form-label">Discount Percentage (%) <span class="text-danger">*</span></label>
@@ -58,8 +66,8 @@
 
                     <div class="mb-3">
                         <label class="form-label">Custom Popup Message</label>
-                        <textarea name="custom_message" class="form-control @error('custom_message') is-invalid @enderror" rows="3" placeholder="e.g. Congratulations! As a Gold Member, you get 10% off your order!">{{ old('custom_message', $customerGroup->custom_message ?? '') }}</textarea>
-                        <div class="form-text">This message will popup on the checkout page when they enter their phone number.</div>
+                        <textarea name="custom_message" class="form-control @error('custom_message') is-invalid @enderror" rows="3" placeholder="e.g. Congratulations {name}! As a Gold Member, you get 10% off your order!">{{ old('custom_message', $customerGroup->custom_message ?? '') }}</textarea>
+                        <div class="form-text">This message will popup on the checkout page when they enter their phone number. You can use the shortcode <strong>{name}</strong> to show the customer's name!</div>
                         @error('custom_message')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
 

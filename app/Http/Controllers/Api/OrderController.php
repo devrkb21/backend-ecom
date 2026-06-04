@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\StoreOrderRequest;
 use App\Http\Requests\Order\UpdateOrderStatusRequest;
 use App\Http\Resources\OrderResource;
+use App\Models\Order;
 use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -54,13 +55,9 @@ class OrderController extends Controller
 
     public function showByNumber(Request $request, string $orderNumber): JsonResponse
     {
-        $normalizedOrderNumber = strtoupper(trim($orderNumber));
+        $normalizedOrderNumber = $this->normalizeOrderNumber($orderNumber);
 
-        if (
-            $normalizedOrderNumber === ''
-            || strlen($normalizedOrderNumber) > 64
-            || !preg_match('/^[A-Z0-9][A-Z0-9._-]*$/', $normalizedOrderNumber)
-        ) {
+        if (!$this->isValidOrderNumber($normalizedOrderNumber)) {
             return $this->errorResponse('Order not found', 404);
         }
 
@@ -68,6 +65,50 @@ class OrderController extends Controller
 
         if (!$order) {
             return $this->errorResponse('Order not found', 404);
+        }
+
+        $requestUser = $request->user('sanctum') ?? $request->user();
+
+        if (!$requestUser) {
+            return $this->successResponse($this->buildOrderSummary($order));
+        }
+
+        if (!$requestUser->isAdmin() && $order->user_id !== $requestUser->id) {
+            return $this->errorResponse('Unauthorized', 403);
+        }
+
+        $order->loadMissing([
+            'items.product',
+            'items.variant.attributeValues.attribute',
+            'payment',
+            'trackingHistory',
+            'shippingDivision',
+            'shippingDistrict',
+            'shippingUpazila',
+            'shippingUnion',
+        ]);
+
+        return $this->successResponse(new OrderResource($order));
+    }
+
+    public function showByNumberForGuest(Request $request, string $orderNumber): JsonResponse
+    {
+        $normalizedOrderNumber = $this->normalizeOrderNumber($orderNumber);
+
+        if (!$this->isValidOrderNumber($normalizedOrderNumber)) {
+            return $this->errorResponse('Order not found', 404);
+        }
+
+        $order = $this->orderService->getOrderByNumber($normalizedOrderNumber);
+
+        if (!$order) {
+            return $this->errorResponse('Order not found', 404);
+        }
+
+        $guestToken = trim((string) $request->query('guest_token', ''));
+
+        if (!$order->hasValidGuestAccessToken($guestToken)) {
+            return $this->errorResponse('Unauthorized', 403);
         }
 
         $order->loadMissing([
@@ -204,5 +245,31 @@ class OrderController extends Controller
         $orders = $this->orderService->getOrdersByStatus($status);
 
         return $this->successResponse(OrderResource::collection($orders));
+    }
+
+    protected function normalizeOrderNumber(string $orderNumber): string
+    {
+        return strtoupper(trim($orderNumber));
+    }
+
+    protected function isValidOrderNumber(string $orderNumber): bool
+    {
+        if ($orderNumber === '' || strlen($orderNumber) > 64) {
+            return false;
+        }
+
+        return preg_match('/^[A-Z0-9][A-Z0-9._-]*$/', $orderNumber) === 1;
+    }
+
+    protected function buildOrderSummary(Order $order): array
+    {
+        return [
+            'id' => $order->id,
+            'order_number' => $order->order_number,
+            'status' => $order->status,
+            'payment_status' => $order->payment_status,
+            'payment_method' => $order->payment_method,
+            'total' => (float) $order->total,
+        ];
     }
 }

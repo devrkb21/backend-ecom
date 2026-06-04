@@ -14,6 +14,7 @@ class CustomerGroup extends Model
         'description',
         'min_order_count',
         'min_total_spent',
+        'manual_numbers',
         'discount_percentage',
         'custom_message',
         'is_active',
@@ -31,25 +32,35 @@ class CustomerGroup extends Model
     /**
      * Get the highest qualifying group for a given order count and spent amount.
      */
-    public static function getQualifyingGroup(int $orderCount, float $totalSpent): ?self
+    public static function getQualifyingGroup(int $orderCount, float $totalSpent, ?string $phone = null): ?self
     {
-        return self::where('is_active', true)
-            ->where(function ($query) use ($orderCount, $totalSpent) {
-                // Number must meet either order count threshold OR total spent threshold (if they are non-zero)
-                // If a threshold is 0, it means that condition is disabled. Wait, if both are 0, it's a default group?
-                // Let's say: rule is satisfied if (min_order_count > 0 AND orderCount >= min_order_count) 
-                // OR (min_total_spent > 0 AND totalSpent >= min_total_spent)
-                $query->where(function ($q) use ($orderCount) {
-                    $q->where('min_order_count', '>', 0)
-                      ->where('min_order_count', '<=', $orderCount);
-                })->orWhere(function ($q) use ($totalSpent) {
-                    $q->where('min_total_spent', '>', 0)
-                      ->where('min_total_spent', '<=', $totalSpent);
-                });
-            })
-            // Sort by sort_order ascending, then highest discount first, then highest threshold first
+        $groups = self::where('is_active', true)
             ->orderBy('sort_order', 'asc')
             ->orderBy('discount_percentage', 'desc')
-            ->first();
+            ->get();
+            
+        $cleanedPhone = $phone ? preg_replace('/[^0-9]/', '', $phone) : null;
+
+        foreach ($groups as $group) {
+            // Check manual assignment first
+            if ($cleanedPhone && $group->manual_numbers) {
+                $manualNumbers = array_map('trim', explode(',', $group->manual_numbers));
+                $manualNumbers = array_map(fn($num) => preg_replace('/[^0-9]/', '', $num), $manualNumbers);
+                
+                if (in_array($cleanedPhone, $manualNumbers)) {
+                    return $group;
+                }
+            }
+
+            // Check auto-assign rules
+            $meetsOrderCount = $group->min_order_count > 0 && $orderCount >= $group->min_order_count;
+            $meetsSpent = $group->min_total_spent > 0 && $totalSpent >= $group->min_total_spent;
+
+            if ($meetsOrderCount || $meetsSpent) {
+                return $group;
+            }
+        }
+
+        return null;
     }
 }

@@ -46,13 +46,14 @@ class DashboardController extends Controller
             ->leftJoin('product_variants', 'product_variants.id', '=', 'order_items.product_variant_id')
             ->where('orders.status', 'delivered')
             ->whereNull('orders.deleted_at')
-            ->whereBetween('orders.created_at', [$startDate, $endDate])
+            ->whereNotNull('orders.delivered_at')
+            ->whereBetween('orders.delivered_at', [$startDate, $endDate])
             ->select(DB::raw('SUM(order_items.total - (order_items.quantity * COALESCE(product_variants.purchase_price, products.buy_price, 0))) as profit'))
             ->value('profit') ?? 0;
 
         $overviewStats = [
             'orders' => Order::whereBetween('created_at', [$startDate, $endDate])->count(),
-            'total_sale' => Order::where('status', 'delivered')->whereBetween('created_at', [$startDate, $endDate])->sum('total'),
+            'total_sale' => Order::where('status', 'delivered')->whereNotNull('delivered_at')->whereBetween('delivered_at', [$startDate, $endDate])->sum('total'),
             'total_profit' => $rangeProfit,
             'new_customers' => User::where('role', 'customer')->whereBetween('created_at', [$startDate, $endDate])->count(),
         ];

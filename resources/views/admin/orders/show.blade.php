@@ -12,23 +12,37 @@
                     <a href="{{ route('admin.orders.index') }}" class="btn btn-sm btn-outline-secondary me-2">
                         <i class="bi bi-arrow-left"></i>
                     </a>
-                    <h6 class="mb-0 fw-semibold">
-                        <i class="bi bi-receipt me-2"></i>Order #{{ $order->order_number ?? $order->id }}
-                        <small class="text-muted ms-2">ID: {{ $order->id }}</small>
+                    <h6 class="mb-0 fw-semibold d-flex align-items-center">
+                        <span><i class="bi bi-receipt me-2"></i>Order #{{ $order->order_number ?? $order->id }}</span>
+                        <small class="text-muted ms-2" style="font-size: 13px;">ID: {{ $order->id }}</small>
                     </h6>
+                    @if($order->trashed())
+                        <span class="badge bg-danger ms-3"><i class="bi bi-trash me-1"></i> TRASHED</span>
+                        <form action="{{ route('admin.orders.restore', $order) }}" method="POST" class="ms-2 mb-0">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-success py-0 px-2" style="font-size: 12px;">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Restore Order
+                            </button>
+                        </form>
+                    @endif
                 </div>
                 @php
                     $headerStatusLabel = $order->statusConfig?->label ?? ucfirst(str_replace('_', ' ', $order->status));
                     $headerStatusColor = $order->statusConfig?->color ?? '#6C757D';
                 @endphp
-                <span class="badge fs-6 text-white" style="background-color: {{ $headerStatusColor }};">
+                <span id="headerStatusBadge" class="badge fs-6 text-white" style="background-color: {{ $headerStatusColor }};">
                     {{ $headerStatusLabel }}
                 </span>
             </div>
             <div class="card-body">
                 <div class="row mb-4">
                     <div class="col-12 mb-4">
-                        <h6 class="text-muted small text-uppercase mb-2">Contact Information</h6>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="text-muted small text-uppercase mb-0">Contact Information</h6>
+                            <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" data-bs-toggle="modal" data-bs-target="#editCustomerInfoModal">
+                                <i class="bi bi-pencil-square me-1"></i><small>Edit</small>
+                            </button>
+                        </div>
                         @php
                             $checkoutPayloadForCustomer = is_array($order->checkout_fields_payload) ? $order->checkout_fields_payload : [];
 
@@ -125,9 +139,12 @@
                                         <th class="text-muted text-uppercase small">Phone</th>
                                         <td>
                                             @if($customerPhone !== '')
-                                                <a href="tel:{{ $customerPhone }}" class="btn btn-sm btn-success">
-                                                    <i class="bi bi-telephone me-1"></i>{{ $customerPhone }}
-                                                </a>
+                                                <span class="d-inline-flex align-items-center gap-2">
+                                                    <span id="customerPhoneDisplay">{{ $customerPhone }}</span>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 copy-phone-btn" data-phone="{{ $customerPhone }}" title="Copy number">
+                                                        <i class="bi bi-clipboard"></i>
+                                                    </button>
+                                                </span>
                                             @else
                                                 <span class="text-muted">Not provided</span>
                                             @endif
@@ -183,10 +200,14 @@
                                 $order->shipping_country
                             ];
                             
+                            // Combine all existing displayed text to check for duplicates
+                            $alreadyDisplayed = strtolower($shippingAddress . ' ' . $shippingLocationText . ' ' . $shippingArea);
+                            
                             foreach ($candidates as $candidate) {
                                 $val = trim((string) $candidate);
-                                // don't add if empty, "0000", or already in the parts list
-                                if ($val !== '' && $val !== '0000' && !in_array($val, $geoParts, true)) {
+                                // don't add if empty, "0000", already in the parts list, or already visible in the address
+                                if ($val !== '' && $val !== '0000' && !in_array($val, $geoParts, true)
+                                    && stripos($alreadyDisplayed, $val) === false) {
                                     $geoParts[] = $val;
                                 }
                             }
@@ -204,19 +225,26 @@
                             <p class="mb-1 text-muted small"><i class="bi bi-geo-alt me-1"></i>{{ $shippingLocationText }}</p>
                         @endif
 
-                        @if($shippingArea !== '')
+                        @if($shippingArea !== '' && stripos($shippingAddress, $shippingArea) === false)
                             <p class="mb-1 text-muted small"><i class="bi bi-map me-1"></i>{{ $shippingArea }}</p>
                         @endif
 
                         @if($cleanLocationLine !== '')
-                            <p class="mb-1">{{ $cleanLocationLine }}</p>
+                            <p class="mb-1 text-muted small">{{ $cleanLocationLine }}</p>
                         @endif
                     </div>
                 </div>
 
                 <hr>
 
-                <h6 class="mb-3 fw-semibold"><i class="bi bi-box me-2"></i>Order Items</h6>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0 fw-semibold"><i class="bi bi-box me-2"></i>Order Items</h6>
+                    @if(!in_array($order->status, ['shipped', 'delivered', 'cancelled', 'returned', 'refunded', 'completed', 'failed']))
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editItemsModal">
+                            <i class="bi bi-pencil me-1"></i>Edit Items
+                        </button>
+                    @endif
+                </div>
                 <div class="table-responsive">
                     <table class="table">
                         <thead>
@@ -379,82 +407,28 @@
 
                 @if($order->notes)
                     <hr>
-                    <h6>Notes</h6>
-                    <p class="text-muted">{{ $order->notes }}</p>
-                @endif
-
-                @php
-                    $rawCheckoutPayload = is_array($order->checkout_fields_payload) ? $order->checkout_fields_payload : [];
-                    $checkoutPayload = array_filter($rawCheckoutPayload, static function ($value) {
-                        if ($value === null) {
-                            return false;
-                        }
-
-                        return trim((string) $value) !== '';
-                    });
-
-                    $checkoutFieldLabels = [
-                        'shipping_name' => 'Shipping Name',
-                        'shipping_email' => 'Shipping Email',
-                        'shipping_phone' => 'Shipping Phone',
-                        'shipping_address' => 'Shipping Address',
-                        'shipping_location_text' => 'Shipping Location',
-                        'shipping_area' => 'Shipping Area',
-                        'shipping_division_id' => 'Shipping Division',
-                        'shipping_district_id' => 'Shipping District',
-                        'shipping_upazila_id' => 'Shipping Upazila',
-                        'shipping_union_id' => 'Shipping Union',
-                        'shipping_city' => 'Shipping City',
-                        'shipping_state' => 'Shipping State',
-                        'shipping_zip' => 'Shipping ZIP/Postal Code',
-                        'shipping_country' => 'Shipping Country',
-                        'billing_first_name' => 'Billing First Name',
-                        'billing_last_name' => 'Billing Last Name',
-                        'billing_name' => 'Billing Name',
-                        'billing_email' => 'Billing Email',
-                        'billing_phone' => 'Billing Phone',
-                        'billing_address_1' => 'Billing Address Line 1',
-                        'billing_address_2' => 'Billing Address Line 2',
-                        'billing_city' => 'Billing City',
-                        'billing_state' => 'Billing State',
-                        'billing_postcode' => 'Billing ZIP/Postal Code',
-                        'billing_country' => 'Billing Country',
-                        'order_notes' => 'Order Notes',
-                        'notes' => 'Notes',
-                    ];
-                @endphp
-
-                @if(!empty($checkoutPayload))
-                    <hr>
-                    <h6 class="mb-3 fw-semibold"><i class="bi bi-file-earmark-text me-2"></i>Checkout Details</h6>
-                    <div class="table-responsive">
-                        <table class="table table-sm align-middle mb-0">
-                            <tbody>
-                                @foreach($checkoutPayload as $fieldKey => $rawValue)
-                                    @php
-                                        $normalizedKey = strtolower(trim((string) $fieldKey));
-                                        $label = $checkoutFieldLabels[$normalizedKey] ?? ucwords(str_replace('_', ' ', $normalizedKey));
-                                        $displayValue = trim((string) $rawValue);
-
-                                        if ($normalizedKey === 'shipping_division_id' && $order->shippingDivision?->name) {
-                                            $displayValue = $order->shippingDivision->name;
-                                        } elseif ($normalizedKey === 'shipping_district_id' && $order->shippingDistrict?->name) {
-                                            $displayValue = $order->shippingDistrict->name;
-                                        } elseif ($normalizedKey === 'shipping_upazila_id' && $order->shippingUpazila?->name) {
-                                            $displayValue = $order->shippingUpazila->name;
-                                        } elseif ($normalizedKey === 'shipping_union_id' && $order->shippingUnion?->name) {
-                                            $displayValue = $order->shippingUnion->name;
-                                        }
-                                    @endphp
-                                    <tr>
-                                        <th class="text-muted" style="width: 35%;">{{ $label }}</th>
-                                        <td>{{ $displayValue }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0">Notes</h6>
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" data-bs-toggle="collapse" data-bs-target="#editNotesForm">
+                            <i class="bi bi-pencil me-1"></i><small>Edit</small>
+                        </button>
+                    </div>
+                    <p class="text-muted mb-2">{{ $order->notes }}</p>
+                    <div class="collapse" id="editNotesForm">
+                        <form action="{{ route('admin.orders.update-customer-info', $order) }}" method="POST">
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="shipping_name" value="{{ $order->shipping_name }}">
+                            <input type="hidden" name="shipping_phone" value="{{ $order->shipping_phone }}">
+                            <div class="input-group input-group-sm">
+                                <textarea class="form-control" name="notes" rows="2">{{ $order->notes }}</textarea>
+                                <button type="submit" class="btn btn-outline-primary"><i class="bi bi-check-lg"></i></button>
+                            </div>
+                        </form>
                     </div>
                 @endif
+
+                {{-- Checkout Details section removed — all needed info shown above --}}
             </div>
         </div>
     </div>
@@ -509,7 +483,7 @@
         <div class="card mb-4">
             <div class="card-header">Update Status</div>
             <div class="card-body">
-                <form action="{{ route('admin.orders.update-status', $order) }}" method="POST">
+                <form action="{{ route('admin.orders.update-status', $order) }}" method="POST" id="updateStatusForm">
                     @csrf
                     @method('PATCH')
 
@@ -798,6 +772,189 @@
         </div>
     </div>
 
+    {{-- Edit Order Items Modal --}}
+    <div class="modal fade" id="editItemsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <form action="{{ route('admin.orders.update-items', $order) }}" method="POST" id="editItemsForm">
+                    @csrf
+                    <div class="modal-header bg-primary bg-opacity-10 border-0">
+                        <h5 class="modal-title text-primary"><i class="bi bi-box me-2"></i>Edit Order Items</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="position-relative mb-3">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control" id="modalProductSearchInput" placeholder="Search product by name or SKU..." autocomplete="off">
+                            </div>
+                            <div id="modalProductSearchResults" class="position-absolute w-100 bg-white border rounded-bottom shadow-sm" style="display:none; z-index:1050; max-height:300px; overflow-y:auto;"></div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0" id="modalOrderItemsTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width:40px"></th>
+                                        <th>Product</th>
+                                        <th style="width:100px">Price (৳)</th>
+                                        <th style="width:80px">Qty</th>
+                                        <th style="width:90px" class="text-end">Total</th>
+                                        <th style="width:40px"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modalOrderItemsBody">
+                                    <tr id="modalNoItemsRow" style="{{ $order->items->count() > 0 ? 'display:none;' : '' }}">
+                                        <td colspan="6" class="text-center text-muted py-4">
+                                            <i class="bi bi-cart3 fs-3 d-block mb-2"></i>
+                                            Search and add products above
+                                        </td>
+                                    </tr>
+                                    @foreach($order->items as $index => $item)
+                                        @php
+                                            $variantName = trim((string) ($item->variant?->name ?? ''));
+                                            $variantSku = trim((string) ($item->variant?->sku ?? ''));
+                                            if ($variantSku === '' && $item->product_variant_id) {
+                                                $variantSku = trim((string) ($item->product_sku ?? ''));
+                                            }
+                                            $variantAttributeSummary = '';
+                                            if ($item->variant && $item->variant->relationLoaded('attributeValues')) {
+                                                $variantAttributeSummary = $item->variant->attributeValues->map(fn($av) => $av->value)->filter()->implode(' / ');
+                                            }
+                                            $variantLabel = $variantName !== '' ? $variantName : ($variantAttributeSummary !== '' ? $variantAttributeSummary : '');
+                                        @endphp
+                                        <tr class="order-item-row" data-idx="{{ $index }}">
+                                            <td>
+                                                @if($item->product && $item->product->images && $item->product->images->isNotEmpty())
+                                                    <img src="{{ $item->product->images->first()->url }}" style="width:36px;height:36px;object-fit:cover;" class="rounded">
+                                                @else
+                                                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width:36px;height:36px;"><i class="bi bi-image text-muted small"></i></div>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                <div class="fw-semibold small">{{ $item->product_name }}{{ $variantLabel ? ' — ' . $variantLabel : '' }}</div>
+                                                <div class="text-muted" style="font-size:11px;">SKU: {{ $item->product_sku ?: 'N/A' }}</div>
+                                                <input type="hidden" name="items[{{ $index }}][product_id]" value="{{ $item->product_id }}">
+                                                @if($item->product_variant_id)
+                                                    <input type="hidden" name="items[{{ $index }}][variant_id]" value="{{ $item->product_variant_id }}">
+                                                @endif
+                                            </td>
+                                            <td>
+                                                <input type="number" class="form-control form-control-sm item-price" name="items[{{ $index }}][price]" value="{{ number_format($item->price, 2, '.', '') }}" min="0" step="0.01">
+                                            </td>
+                                            <td>
+                                                <input type="number" class="form-control form-control-sm item-qty" name="items[{{ $index }}][quantity]" value="{{ $item->quantity }}" min="1" step="1">
+                                            </td>
+                                            <td class="text-end fw-semibold item-total">৳{{ number_format($item->price * $item->quantity, 2, '.', '') }}</td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn"><i class="bi bi-x-lg"></i></button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 bg-light">
+                        <div class="me-auto text-muted small">
+                            Subtotal: <strong id="modalSubtotalPreview" class="text-dark">৳{{ number_format($order->subtotal, 2) }}</strong>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="modalSaveItemsBtn">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Customer Info Edit Modal --}}
+    <div class="modal fade" id="editCustomerInfoModal" tabindex="-1" aria-labelledby="editCustomerInfoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form action="{{ route('admin.orders.update-customer-info', $order) }}" method="POST">
+                    @csrf
+                    @method('PATCH')
+                    <div class="modal-header bg-primary bg-opacity-10 border-0">
+                        <h5 class="modal-title text-primary" id="editCustomerInfoModalLabel">
+                            <i class="bi bi-pencil-square me-2"></i>Edit Customer Info
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="editShippingName" class="form-label fw-semibold">Customer Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="editShippingName" name="shipping_name" value="{{ $order->shipping_name }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editShippingPhone" class="form-label fw-semibold">Phone <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="editShippingPhone" name="shipping_phone" value="{{ $order->shipping_phone }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editShippingEmail" class="form-label fw-semibold">Email</label>
+                            <input type="email" class="form-control" id="editShippingEmail" name="shipping_email" value="{{ $order->shipping_email }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editShippingAddress" class="form-label fw-semibold">Shipping Address</label>
+                            <textarea class="form-control" id="editShippingAddress" name="shipping_address" rows="3">{{ $order->shipping_address }}</textarea>
+                        </div>
+                        
+                        @php
+                            $shippingLocationText = trim((string) ((is_array($order->checkout_fields_payload) ? ($order->checkout_fields_payload['shipping_location_text'] ?? null) : null) ?? ''));
+                            $shippingArea = trim((string) ((is_array($order->checkout_fields_payload) ? ($order->checkout_fields_payload['shipping_area'] ?? null) : null) ?? ''));
+                        @endphp
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="editShippingLocationText" class="form-label fw-semibold">Shipping Location Text</label>
+                                <input type="text" class="form-control" id="editShippingLocationText" name="shipping_location_text" value="{{ $shippingLocationText }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editShippingArea" class="form-label fw-semibold">Shipping Area</label>
+                                <input type="text" class="form-control" id="editShippingArea" name="shipping_area" value="{{ $shippingArea }}">
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="editShippingDistrict" class="form-label fw-semibold">District (জেলা)</label>
+                                <select class="form-select" id="editShippingDistrict" name="shipping_district_id">
+                                    <option value="">-- Select District --</option>
+                                    @foreach($districts as $district)
+                                        <option value="{{ $district->id }}" {{ (int) $order->shipping_district_id === (int) $district->id ? 'selected' : '' }}>
+                                            {{ $district->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editShippingCity" class="form-label fw-semibold">City</label>
+                                <input type="text" class="form-control" id="editShippingCity" name="shipping_city" value="{{ $order->shipping_city }}">
+                            </div>
+                        </div>
+                        <div class="mb-3 mt-3">
+                            <label for="editNotes" class="form-label fw-semibold">Order Notes</label>
+                            <textarea class="form-control" id="editNotes" name="notes" rows="2">{{ $order->notes }}</textarea>
+                        </div>
+                        <div id="districtRatePreview" class="alert alert-info py-2 px-3 d-none">
+                            <small>
+                                <i class="bi bi-truck me-1"></i>
+                                New shipping charge: <strong id="districtRateValue"></strong>
+                                <span class="text-muted">(Current: ৳{{ number_format($order->shipping, 2) }})</span>
+                            </small>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-lg me-1"></i>Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {{-- Send SMS --}}
     <div class="col-12 mt-4">
         <div class="card">
@@ -904,7 +1061,7 @@
 
 @push('scripts')
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    (function() {
         const discountTypeSelect = document.getElementById('discountTypeSelect');
         const discountValueInput = document.getElementById('discountValueInput');
         
@@ -945,6 +1102,55 @@
 
             smsInput.addEventListener('input', function() {
                 if (charCount) charCount.textContent = this.value.length;
+            });
+        }
+
+        // Copy phone button
+        document.querySelectorAll('.copy-phone-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const phone = this.dataset.phone;
+                navigator.clipboard.writeText(phone).then(() => {
+                    const icon = this.querySelector('i');
+                    icon.className = 'bi bi-clipboard-check text-success';
+                    setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 1500);
+                });
+            });
+        });
+
+        // District rate preview in edit modal
+        const districtSelect = document.getElementById('editShippingDistrict');
+        const ratePreview = document.getElementById('districtRatePreview');
+        const rateValue = document.getElementById('districtRateValue');
+        const originalDistrictId = {{ $order->shipping_district_id ?? 'null' }};
+
+        if (districtSelect && ratePreview) {
+            districtSelect.addEventListener('change', function() {
+                const selectedId = parseInt(this.value);
+                if (!selectedId || selectedId === originalDistrictId) {
+                    ratePreview.classList.add('d-none');
+                    return;
+                }
+
+                rateValue.textContent = 'Loading...';
+                ratePreview.classList.remove('d-none');
+
+                fetch('{{ route("admin.orders.district-shipping-rate") }}?district_id=' + selectedId + '&shipping_method={{ urlencode($order->shipping_method ?? "") }}', {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.formatted_rate) {
+                        rateValue.textContent = data.formatted_rate;
+                    } else {
+                        rateValue.textContent = 'No rate found';
+                    }
+                })
+                .catch(() => {
+                    rateValue.textContent = 'Error';
+                });
             });
         }
 
@@ -1069,6 +1275,207 @@
                 });
             });
         });
-    });
+
+        // Edit Items Modal Logic
+        const modalSearchInput = document.getElementById('modalProductSearchInput');
+        const modalSearchResults = document.getElementById('modalProductSearchResults');
+        const modalItemsBody = document.getElementById('modalOrderItemsBody');
+        const modalNoItemsRow = document.getElementById('modalNoItemsRow');
+        const modalSaveBtn = document.getElementById('modalSaveItemsBtn');
+        const modalSubtotalPreview = document.getElementById('modalSubtotalPreview');
+        let searchTimeout = null;
+        let itemIndex = {{ $order->items->count() }}; // start from existing count
+
+        if (modalSearchInput) {
+            modalSearchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                var q = this.value.trim();
+                if (q.length < 1) {
+                    modalSearchResults.style.display = 'none';
+                    return;
+                }
+                searchTimeout = setTimeout(function() {
+                    fetch('{{ route("admin.orders.search-products") }}?q=' + encodeURIComponent(q), {
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.products || data.products.length === 0) {
+                            modalSearchResults.innerHTML = '<div class="p-3 text-center text-muted small">No products found</div>';
+                            modalSearchResults.style.display = 'block';
+                            return;
+                        }
+                        window._currentModalSearchResults = data.products;
+                        modalSearchResults.innerHTML = data.products.map(function(p, pIndex) {
+                            var img = p.image ? '<img src="' + p.image + '" style="width:36px;height:36px;object-fit:cover;" class="rounded me-2">' : '<div class="bg-light rounded d-flex align-items-center justify-content-center me-2" style="width:36px;height:36px;"><i class="bi bi-image text-muted small"></i></div>';
+                            var variantBtns = '';
+                            if (p.variants && p.variants.length > 0) {
+                                variantBtns = '<div class="mt-1">' + p.variants.map(function(v, vIndex) {
+                                    return '<button type="button" class="btn btn-outline-secondary btn-sm me-1 mb-1 add-variant-btn" data-pindex="' + pIndex + '" data-vindex="' + vIndex + '" style="font-size:11px;padding:1px 6px;">' + v.label + ' (৳' + v.price.toFixed(0) + ')</button>';
+                                }).join('') + '</div>';
+                            }
+                            return '<div class="d-flex align-items-start p-2 border-bottom product-search-item" style="cursor:pointer;" data-pindex="' + pIndex + '">' +
+                                img +
+                                '<div class="flex-grow-1">' +
+                                    '<div class="fw-semibold small">' + p.name + '</div>' +
+                                    '<div class="text-muted" style="font-size:11px;">SKU: ' + (p.sku || 'N/A') + ' | Stock: ' + p.stock + ' | ৳' + p.price.toFixed(0) + '</div>' +
+                                    variantBtns +
+                                '</div>' +
+                            '</div>';
+                        }).join('');
+                        modalSearchResults.style.display = 'block';
+                    }).catch(() => { modalSearchResults.style.display = 'none'; });
+                }, 300);
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!modalSearchInput.contains(e.target) && !modalSearchResults.contains(e.target)) {
+                    modalSearchResults.style.display = 'none';
+                }
+            });
+
+            modalSearchResults.addEventListener('click', function(e) {
+                var variantBtn = e.target.closest('.add-variant-btn');
+                if (variantBtn) {
+                    e.stopPropagation();
+                    var pIndex = variantBtn.dataset.pindex;
+                    var vIndex = variantBtn.dataset.vindex;
+                    var product = window._currentModalSearchResults[pIndex];
+                    var variant = product.variants[vIndex];
+                    addItem(product, variant);
+                    modalSearchResults.style.display = 'none';
+                    modalSearchInput.value = '';
+                    return;
+                }
+                var item = e.target.closest('.product-search-item');
+                if (item) {
+                    var pIndex = item.dataset.pindex;
+                    var product = window._currentModalSearchResults[pIndex];
+                    if (product && product.variants && product.variants.length > 0) return;
+                    addItem(product, null);
+                    modalSearchResults.style.display = 'none';
+                    modalSearchInput.value = '';
+                }
+            });
+
+            function addItem(product, variant) {
+                if (modalNoItemsRow) modalNoItemsRow.style.display = 'none';
+                var idx = itemIndex++;
+                var price = variant ? variant.price : product.price;
+                var name = product.name + (variant ? ' — ' + variant.label : '');
+                var sku = variant ? (variant.sku || product.sku) : product.sku;
+                var img = product.image ? '<img src="' + product.image + '" style="width:36px;height:36px;object-fit:cover;" class="rounded">' : '<div class="bg-light rounded d-flex align-items-center justify-content-center" style="width:36px;height:36px;"><i class="bi bi-image text-muted small"></i></div>';
+
+                var tr = document.createElement('tr');
+                tr.className = 'order-item-row';
+                tr.dataset.idx = idx;
+                tr.innerHTML =
+                    '<td>' + img + '</td>' +
+                    '<td>' +
+                        '<div class="fw-semibold small">' + name + '</div>' +
+                        '<div class="text-muted" style="font-size:11px;">SKU: ' + (sku || 'N/A') + '</div>' +
+                        '<input type="hidden" name="items[' + idx + '][product_id]" value="' + product.id + '">' +
+                        (variant ? '<input type="hidden" name="items[' + idx + '][variant_id]" value="' + variant.id + '">' : '') +
+                    '</td>' +
+                    '<td><input type="number" class="form-control form-control-sm item-price" name="items[' + idx + '][price]" value="' + price.toFixed(2) + '" min="0" step="0.01"></td>' +
+                    '<td><input type="number" class="form-control form-control-sm item-qty" name="items[' + idx + '][quantity]" value="1" min="1" step="1"></td>' +
+                    '<td class="text-end fw-semibold item-total">৳' + price.toFixed(2) + '</td>' +
+                    '<td><button type="button" class="btn btn-sm btn-outline-danger remove-item-btn"><i class="bi bi-x-lg"></i></button></td>';
+                modalItemsBody.appendChild(tr);
+                recalculateModal();
+            }
+
+            modalItemsBody.addEventListener('click', function(e) {
+                var btn = e.target.closest('.remove-item-btn');
+                if (btn) {
+                    btn.closest('tr').remove();
+                    var rows = modalItemsBody.querySelectorAll('.order-item-row');
+                    if (rows.length === 0 && modalNoItemsRow) modalNoItemsRow.style.display = '';
+                    recalculateModal();
+                }
+            });
+
+            modalItemsBody.addEventListener('input', function(e) {
+                if (e.target.classList.contains('item-price') || e.target.classList.contains('item-qty')) {
+                    var row = e.target.closest('tr');
+                    var price = parseFloat(row.querySelector('.item-price').value) || 0;
+                    var qty = parseInt(row.querySelector('.item-qty').value) || 1;
+                    row.querySelector('.item-total').textContent = '৳' + (price * qty).toFixed(2);
+                    recalculateModal();
+                }
+            });
+
+            function recalculateModal() {
+                var rows = modalItemsBody.querySelectorAll('.order-item-row');
+                var subtotal = 0;
+                rows.forEach(function(row) {
+                    var price = parseFloat(row.querySelector('.item-price').value) || 0;
+                    var qty = parseInt(row.querySelector('.item-qty').value) || 1;
+                    subtotal += price * qty;
+                });
+                modalSubtotalPreview.textContent = '৳' + subtotal.toFixed(2);
+                modalSaveBtn.disabled = rows.length === 0;
+            }
+        }
+
+        // Realtime Order Status Update
+        const updateStatusForm = document.getElementById('updateStatusForm');
+        if (updateStatusForm) {
+            updateStatusForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const btn = this.querySelector('button[type="submit"]');
+                const originalHtml = btn.innerHTML;
+                const statusSelect = this.querySelector('select[name="status"]');
+                const statusVal = statusSelect.value;
+                
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Updating...';
+
+                fetch(this.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams(new FormData(this)).toString()
+                })
+                .then(r => r.json())
+                .then(data => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                    if (data.success) {
+                        // Update the badge
+                        const badge = document.getElementById('headerStatusBadge');
+                        if (badge) {
+                            badge.textContent = data.new_label;
+                            badge.style.backgroundColor = data.new_color;
+                        }
+                        
+                        // Hide Edit Items Button if restricted
+                        const restrictedStatuses = ['shipped', 'delivered', 'cancelled', 'returned', 'refunded', 'completed', 'failed'];
+                        const editItemsBtn = document.querySelector('button[data-bs-target="#editItemsModal"]');
+                        if (editItemsBtn) {
+                            if (restrictedStatuses.includes(data.new_status)) {
+                                editItemsBtn.style.display = 'none';
+                            } else {
+                                editItemsBtn.style.display = '';
+                            }
+                        }
+
+                        // Show success toast or alert
+                        alert('Order status updated successfully.');
+                    } else if (data.error) {
+                        alert(data.error);
+                    }
+                })
+                .catch(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                    alert('An error occurred while updating status.');
+                });
+            });
+        }
+    })();
 </script>
 @endpush

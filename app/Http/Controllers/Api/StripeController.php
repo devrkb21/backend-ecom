@@ -72,7 +72,7 @@ class StripeController extends Controller
             $savePaymentMethod = $requestUser ? (bool) $request->boolean('save_payment_method') : false;
 
             $stripeOptions = [
-                'currency' => 'usd',
+                'currency' => 'bdt',
                 'metadata' => [
                     'order_id' => (string) $order->id,
                     'save_payment_method_requested' => $savePaymentMethod ? '1' : '0',

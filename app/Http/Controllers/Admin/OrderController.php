@@ -10,6 +10,8 @@ use App\Models\OrderItem;
 use App\Models\OrderStatus;
 use App\Models\Product;
 use App\Models\ShippingMethod;
+use App\Models\ShippingMethodDistrictRate;
+use App\Models\BdDistrict;
 use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -169,7 +171,9 @@ class OrderController extends Controller
 
         $smsTemplates = SmsService::getOrderSmsTemplates();
 
-        return view('admin.orders.show', compact('order', 'availableStatuses', 'activeCoupons', 'smsTemplates'));
+        $districts = BdDistrict::orderBy('name')->get(['id', 'name', 'division_id']);
+
+        return view('admin.orders.show', compact('order', 'availableStatuses', 'activeCoupons', 'smsTemplates', 'districts'));
     }
 
     public function create()
@@ -385,6 +389,16 @@ class OrderController extends Controller
             OrderActivityLog::log($order, 'sms_failed', 'SMS failed (exception)', $e->getMessage());
         }
 
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Order status updated successfully.',
+                'new_status' => $newStatus,
+                'new_label' => $newLabel,
+                'new_color' => OrderStatus::where('key', $newStatus)->value('color') ?? '#6C757D'
+            ]);
+        }
+
         return redirect()
             ->route('admin.orders.show', $order)
             ->with('success', 'Order status updated successfully.');
@@ -550,7 +564,7 @@ class OrderController extends Controller
             $activeStatusKeys = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
         }
 
-        $allowedActions = array_merge($activeStatusKeys, ['trash', 'restore']);
+        $allowedActions = array_merge($activeStatusKeys, ['trash', 'restore', 'force_delete']);
 
         $validated = $request->validate([
             'order_ids' => ['required', 'array', 'min:1'],
@@ -604,6 +618,17 @@ class OrderController extends Controller
                 continue;
             }
 
+            if ($action === 'force_delete') {
+                if (!$order->trashed()) {
+                    $skipped++;
+                    continue;
+                }
+
+                $order->forceDelete();
+                $updated++;
+                continue;
+            }
+
             if ($order->trashed()) {
                 $skipped++;
                 continue;
@@ -652,6 +677,258 @@ class OrderController extends Controller
         return back()->with('success', $message);
     }
 
+    public function updateCustomerInfo(Request $request, Order $order)
+    {
+        $validated = $request->validate([
+            'shipping_name' => ['required', 'string', 'max:255'],
+            'shipping_phone' => ['required', 'string', 'max:20'],
+            'shipping_email' => ['nullable', 'email', 'max:255'],
+            'shipping_address' => ['nullable', 'string', 'max:1000'],
+            'shipping_city' => ['nullable', 'string', 'max:100'],
+            'shipping_district_id' => ['nullable', 'integer', 'exists:bd_districts,id'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $changes = [];
+
+        if ($order->shipping_name !== $validated['shipping_name']) {
+            $changes[] = "Name: {$order->shipping_name} → {$validated['shipping_name']}";
+        }
+        if ($order->shipping_phone !== $validated['shipping_phone']) {
+            $changes[] = "Phone: {$order->shipping_phone} → {$validated['shipping_phone']}";
+        }
+        if (($order->shipping_email ?? '') !== ($validated['shipping_email'] ?? '')) {
+            $changes[] = "Email updated";
+        }
+        if ($order->shipping_address !== ($validated['shipping_address'] ?? '')) {
+            $changes[] = "Address updated";
+        }
+        if (($order->shipping_city ?? '') !== ($validated['shipping_city'] ?? '')) {
+            $changes[] = "City updated";
+        }
+        if (($order->notes ?? '') !== ($validated['notes'] ?? '')) {
+            $changes[] = "Notes updated";
+        }
+
+        $updateData = [
+            'shipping_name' => $validated['shipping_name'],
+            'shipping_phone' => $validated['shipping_phone'],
+            'shipping_email' => $validated['shipping_email'] ?? $order->shipping_email,
+            'shipping_address' => $validated['shipping_address'] ?? $order->shipping_address,
+            'shipping_city' => $validated['shipping_city'] ?? $order->shipping_city,
+            'notes' => $validated['notes'] ?? $order->notes,
+        ];
+
+        // Handle district change with shipping cost recalculation
+        $newDistrictId = isset($validated['shipping_district_id']) ? (int) $validated['shipping_district_id'] : null;
+        $oldDistrictId = $order->shipping_district_id ? (int) $order->shipping_district_id : null;
+
+        if ($newDistrictId && $newDistrictId !== $oldDistrictId) {
+            $newDistrict = BdDistrict::with('division')->find($newDistrictId);
+            $oldDistrictName = $order->shippingDistrict?->name ?? 'N/A';
+
+            if ($newDistrict) {
+                $updateData['shipping_district_id'] = $newDistrictId;
+                $updateData['shipping_division_id'] = $newDistrict->division_id;
+
+                // Find the shipping rate for this district
+                $newShippingCost = $this->resolveDistrictShippingRate($newDistrictId, $order->shipping_method);
+
+                if ($newShippingCost !== null) {
+                    $oldShipping = (float) $order->shipping;
+                    $updateData['shipping'] = $newShippingCost;
+
+                    // Recalculate total
+                    $total = (float) $order->subtotal + $newShippingCost + (float) $order->tax
+                           - (float) $order->discount_amount - (float) $order->loyalty_discount_amount;
+                    $updateData['total'] = max(0, $total);
+
+                    $changes[] = "District: {$oldDistrictName} → {$newDistrict->name}";
+                    $changes[] = "Shipping: ৳" . number_format($oldShipping, 2) . " → ৳" . number_format($newShippingCost, 2);
+                } else {
+                    $changes[] = "District: {$oldDistrictName} → {$newDistrict->name} (shipping rate unchanged)";
+                }
+            }
+        }
+
+        // Also update checkout_fields_payload if it exists
+        $payload = is_array($order->checkout_fields_payload) ? $order->checkout_fields_payload : [];
+        $payload['shipping_name'] = $validated['shipping_name'];
+        $payload['shipping_phone'] = $validated['shipping_phone'];
+        if (isset($validated['shipping_email'])) {
+            $payload['shipping_email'] = $validated['shipping_email'];
+        }
+        if (isset($validated['shipping_address'])) {
+            $payload['shipping_address'] = $validated['shipping_address'];
+        }
+        if ($newDistrictId) {
+            $payload['shipping_district_id'] = (string) $newDistrictId;
+        }
+        
+        // Additional payload fields
+        if ($request->has('shipping_location_text')) {
+            $payload['shipping_location_text'] = $request->input('shipping_location_text');
+        }
+        if ($request->has('shipping_area')) {
+            $payload['shipping_area'] = $request->input('shipping_area');
+        }
+        
+        $updateData['checkout_fields_payload'] = $payload;
+
+        $order->update($updateData);
+
+        if (!empty($changes)) {
+            OrderActivityLog::log(
+                $order,
+                'status_change',
+                'Customer Info Updated',
+                implode("\n", $changes)
+            );
+        }
+
+        return redirect()
+            ->route('admin.orders.show', $order)
+            ->with('success', 'Customer information updated successfully.');
+    }
+
+    public function updateItems(Request $request, Order $order)
+    {
+        if (in_array($order->status, ['shipped', 'delivered', 'cancelled', 'returned', 'refunded', 'completed', 'failed'])) {
+            return back()->with('error', 'Cannot edit items for an order in this status.');
+        }
+
+        $validated = $request->validate([
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'exists:products,id'],
+            'items.*.variant_id' => ['nullable', 'exists:product_variants,id'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.price' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        DB::transaction(function () use ($validated, $order) {
+            // Restore stock for old items
+            foreach ($order->items as $oldItem) {
+                if ($oldItem->product_id) {
+                    $product = Product::find($oldItem->product_id);
+                    if ($product && $product->stock_quantity !== null) {
+                        $product->increment('stock_quantity', $oldItem->quantity);
+                    }
+                }
+            }
+
+            // Delete old items
+            $order->items()->delete();
+
+            // Create new items and deduct stock
+            $subtotal = 0;
+            foreach ($validated['items'] as $item) {
+                $product = Product::find($item['product_id']);
+                if (!$product) continue;
+
+                $qty = (int) $item['quantity'];
+                $price = (float) $item['price'];
+                $subtotal += $price * $qty;
+
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'product_id' => $product->id,
+                    'product_variant_id' => $item['variant_id'] ?? null,
+                    'product_name' => $product->name,
+                    'product_sku' => $product->sku ?? '',
+                    'quantity' => $qty,
+                    'price' => $price,
+                    'total' => $price * $qty,
+                ]);
+
+                // Deduct stock
+                if ($product->stock_quantity !== null) {
+                    $product->decrement('stock_quantity', $qty);
+                }
+            }
+
+            // Recalculate order total
+            $total = max(0, $subtotal + (float) $order->shipping + (float) $order->tax - (float) $order->discount_amount - (float) $order->loyalty_discount_amount);
+
+            $order->update([
+                'subtotal' => $subtotal,
+                'total' => $total,
+            ]);
+
+            OrderActivityLog::log(
+                $order,
+                'status_change',
+                'Order Items Updated',
+                'Order items were modified by admin.'
+            );
+        });
+
+        return redirect()
+            ->route('admin.orders.show', $order)
+            ->with('success', 'Order items updated successfully.');
+    }
+
+    public function getDistrictShippingRate(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'district_id' => ['required', 'integer', 'exists:bd_districts,id'],
+            'shipping_method' => ['nullable', 'string'],
+        ]);
+
+        $districtId = (int) $validated['district_id'];
+        $shippingMethodName = $validated['shipping_method'] ?? null;
+        $rate = $this->resolveDistrictShippingRate($districtId, $shippingMethodName);
+        $district = BdDistrict::find($districtId);
+
+        return response()->json([
+            'success' => true,
+            'district_name' => $district?->name,
+            'rate' => $rate,
+            'formatted_rate' => $rate !== null ? '৳' . number_format($rate, 2) : null,
+        ]);
+    }
+
+    private function resolveDistrictShippingRate(int $districtId, ?string $shippingMethodName): ?float
+    {
+        // First, get all ACTIVE methods that are valid for this district
+        $availableMethods = ShippingMethod::with(['locationRules', 'districtRates'])
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get()
+            ->filter(function ($method) use ($districtId) {
+                return $method->isAvailableForLocation(null, $districtId, null);
+            });
+
+        if ($availableMethods->isEmpty()) {
+            return null; // No shipping method available for this district
+        }
+
+        // Check if the current shipping method is still valid for this new district
+        if ($shippingMethodName) {
+            $currentMethod = $availableMethods->first(function($m) use ($shippingMethodName) {
+                return $m->code === $shippingMethodName || $m->name === $shippingMethodName;
+            });
+
+            if ($currentMethod) {
+                $rate = $currentMethod->getDistrictRate($districtId);
+                return $rate !== null ? $rate : (float) $currentMethod->base_cost;
+            }
+        }
+
+        // We want to prioritize methods that have specific location rules over global ones
+        $specificMethod = $availableMethods->first(function ($m) {
+            return $m->locationRules->isNotEmpty();
+        });
+
+        $methodToUse = $specificMethod ?: $availableMethods->first();
+
+        if ($methodToUse) {
+            $rate = $methodToUse->getDistrictRate($districtId);
+            return $rate !== null ? (float) $rate : (float) $methodToUse->base_cost;
+        }
+
+        return null;
+    }
+
     private function restoreOrderStock(Order $order): void
     {
         $order->loadMissing('items.product');
@@ -661,6 +938,16 @@ class OrderController extends Controller
                 $item->product->incrementStock($item->quantity);
             }
         }
+    }
+
+    public function restore(Order $order)
+    {
+        if ($order->trashed()) {
+            $order->restore();
+            return back()->with('success', 'Order restored successfully.');
+        }
+
+        return back()->with('info', 'Order is not in trash.');
     }
 
 }

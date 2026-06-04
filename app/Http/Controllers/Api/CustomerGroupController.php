@@ -31,7 +31,7 @@ class CustomerGroupController extends Controller
         $totalSpent = $orderStats->total_spent ?? 0.0;
 
         // Find qualifying group
-        $qualifyingGroup = CustomerGroup::getQualifyingGroup($totalOrders, $totalSpent);
+        $qualifyingGroup = CustomerGroup::getQualifyingGroup($totalOrders, $totalSpent, $phone);
 
         if (!$qualifyingGroup) {
             return response()->json([
@@ -45,10 +45,22 @@ class CustomerGroupController extends Controller
             ]);
         }
 
+        $customerName = 'Customer';
+        $latestOrder = Order::where('shipping_phone', $phone)->latest('id')->first();
+        if ($latestOrder) {
+            $customerName = trim($latestOrder->shipping_name) ?: 'Customer';
+            if ($latestOrder->user) {
+                $customerName = trim($latestOrder->user->name) ?: $customerName;
+            }
+        }
+
+        $message = $qualifyingGroup->custom_message ?? 'Congratulations! You qualify for a loyalty discount.';
+        $message = str_ireplace('{name}', $customerName, $message);
+
         return response()->json([
             'success' => true,
             'has_group' => true,
-            'message' => $qualifyingGroup->custom_message ?? 'Congratulations! You qualify for a loyalty discount.',
+            'message' => $message,
             'data' => [
                 'group_name' => $qualifyingGroup->name,
                 'discount_percentage' => $qualifyingGroup->discount_percentage,
