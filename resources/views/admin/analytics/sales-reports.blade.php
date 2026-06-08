@@ -5,7 +5,6 @@
 @section('styles')
 <style>
     .chart-container { position: relative; height: 300px; }
-    .chart-container { position: relative; height: 300px; }
 </style>
 @endsection
 
@@ -21,13 +20,15 @@
         </div>
         <div class="d-flex gap-2">
             <div class="btn-group">
-                <a href="?period=today&days={{ $days }}" class="btn btn-{{ $period == 'today' ? 'primary' : 'outline-primary' }} btn-sm">Today</a>
-                <a href="?period=week&days={{ $days }}" class="btn btn-{{ $period == 'week' ? 'primary' : 'outline-primary' }} btn-sm">Week</a>
-                <a href="?period=month&days={{ $days }}" class="btn btn-{{ $period == 'month' ? 'primary' : 'outline-primary' }} btn-sm">Month</a>
-                <a href="?period=quarter&days={{ $days }}" class="btn btn-{{ $period == 'quarter' ? 'primary' : 'outline-primary' }} btn-sm">Quarter</a>
-                <a href="?period=year&days={{ $days }}" class="btn btn-{{ $period == 'year' ? 'primary' : 'outline-primary' }} btn-sm">Year</a>
+                <a href="?period=today" class="btn btn-{{ $period == 'today' ? 'primary' : 'outline-primary' }} btn-sm">Today</a>
+                <a href="?period=yesterday" class="btn btn-{{ $period == 'yesterday' ? 'primary' : 'outline-primary' }} btn-sm">Yesterday</a>
+                <a href="?period=this_week" class="btn btn-{{ in_array($period, ['week', 'this_week']) ? 'primary' : 'outline-primary' }} btn-sm">This Week</a>
+                <a href="?period=this_month" class="btn btn-{{ in_array($period, ['month', 'this_month']) ? 'primary' : 'outline-primary' }} btn-sm">This Month</a>
+                <a href="?period=last_month" class="btn btn-{{ $period == 'last_month' ? 'primary' : 'outline-primary' }} btn-sm">Last Month</a>
+                <a href="?period=this_year" class="btn btn-{{ in_array($period, ['year', 'this_year']) ? 'primary' : 'outline-primary' }} btn-sm">This Year</a>
+                <a href="?period=last_year" class="btn btn-{{ $period == 'last_year' ? 'primary' : 'outline-primary' }} btn-sm">Last Year</a>
             </div>
-            <a href="{{ route('admin.bi.export-sales', ['period' => $period, 'days' => $days]) }}" class="btn btn-success btn-sm" data-no-admin-ajax="1">
+            <a href="{{ route('admin.bi.export-sales', ['period' => $period]) }}" class="btn btn-success btn-sm" data-no-admin-ajax="1">
                 <i class="fas fa-download"></i> Export
             </a>
         </div>
@@ -146,18 +147,23 @@
             </a>
         </div>
         <div class="col-sm-6 col-lg-4">
-            <a href="#" class="text-decoration-none d-block h-100 text-dark" style="pointer-events: none;">
+            <a href="{{ route('admin.orders.index', ['status' => 'cancelled']) }}" class="text-decoration-none d-block h-100 text-dark">
                 <div class="card stat-card h-100">
                     <div class="card-body">
                         <div class="d-flex align-items-center">
                             <div class="flex-shrink-0">
                                 <div class="bg-secondary bg-opacity-10 p-3 rounded-circle">
-                                    <i class="bi bi-calendar3 text-secondary fs-4"></i>
+                                    <i class="bi bi-x-circle text-secondary fs-4"></i>
                                 </div>
                             </div>
                             <div class="flex-grow-1 ms-3">
-                                <h6 class="mb-0 text-secondary">{{ $overview['start_date'] }}</h6>
-                                <span class="text-muted small">to {{ $overview['end_date'] }}</span>
+                                <h3 class="mb-0 text-secondary">৳{{ number_format($overview['cancelled_revenue'], 0) }}</h3>
+                                <span class="text-muted small">Cancelled ({{ $overview['cancelled_count'] }} {{ Str::plural('order', $overview['cancelled_count']) }})</span>
+                                <br>
+                                <small class="{{ $overview['cancelled_growth'] <= 0 ? 'text-success' : 'text-danger' }}">
+                                    <i class="bi bi-arrow-{{ $overview['cancelled_growth'] >= 0 ? 'up' : 'down' }}"></i>
+                                    {{ abs($overview['cancelled_growth']) }}%
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -166,20 +172,62 @@
         </div>
     </div>
 
-    <!-- Daily Sales Chart -->
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 fw-bold text-primary">Daily Sales Trend</h6>
-            <div class="btn-group btn-group-sm">
-                <a href="?period={{ $period }}&days=7" class="btn btn-{{ $days == 7 ? 'primary' : 'outline-secondary' }}">7 days</a>
-                <a href="?period={{ $period }}&days=30" class="btn btn-{{ $days == 30 ? 'primary' : 'outline-secondary' }}">30 days</a>
-                <a href="?period={{ $period }}&days=60" class="btn btn-{{ $days == 60 ? 'primary' : 'outline-secondary' }}">60 days</a>
-                <a href="?period={{ $period }}&days=90" class="btn btn-{{ $days == 90 ? 'primary' : 'outline-secondary' }}">90 days</a>
+    <div class="row">
+        <!-- Daily Sales Chart -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 fw-bold text-primary">Daily Sales Trend</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 250px;">
+                        <canvas id="dailySalesChart"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="card-body">
-            <div class="chart-container">
-                <canvas id="dailySalesChart"></canvas>
+
+        <!-- Cancellation by Reason -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 fw-bold text-primary">Cancellation By Reason</h6>
+                </div>
+                <div class="card-body">
+                    @if(empty($byCancellationReason))
+                        <div class="d-flex justify-content-center align-items-center" style="height: 250px;">
+                            <span class="text-muted">No cancellations found</span>
+                        </div>
+                    @else
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <div class="chart-container" style="height: 250px;">
+                                    <canvas id="cancellationReasonChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+                                    <table class="table table-sm mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Reason</th>
+                                                <th class="text-center">Count</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($byCancellationReason as $reason)
+                                            <tr>
+                                                <td>{{ $reason['reason'] }}</td>
+                                                <td class="text-center">{{ $reason['count'] }}</td>
+                                            </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+                </div>
             </div>
         </div>
     </div>
@@ -406,6 +454,27 @@ new Chart(dailyCtx, {
         }
     }
 });
+
+// Cancellation Reason Pie Chart
+const cancelReasonCanvas = document.getElementById('cancellationReasonChart');
+if (cancelReasonCanvas) {
+    const cancelReasonCtx = cancelReasonCanvas.getContext('2d');
+    new Chart(cancelReasonCtx, {
+        type: 'pie',
+        data: {
+            labels: @json(array_column($byCancellationReason, 'reason')),
+            datasets: [{
+                data: @json(array_column($byCancellationReason, 'count')),
+                backgroundColor: ['#e74a3b', '#c0392b', '#e06666', '#990000', '#cc0000', '#f4cccc', '#ea9999', '#85200c'],
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+}
 
 // Payment Method Pie Chart
 const paymentCtx = document.getElementById('paymentMethodChart').getContext('2d');

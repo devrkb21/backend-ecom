@@ -34,9 +34,13 @@
         </div>
         <div class="d-flex gap-2">
             <div class="btn-group">
-                <a href="?period=month" class="btn btn-{{ $period == 'month' ? 'primary' : 'outline-primary' }} btn-sm">Month</a>
-                <a href="?period=quarter" class="btn btn-{{ $period == 'quarter' ? 'primary' : 'outline-primary' }} btn-sm">Quarter</a>
-                <a href="?period=year" class="btn btn-{{ $period == 'year' ? 'primary' : 'outline-primary' }} btn-sm">Year</a>
+                <a href="?period=today" class="btn btn-{{ $period == 'today' ? 'primary' : 'outline-primary' }} btn-sm">Today</a>
+                <a href="?period=yesterday" class="btn btn-{{ $period == 'yesterday' ? 'primary' : 'outline-primary' }} btn-sm">Yesterday</a>
+                <a href="?period=this_week" class="btn btn-{{ in_array($period, ['week', 'this_week']) ? 'primary' : 'outline-primary' }} btn-sm">This Week</a>
+                <a href="?period=this_month" class="btn btn-{{ in_array($period, ['month', 'this_month']) ? 'primary' : 'outline-primary' }} btn-sm">This Month</a>
+                <a href="?period=last_month" class="btn btn-{{ $period == 'last_month' ? 'primary' : 'outline-primary' }} btn-sm">Last Month</a>
+                <a href="?period=this_year" class="btn btn-{{ in_array($period, ['year', 'this_year']) ? 'primary' : 'outline-primary' }} btn-sm">This Year</a>
+                <a href="?period=last_year" class="btn btn-{{ $period == 'last_year' ? 'primary' : 'outline-primary' }} btn-sm">Last Year</a>
             </div>
             <a href="{{ route('admin.bi.export-customers') }}" class="btn btn-success btn-sm" data-no-admin-ajax="1">
                 <i class="fas fa-download"></i> Export

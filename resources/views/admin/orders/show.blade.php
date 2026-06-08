@@ -767,6 +767,43 @@
 
 {{-- ==================== MODALS (unchanged) ==================== --}}
 
+@php
+    $cancellationReasonsStr = \App\Models\Setting::getValue('general', 'cancellation_reasons', 'Out of Stock,Customer Request,Fraudulent,Payment Failed,Other');
+    $cancellationReasons = array_filter(array_map('trim', explode(',', $cancellationReasonsStr)));
+    // Remove "Other" if it exists so we can always append it at the end
+    $cancellationReasons = array_filter($cancellationReasons, fn($r) => strtolower($r) !== 'other');
+@endphp
+
+{{-- Cancel Order Modal --}}
+<div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger bg-opacity-10 border-0">
+                <h5 class="modal-title text-danger"><i class="bi bi-x-circle me-2"></i>Cancel Order</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3">Please select a reason for cancelling this order:</p>
+                <select class="form-select mb-3" id="cancelReasonSelect">
+                    <option value="">-- Select Reason (Optional) --</option>
+                    @foreach($cancellationReasons as $reason)
+                        <option value="{{ $reason }}">{{ $reason }}</option>
+                    @endforeach
+                    <option value="other">Other (Specify)</option>
+                </select>
+                <div id="cancelReasonOtherDiv" style="display:none;">
+                    <label class="form-label small fw-semibold">Specify Reason <span class="text-muted fw-normal">(will be saved)</span></label>
+                    <input type="text" class="form-control" id="cancelReasonOtherInput" placeholder="Type reason here...">
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-danger" id="confirmCancelOrderBtn">Confirm Cancellation</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- Fraud Block Modal --}}
 <div class="modal fade" id="fraudBlockModal" tabindex="-1" aria-labelledby="fraudBlockModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -1352,82 +1389,144 @@
             }
         }
 
-        // Realtime Order Status Update
+                // Realtime Order Status Update
         const updateStatusForm = document.getElementById('updateStatusForm');
+        let isCancelConfirmed = false;
+        let selectedCancelReason = '';
+
+        const cancelModalEl = document.getElementById('cancelOrderModal');
+        let cancelModal = null;
+        let pendingFormSubmit = null;
+        
+        if (cancelModalEl) {
+            cancelModal = new bootstrap.Modal(cancelModalEl);
+            const cancelSelect = document.getElementById('cancelReasonSelect');
+            const cancelOtherDiv = document.getElementById('cancelReasonOtherDiv');
+            const cancelOtherInput = document.getElementById('cancelReasonOtherInput');
+            const confirmCancelBtn = document.getElementById('confirmCancelOrderBtn');
+
+            cancelSelect.addEventListener('change', function() {
+                if (this.value === 'other') {
+                    cancelOtherDiv.style.display = 'block';
+                    cancelOtherInput.focus();
+                } else {
+                    cancelOtherDiv.style.display = 'none';
+                }
+            });
+
+            confirmCancelBtn.addEventListener('click', function() {
+                selectedCancelReason = cancelSelect.value;
+                if (selectedCancelReason === 'other') {
+                    selectedCancelReason = cancelOtherInput.value.trim();
+                    if (!selectedCancelReason) {
+                        alert('Please specify a reason');
+                        return;
+                    }
+                }
+                
+                isCancelConfirmed = true;
+                cancelModal.hide();
+                if (pendingFormSubmit) {
+                    processStatusUpdate(pendingFormSubmit);
+                }
+            });
+        }
+
         if (updateStatusForm) {
             updateStatusForm.addEventListener('submit', function(e) {
                 e.preventDefault();
-                const btn = this.querySelector('button[type="submit"]');
-                const originalHtml = btn.innerHTML;
                 const statusSelect = this.querySelector('select[name="status"]');
                 const statusVal = statusSelect.value;
                 
-                btn.disabled = true;
-                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Updating...';
+                if (statusVal === 'cancelled' && !isCancelConfirmed && cancelModal) {
+                    pendingFormSubmit = this;
+                    document.getElementById('cancelReasonSelect').value = '';
+                    document.getElementById('cancelReasonOtherDiv').style.display = 'none';
+                    document.getElementById('cancelReasonOtherInput').value = '';
+                    cancelModal.show();
+                    return;
+                }
+                
+                processStatusUpdate(this);
+            });
+        }
+        
+        function processStatusUpdate(form) {
+            const btn = form.querySelector('button[type="submit"]');
+            const statusVal = form.querySelector('select[name="status"]').value;
+            const originalHtml = btn.innerHTML;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Updating...';
 
-                fetch(this.action, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: new URLSearchParams(new FormData(this)).toString()
-                })
-                .then(async r => {
-                    const data = await r.json().catch(() => null);
-                    if (!r.ok) {
-                        throw new Error((data && (data.error || data.message)) || `HTTP ${r.status}`);
-                    }
-                    return data;
-                })
-                .then(data => {
-                    btn.disabled = false;
-                    btn.innerHTML = originalHtml;
-                    if (data && data.success) {
-                        // Update the badge
-                        const badge = document.getElementById('headerStatusBadge');
-                        if (badge) {
-                            badge.textContent = data.new_label;
-                            badge.style.backgroundColor = data.new_color;
-                        }
-                        
-                        // Hide Edit Items Button if restricted
-                        const restrictedStatuses = ['shipped', 'delivered', 'cancelled', 'returned', 'refunded', 'completed', 'failed'];
-                        const editItemsBtn = document.querySelector('button[data-bs-target="#editItemsModal"]');
-                        if (editItemsBtn) {
-                            if (restrictedStatuses.includes(data.new_status)) {
-                                editItemsBtn.style.display = 'none';
-                            } else {
-                                editItemsBtn.style.display = '';
-                            }
-                        }
+            const formData = new FormData(form);
+            if (statusVal === 'cancelled' && selectedCancelReason) {
+                formData.append('cancel_reason', selectedCancelReason);
+            }
 
-                        // Show success toast or alert
-                        if (typeof showAdminToast === 'function') {
-                            showAdminToast('Order status updated successfully.', 'success');
+            // reset
+            isCancelConfirmed = false;
+            selectedCancelReason = '';
+
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams(formData).toString()
+            })
+            .then(async r => {
+                const data = await r.json().catch(() => null);
+                if (!r.ok) {
+                    throw new Error((data && (data.error || data.message)) || `HTTP ${r.status}`);
+                }
+                return data;
+            })
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                if (data && data.success) {
+                    const badge = document.getElementById('headerStatusBadge');
+                    if (badge) {
+                        badge.textContent = data.new_label;
+                        badge.style.backgroundColor = data.new_color;
+                    }
+                    
+                    const restrictedStatuses = ['shipped', 'delivered', 'cancelled', 'returned', 'refunded', 'completed', 'failed'];
+                    const editItemsBtn = document.querySelector('button[data-bs-target="#editItemsModal"]');
+                    if (editItemsBtn) {
+                        if (restrictedStatuses.includes(data.new_status)) {
+                            editItemsBtn.style.display = 'none';
                         } else {
-                            alert('Order status updated successfully.');
-                        }
-                    } else if (data && data.error) {
-                        if (typeof showAdminToast === 'function') {
-                            showAdminToast(data.error, 'danger');
-                        } else {
-                            alert(data.error);
+                            editItemsBtn.style.display = '';
                         }
                     }
-                })
-                .catch(err => {
-                    btn.disabled = false;
-                    btn.innerHTML = originalHtml;
-                    const errorMsg = 'An error occurred while updating status: ' + (err.message || err);
+
                     if (typeof showAdminToast === 'function') {
-                        showAdminToast(errorMsg, 'danger');
+                        showAdminToast('Order status updated successfully.', 'success');
                     } else {
-                        alert(errorMsg);
+                        alert('Order status updated successfully.');
                     }
-                });
+                } else if (data && data.error) {
+                    if (typeof showAdminToast === 'function') {
+                        showAdminToast(data.error, 'danger');
+                    } else {
+                        alert(data.error);
+                    }
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                const errorMsg = 'An error occurred while updating status: ' + (err.message || err);
+                if (typeof showAdminToast === 'function') {
+                    showAdminToast(errorMsg, 'danger');
+                } else {
+                    alert(errorMsg);
+                }
             });
         }
     })();

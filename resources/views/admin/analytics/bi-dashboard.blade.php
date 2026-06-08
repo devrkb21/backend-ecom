@@ -32,10 +32,12 @@
         </div>
         <div class="btn-group">
             <a href="?period=today" class="btn btn-{{ $period == 'today' ? 'primary' : 'outline-primary' }}">Today</a>
-            <a href="?period=week" class="btn btn-{{ $period == 'week' ? 'primary' : 'outline-primary' }}">Week</a>
-            <a href="?period=month" class="btn btn-{{ $period == 'month' ? 'primary' : 'outline-primary' }}">Month</a>
-            <a href="?period=quarter" class="btn btn-{{ $period == 'quarter' ? 'primary' : 'outline-primary' }}">Quarter</a>
-            <a href="?period=year" class="btn btn-{{ $period == 'year' ? 'primary' : 'outline-primary' }}">Year</a>
+            <a href="?period=yesterday" class="btn btn-{{ $period == 'yesterday' ? 'primary' : 'outline-primary' }}">Yesterday</a>
+            <a href="?period=this_week" class="btn btn-{{ in_array($period, ['week', 'this_week']) ? 'primary' : 'outline-primary' }}">This Week</a>
+            <a href="?period=this_month" class="btn btn-{{ in_array($period, ['month', 'this_month']) ? 'primary' : 'outline-primary' }}">This Month</a>
+            <a href="?period=last_month" class="btn btn-{{ $period == 'last_month' ? 'primary' : 'outline-primary' }}">Last Month</a>
+            <a href="?period=this_year" class="btn btn-{{ in_array($period, ['year', 'this_year']) ? 'primary' : 'outline-primary' }}">This Year</a>
+            <a href="?period=last_year" class="btn btn-{{ $period == 'last_year' ? 'primary' : 'outline-primary' }}">Last Year</a>
         </div>
     </div>
 

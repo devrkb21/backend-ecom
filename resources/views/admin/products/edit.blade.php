@@ -162,28 +162,33 @@
                         @if($galleryImages->isNotEmpty())
                             <div class="row g-2 mb-3" id="gallery-images-container">
                                 @foreach($galleryImages as $image)
-                                    <div class="col-4 col-md-3" id="gallery-image-{{ $image->id }}">
+                                    <div class="col-4 col-md-3 gallery-image-item" id="gallery-image-{{ $image->id }}">
                                         <div class="position-relative border rounded overflow-hidden" style="padding-top: 100%;">
                                             <img src="{{ $image->url }}" alt="Gallery" class="position-absolute top-0 start-0 w-100 h-100" style="object-fit: cover;">
-                                            <div class="position-absolute bottom-0 start-0 end-0 p-1 bg-dark bg-opacity-75 d-flex gap-1">
+                                            
+                                            {{-- Delete Button --}}
+                                            <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1 rounded-circle" style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center; z-index: 10;" onclick="removeGalleryImage({{ $image->id }})" title="Remove Image">
+                                                <i class="bi bi-x" style="font-size: 1.2rem; line-height: 1;"></i>
+                                            </button>
+
+                                            <div class="position-absolute bottom-0 start-0 end-0 p-1 bg-dark bg-opacity-75 d-flex gap-1 justify-content-center">
                                                 <button
                                                     type="button"
                                                     class="btn btn-outline-light btn-sm w-100 py-0 js-set-primary-image-btn"
-                                                    style="font-size: 9px;"
+                                                    style="font-size: 11px;"
                                                     title="Set as Primary"
                                                     data-primary-url="{{ route('admin.products.images.primary', [$product, $image]) }}"
                                                 >
-                                                    <i class="bi bi-star"></i>
+                                                    <i class="bi bi-star"></i> Make Primary
                                                 </button>
-                                                <div class="form-check form-check-inline m-0">
-                                                    <input type="checkbox" class="form-check-input" name="delete_images[]" value="{{ $image->id }}" id="del-{{ $image->id }}" style="width: 14px; height: 14px;">
-                                                    <label class="form-check-label text-white" for="del-{{ $image->id }}" style="font-size: 9px;">Del</label>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 @endforeach
                             </div>
+                            
+                            {{-- Container for hidden delete inputs --}}
+                            <div id="deleted-images-container"></div>
                         @endif
 
                         <div class="row g-2">
@@ -2620,6 +2625,26 @@ document.addEventListener('submit', async function(event) {
     // Initial render
     applyPagination();
 })();
+
+function removeGalleryImage(imageId) {
+    if (confirm('Are you sure you want to remove this image? It will be deleted when you save the product.')) {
+        // Remove the visual element
+        var imageElement = document.getElementById('gallery-image-' + imageId);
+        if (imageElement) {
+            imageElement.remove();
+        }
+        
+        // Add hidden input to deleted container
+        var container = document.getElementById('deleted-images-container');
+        if (container) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'delete_images[]';
+            input.value = imageId;
+            container.appendChild(input);
+        }
+    }
+}
 </script>
 <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet">
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

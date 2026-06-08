@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\SiteSettingController;
 use App\Http\Controllers\Admin\IntegrationSettingController;
 use App\Http\Controllers\Admin\AdminRoleController;
 use App\Http\Controllers\Admin\OrderStatusController;
+use App\Http\Controllers\Admin\CancellationReasonController;
 use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\PageController;
@@ -198,6 +199,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('order-statuses', [OrderStatusController::class, 'store'])->name('order-statuses.store');
             Route::put('order-statuses/{orderStatus}', [OrderStatusController::class, 'update'])->name('order-statuses.update');
             Route::delete('order-statuses/{orderStatus}', [OrderStatusController::class, 'destroy'])->name('order-statuses.destroy');
+
+            // Cancellation Reasons
+            Route::get('cancellation-reasons', [CancellationReasonController::class, 'index'])->name('cancellation-reasons');
+            Route::post('cancellation-reasons', [CancellationReasonController::class, 'store'])->name('cancellation-reasons.store');
+            Route::put('cancellation-reasons/{id}', [CancellationReasonController::class, 'update'])->name('cancellation-reasons.update');
+            Route::delete('cancellation-reasons/{id}', [CancellationReasonController::class, 'destroy'])->name('cancellation-reasons.destroy');
 
             // SMS Templates
             Route::get('sms-templates', [SmsTemplateController::class, 'index'])->name('sms-templates');

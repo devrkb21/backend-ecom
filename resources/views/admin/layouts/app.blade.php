@@ -727,6 +727,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.cancellation-reasons*') ? 'active' : '' }}" href="{{ route('admin.settings.cancellation-reasons') }}">
+                            <i class="bi bi-x-octagon"></i> Cancellation Reasons
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.sms-templates*') ? 'active' : '' }}" href="{{ route('admin.settings.sms-templates') }}">
                             <i class="bi bi-chat-dots"></i> SMS Templates
                         </a>
@@ -1189,6 +1194,16 @@
                 if (toggleButton) {
                     toggleButton.addEventListener('click', function () {
                         const currentlyOpen = groupItem.classList.contains('is-open');
+                        
+                        // Auto-collapse other open menus if we are opening this one
+                        if (!currentlyOpen) {
+                            menuGroups.forEach((otherGroup) => {
+                                if (otherGroup !== groupItem && otherGroup.classList.contains('is-open')) {
+                                    setGroupOpen(otherGroup, false, true);
+                                }
+                            });
+                        }
+
                         setGroupOpen(groupItem, !currentlyOpen, true);
                         updateBulkToggleButton();
                     });
