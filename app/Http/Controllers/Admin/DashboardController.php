@@ -72,14 +72,14 @@ class DashboardController extends Controller
             'total_sale' => Order::whereNotIn('status', $invalidStatuses)->whereBetween('created_at', [$startDate, $endDate])->sum('total'),
         ];
 
-        // Courier stats — filtered by selected date range
+        // Courier stats — filtered by selected date range, based on when the status was updated
         $courierStats = [
-            'shipped_total' => Order::where('status', 'shipped')->whereBetween('created_at', [$startDate, $endDate])->sum('total'),
-            'shipped_count' => Order::where('status', 'shipped')->whereBetween('created_at', [$startDate, $endDate])->count(),
-            'delivered_total' => Order::where('status', 'delivered')->whereBetween('created_at', [$startDate, $endDate])->sum('total'),
-            'delivered_count' => Order::where('status', 'delivered')->whereBetween('created_at', [$startDate, $endDate])->count(),
-            'cancelled_total' => Order::where('status', 'cancelled')->whereBetween('created_at', [$startDate, $endDate])->sum('total'),
-            'cancelled_count' => Order::where('status', 'cancelled')->whereBetween('created_at', [$startDate, $endDate])->count(),
+            'shipped_total' => Order::where('status', 'shipped')->whereBetween('updated_at', [$startDate, $endDate])->sum('total'),
+            'shipped_count' => Order::where('status', 'shipped')->whereBetween('updated_at', [$startDate, $endDate])->count(),
+            'delivered_total' => Order::where('status', 'delivered')->whereBetween('updated_at', [$startDate, $endDate])->sum('total'),
+            'delivered_count' => Order::where('status', 'delivered')->whereBetween('updated_at', [$startDate, $endDate])->count(),
+            'cancelled_total' => Order::where('status', 'cancelled')->whereBetween('updated_at', [$startDate, $endDate])->sum('total'),
+            'cancelled_count' => Order::where('status', 'cancelled')->whereBetween('updated_at', [$startDate, $endDate])->count(),
         ];
 
         // Pending action stats (still needed for sidebar)
