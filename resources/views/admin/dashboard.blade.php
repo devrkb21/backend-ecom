@@ -34,20 +34,20 @@
 <div class="row g-3 mb-4">
     {{-- Today Sale (filtered by date range) --}}
     <div class="col-sm-6 col-lg-3">
-        <a href="{{ route('admin.bi.sales-reports') }}" class="text-decoration-none d-block h-100 text-dark">
+        <a href="{{ route('admin.orders.index') }}" class="text-decoration-none d-block h-100 text-dark">
             <div class="card stat-card h-100 border-start border-primary border-4 hover-elevate">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
                             <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-currency-dollar text-primary fs-4"></i>
+                                <i class="bi bi-cart text-primary fs-4"></i>
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h4 class="mb-0">৳{{ number_format($overviewStats['total_sale'], 2) }}</h4>
+                            <h4 class="mb-0">{{ number_format($overviewStats['orders']) }}</h4>
                             <span class="text-muted small">
-                                Sale ({{ ucfirst(str_replace('_', ' ', $range)) }})
-                                <span class="badge bg-primary bg-opacity-10 text-primary ms-1">{{ number_format($overviewStats['orders']) }} Order</span>
+                                Orders ({{ ucfirst(str_replace('_', ' ', $range)) }})
+                                <span class="badge bg-primary bg-opacity-10 text-primary ms-1">৳{{ number_format($overviewStats['total_sale'], 2) }}</span>
                             </span>
                         </div>
                     </div>

@@ -24,7 +24,7 @@
 
 <style>
     .order-stat-card {
-        transition: transform 0.2s, box-shadow 0.2s;
+        transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
         border: 1px solid rgba(0,0,0,0.05);
         background: #fff;
     }
@@ -33,8 +33,9 @@
         box-shadow: 0 .5rem 1rem rgba(0,0,0,.08)!important;
     }
     .order-stat-card.active {
-        background-color: #f8f9fa;
-        box-shadow: inset 0 0 0 2px #e9ecef;
+        background-color: var(--active-bg-color, #f8f9fa) !important;
+        box-shadow: 0 0 0 2px var(--active-border-color, #e9ecef) !important;
+        transform: translateY(-2px);
     }
 </style>
 
@@ -42,7 +43,7 @@
     <!-- Total Orders -->
     <div class="col-6 col-sm-4 col-md-3 col-lg">
         <a href="{{ route('admin.orders.index') }}" class="text-decoration-none">
-            <div class="card h-100 order-stat-card shadow-sm rounded-3 {{ $activeView === 'all' ? 'active' : '' }}">
+            <div class="card h-100 order-stat-card shadow-sm rounded-3 {{ $activeView === 'all' ? 'active' : '' }}" style="--active-border-color: #0d6efd; --active-bg-color: rgba(13,110,253,0.08); border-bottom: 3px solid #0d6efd;">
                 <div class="card-body p-3">
                     <div class="text-muted text-uppercase fw-bold mb-1" style="font-size: 0.65rem; letter-spacing: 0.5px;">Total Orders</div>
                     <h3 class="mb-0 fw-bolder text-dark">{{ number_format($filterCounts['all'] ?? 0) }}</h3>
@@ -57,7 +58,7 @@
         @endphp
         <div class="col-6 col-sm-4 col-md-3 col-lg">
             <a href="{{ route('admin.orders.index', ['view' => $st->key]) }}" class="text-decoration-none">
-                <div class="card h-100 order-stat-card shadow-sm rounded-3 {{ $activeView === $st->key ? 'active' : '' }}" style="border-bottom: 3px solid {{ $color }};">
+                <div class="card h-100 order-stat-card shadow-sm rounded-3 {{ $activeView === $st->key ? 'active' : '' }}" style="border-bottom: 3px solid {{ $color }}; --active-border-color: {{ $color }}; --active-bg-color: {{ $color }}15;">
                     <div class="card-body p-3">
                         <div class="text-muted text-uppercase fw-bold mb-1 text-truncate" style="font-size: 0.65rem; letter-spacing: 0.5px;" title="{{ $st->label }}">{{ $st->label }}</div>
                         <h3 class="mb-0 fw-bolder" style="color: {{ $color }};">{{ number_format($filterCounts[$st->key] ?? 0) }}</h3>
@@ -69,7 +70,7 @@
 
     <div class="col-6 col-sm-4 col-md-3 col-lg">
         <a href="{{ route('admin.orders.index', ['view' => 'trash']) }}" class="text-decoration-none">
-            <div class="card h-100 order-stat-card shadow-sm rounded-3 {{ $activeView === 'trash' ? 'active' : '' }}" style="border-bottom: 3px solid #6c757d;">
+            <div class="card h-100 order-stat-card shadow-sm rounded-3 {{ $activeView === 'trash' ? 'active' : '' }}" style="border-bottom: 3px solid #6c757d; --active-border-color: #6c757d; --active-bg-color: rgba(108,117,125,0.08);">
                 <div class="card-body p-3">
                     <div class="text-muted text-uppercase fw-bold mb-1" style="font-size: 0.65rem; letter-spacing: 0.5px;">Trash</div>
                     <h3 class="mb-0 fw-bolder" style="color: #6c757d;">{{ number_format($filterCounts['trash'] ?? 0) }}</h3>
