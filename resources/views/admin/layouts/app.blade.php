@@ -712,6 +712,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.couriers*') ? 'active' : '' }}" href="{{ route('admin.settings.couriers') }}">
+                            <i class="bi bi-truck-flatbed"></i> Couriers
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.payment-gateways*') ? 'active' : '' }}" href="{{ route('admin.settings.payment-gateways') }}">
                             <i class="bi bi-credit-card-2-front"></i> Payment Gateways
                         </a>

@@ -131,6 +131,9 @@
         'failed' => 'danger',
         'refunded' => 'secondary'
     ];
+
+    $steadfastEnabled = filter_var(\App\Models\Setting::getValue('courier', 'steadfast_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+    $isSteadfastSent = $order->carrier === 'steadfast' && $order->tracking_number;
 @endphp
 
 {{-- ==================== PAGE HEADER ==================== --}}
@@ -158,6 +161,17 @@
                     <i class="bi bi-arrow-counterclockwise me-1"></i> Restore Order
                 </button>
             </form>
+        @endif
+        @if($steadfastEnabled)
+            @if($isSteadfastSent)
+                <span class="badge bg-success d-flex align-items-center gap-1 p-2" title="Sent to SteadFast">
+                    <i class="bi bi-truck"></i> SteadFast: {{ $order->tracking_number }}
+                </span>
+            @elseif(in_array($order->status, ['pending', 'processing']))
+                <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#steadfastModal">
+                    <i class="bi bi-truck me-1"></i> Send to SteadFast
+                </button>
+            @endif
         @endif
         <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editCustomerInfoModal">
             <i class="bi bi-pencil-square me-1"></i> Edit Order
@@ -1029,6 +1043,52 @@
     </div>
 </div>
 @endsection
+
+@if($steadfastEnabled && !$isSteadfastSent && in_array($order->status, ['pending', 'processing']))
+{{-- SteadFast Courier Modal --}}
+<div class="modal fade" id="steadfastModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title"><i class="bi bi-truck me-2 text-success"></i>Send to SteadFast Courier</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ route('admin.orders.steadfast.send', $order->id) }}" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 mb-3">
+                        <small>
+                        <strong>Recipient:</strong> {{ $customerName }}<br>
+                        <strong>Phone:</strong> {{ $customerPhone }}<br>
+                        <strong>Address:</strong> {{ $shippingAddress }} {{ $shippingLocationText }} {{ $shippingArea }}
+                        </small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="cod_amount" class="form-label fw-bold">Cash on Delivery (COD) Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">৳</span>
+                            <input type="number" step="0.01" class="form-control" id="cod_amount" name="cod_amount" value="{{ $order->total }}" required>
+                        </div>
+                        <small class="text-muted">By default, this is the total order amount. Edit if part of the payment was received in advance.</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="steadfast_note" class="form-label fw-bold">Delivery Note (Optional)</label>
+                        <textarea class="form-control" id="steadfast_note" name="note" rows="2" placeholder="Any specific instructions for the delivery man">{{ $order->notes }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-send-check me-1"></i> Send to Courier
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
 
 @push('scripts')
 <script>
