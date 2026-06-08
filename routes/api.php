@@ -363,3 +363,4 @@ Route::prefix('v1')->group(function () {
         });
     });
 });
+Route::post('/webhooks/steadfast', [\App\Http\Controllers\Api\SteadfastWebhookController::class, 'handle'])->name('api.webhooks.steadfast');

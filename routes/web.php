@@ -121,6 +121,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::patch('orders/{order}/payment-status', [OrderController::class, 'updatePaymentStatus'])->name('orders.update-payment-status');
         Route::patch('orders/{order}/customer-info', [OrderController::class, 'updateCustomerInfo'])->name('orders.update-customer-info');
         Route::post('orders/{order}/items', [OrderController::class, 'updateItems'])->name('orders.update-items');
+        Route::post('orders/{order}/steadfast', [\App\Http\Controllers\Admin\SteadfastController::class, 'sendSingle'])->name('orders.steadfast.send');
+        Route::post('orders/steadfast/bulk', [\App\Http\Controllers\Admin\SteadfastController::class, 'sendBulk'])->name('orders.steadfast.bulk');
 
         // Order Tracking
         Route::get('orders/{order}/tracking', [OrderTrackingController::class, 'edit'])->name('orders.tracking.edit');
@@ -193,6 +195,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('integrations', [IntegrationSettingController::class, 'index'])->name('integrations');
             Route::put('integrations', [IntegrationSettingController::class, 'update'])->name('integrations.update');
             Route::get('integrations/sms-balance', [IntegrationSettingController::class, 'smsBalance'])->name('integrations.sms-balance');
+
+            // Couriers
+            Route::get('couriers', [\App\Http\Controllers\Admin\CourierController::class, 'index'])->name('couriers');
+            
+            // SteadFast Courier
+            Route::get('couriers/steadfast', [\App\Http\Controllers\Admin\SteadfastCourierController::class, 'dashboard'])->name('couriers.steadfast');
+            Route::put('couriers/steadfast', [\App\Http\Controllers\Admin\SteadfastCourierController::class, 'update'])->name('couriers.steadfast.update');
+            Route::post('couriers/steadfast/balance', [\App\Http\Controllers\Admin\SteadfastCourierController::class, 'checkBalance'])->name('couriers.steadfast.balance');
 
             // Order Statuses
             Route::get('order-statuses', [OrderStatusController::class, 'index'])->name('order-statuses');

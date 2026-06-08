@@ -20,6 +20,8 @@
         'returned' => '#f43f5e',
         'failed_delivery' => '#dc2626',
     ];
+
+    $steadfastEnabled = filter_var(\App\Models\Setting::getValue('courier', 'steadfast_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
 @endphp
 
 <style>
@@ -253,6 +255,9 @@
                             @foreach($bulkStatuses as $statusOption)
                                 <option value="{{ $statusOption->key }}">Mark as {{ $statusOption->label }}</option>
                             @endforeach
+                            @if($steadfastEnabled ?? false)
+                                <option value="steadfast_send" class="text-success fw-bold">🚀 Send to SteadFast Courier (Pending/Processing only)</option>
+                            @endif
                             <option value="trash">Move to Trash</option>
                         @endif
                     </select>
@@ -282,6 +287,7 @@
                             <th class="text-end">Total</th>
                             <th>Payment</th>
                             <th>Source</th>
+                            <th>Courier</th>
                             <th>Status</th>
                             <th>Date</th>
                             <th>Actions</th>
@@ -393,6 +399,39 @@
                                     @endif
                                 </td>
                                 <td>
+                                    @if($order->carrier)
+                                        <div class="small fw-semibold text-primary">
+                                            <i class="bi bi-truck"></i> {{ ucfirst($order->carrier) }}
+                                        </div>
+                                        @if($order->tracking_number)
+                                            <div class="small text-muted" style="font-size: 0.75rem;">
+                                                @if($order->carrier_tracking_url)
+                                                    <a href="{{ $order->carrier_tracking_url }}" target="_blank" class="text-decoration-none text-muted" title="Track Parcel">
+                                                        #{{ $order->tracking_number }} <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                                    </a>
+                                                @else
+                                                    #{{ $order->tracking_number }}
+                                                @endif
+                                            </div>
+                                        @endif
+                                    @else
+                                        @if(filter_var(\App\Models\Setting::getValue('courier', 'steadfast_enabled', '0'), FILTER_VALIDATE_BOOLEAN) && in_array($order->status, ['pending', 'processing']))
+                                            <button type="button" class="btn btn-sm btn-outline-success py-0 px-2 btn-send-steadfast" style="font-size: 0.75rem;" 
+                                                    data-bs-toggle="modal" data-bs-target="#steadfastModal"
+                                                    data-order-id="{{ $order->id }}"
+                                                    data-order-total="{{ $order->total }}"
+                                                    data-order-notes="{{ $order->notes }}"
+                                                    data-customer-name="{{ trim($order->shipping_name) ?: ($order->user?->name ?: 'Guest') }}"
+                                                    data-customer-phone="{{ $order->shipping_phone ?: $order->user?->phone }}"
+                                                    data-customer-address="{{ trim($order->shipping_address . ' ' . ($order->checkout_fields_payload['shipping_location_text'] ?? '') . ' ' . ($order->checkout_fields_payload['shipping_area'] ?? '')) }}">
+                                                <i class="bi bi-send-check"></i> Send to SteadFast
+                                            </button>
+                                        @else
+                                            <span class="text-muted small">-</span>
+                                        @endif
+                                    @endif
+                                </td>
+                                <td>
                                     @php
                                         $statusLabel = $order->statusConfig?->label ?? ucfirst(str_replace('_', ' ', $order->status));
                                         $statusColor = $order->statusConfig?->color ?? '#6C757D';
@@ -480,11 +519,78 @@
         </div>
     </div>
 </div>
+
+@if(filter_var(\App\Models\Setting::getValue('courier', 'steadfast_enabled', '0'), FILTER_VALIDATE_BOOLEAN))
+{{-- Shared SteadFast Courier Modal --}}
+<div class="modal fade" id="steadfastModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title"><i class="bi bi-truck me-2 text-success"></i>Send to SteadFast Courier</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="steadfastForm" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 mb-3">
+                        <small>
+                        <strong>Recipient:</strong> <span id="sfModalName"></span><br>
+                        <strong>Phone:</strong> <span id="sfModalPhone"></span><br>
+                        <strong>Address:</strong> <span id="sfModalAddress"></span>
+                        </small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="sf_cod_amount" class="form-label fw-bold">Cash on Delivery (COD) Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">৳</span>
+                            <input type="number" step="0.01" class="form-control" id="sf_cod_amount" name="cod_amount" required>
+                        </div>
+                        <small class="text-muted">By default, this is the total order amount. Edit if part of the payment was received in advance.</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="sf_steadfast_note" class="form-label fw-bold">Delivery Note (Optional)</label>
+                        <textarea class="form-control" id="sf_steadfast_note" name="note" rows="2" placeholder="Any specific instructions for the delivery man"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-send-check me-1"></i> Send to Courier
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
 @endsection
 
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // --- Steadfast Modal Logic ---
+    const steadfastModalEl = document.getElementById('steadfastModal');
+    if (steadfastModalEl) {
+        steadfastModalEl.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const orderId = button.getAttribute('data-order-id');
+            
+            // Set action URL
+            const form = document.getElementById('steadfastForm');
+            form.action = '/admin/orders/' + orderId + '/steadfast';
+            
+            // Populate data
+            document.getElementById('sfModalName').textContent = button.getAttribute('data-customer-name');
+            document.getElementById('sfModalPhone').textContent = button.getAttribute('data-customer-phone');
+            document.getElementById('sfModalAddress').textContent = button.getAttribute('data-customer-address');
+            document.getElementById('sf_cod_amount').value = button.getAttribute('data-order-total');
+            document.getElementById('sf_steadfast_note').value = button.getAttribute('data-order-notes');
+        });
+    }
+
     const form = document.getElementById('bulkOrderForm');
     const selectAll = document.getElementById('selectAllOrders');
     const checkboxes = Array.from(document.querySelectorAll('.order-checkbox'));

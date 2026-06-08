@@ -607,7 +607,7 @@ class OrderController extends Controller
             $activeStatusKeys = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
         }
 
-        $allowedActions = array_merge($activeStatusKeys, ['trash', 'restore', 'force_delete']);
+        $allowedActions = array_merge($activeStatusKeys, ['trash', 'restore', 'force_delete', 'steadfast_send']);
 
         $validated = $request->validate([
             'order_ids' => ['required', 'array', 'min:1'],
@@ -615,6 +615,10 @@ class OrderController extends Controller
             'bulk_action' => ['required', 'string', Rule::in($allowedActions)],
             'cancel_reason' => ['nullable', 'string', 'max:500'],
         ]);
+
+        if ($validated['bulk_action'] === 'steadfast_send') {
+            return app(\App\Http\Controllers\Admin\SteadfastController::class)->sendBulk($request);
+        }
 
         $action = (string) $validated['bulk_action'];
         $orderIds = collect($validated['order_ids'])
