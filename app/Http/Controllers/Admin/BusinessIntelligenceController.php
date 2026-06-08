@@ -41,26 +41,26 @@ class BusinessIntelligenceController extends Controller
     public function salesReports(Request $request)
     {
         $period = $request->get('period', 'month');
-        $days = $request->get('days', 30);
 
         $overview = $this->biService->getSalesOverview($period);
-        $dailyChart = $this->biService->getDailySalesChart($days);
+        $dailyChart = $this->biService->getDailySalesChart($period);
         $byPaymentMethod = $this->biService->getSalesByPaymentMethod($period);
         $byOrderSource = $this->biService->getSalesByOrderSource($period);
         $byLocation = $this->biService->getSalesByLocation($period, 10);
         $byCategory = $this->biService->getSalesByCategory($period, 10);
-        $hourlyDistribution = $this->biService->getHourlySalesDistribution($days);
+        $hourlyDistribution = $this->biService->getHourlySalesDistribution($period);
+        $byCancellationReason = $this->biService->getCancellationByReason($period);
 
         return view('admin.analytics.sales-reports', compact(
             'period',
-            'days',
             'overview',
             'dailyChart',
             'byPaymentMethod',
             'byOrderSource',
             'byLocation',
             'byCategory',
-            'hourlyDistribution'
+            'hourlyDistribution',
+            'byCancellationReason'
         ));
     }
 

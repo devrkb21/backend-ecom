@@ -7,6 +7,7 @@ use App\Models\AbandonedCart;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -19,20 +20,44 @@ class DashboardController extends Controller
         $startDate = now()->startOfDay();
         $endDate = now()->endOfDay();
 
-        if ($range === 'yesterday') {
-            $startDate = now()->subDay()->startOfDay();
-            $endDate = now()->subDay()->endOfDay();
-        } elseif ($range === 'last_30_days') {
-            $startDate = now()->subDays(30)->startOfDay();
-            $endDate = now()->endOfDay();
-        } elseif ($range === 'custom' && $request->has('start_date') && $request->has('end_date')) {
-            try {
-                $startDate = Carbon::parse($request->get('start_date'))->startOfDay();
-                $endDate = Carbon::parse($request->get('end_date'))->endOfDay();
-            } catch (\Exception $e) {
-                $startDate = now()->startOfDay();
-                $endDate = now()->endOfDay();
-            }
+        switch ($range) {
+            case 'yesterday':
+                $startDate = now()->subDay()->startOfDay();
+                $endDate = now()->subDay()->endOfDay();
+                break;
+            case 'this_week':
+                $startDate = now()->startOfWeek();
+                $endDate = now()->endOfWeek();
+                break;
+            case 'this_month':
+                $startDate = now()->startOfMonth();
+                $endDate = now()->endOfMonth();
+                break;
+            case 'last_month':
+                $startDate = now()->subMonth()->startOfMonth();
+                $endDate = now()->subMonth()->endOfMonth();
+                break;
+            case 'this_year':
+                $startDate = now()->startOfYear();
+                $endDate = now()->endOfYear();
+                break;
+            case 'last_year':
+                $startDate = now()->subYear()->startOfYear();
+                $endDate = now()->subYear()->endOfYear();
+                break;
+            case 'custom':
+                if ($request->has('start_date') && $request->has('end_date')) {
+                    try {
+                        $startDate = Carbon::parse($request->get('start_date'))->startOfDay();
+                        $endDate = Carbon::parse($request->get('end_date'))->endOfDay();
+                    } catch (\Exception $e) {
+                        $startDate = now()->startOfDay();
+                        $endDate = now()->endOfDay();
+                    }
+                }
+                break;
+            default: // 'today'
+                break;
         }
 
         $thisMonth = now()->startOfMonth();
@@ -41,23 +66,74 @@ class DashboardController extends Controller
 
         $invalidStatuses = ['cancelled', 'failed', 'returned'];
 
-        // Overview stats based on selected range
-        $rangeProfit = DB::table('order_items')
-            ->join('orders', 'orders.id', '=', 'order_items.order_id')
-            ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
-            ->leftJoin('product_variants', 'product_variants.id', '=', 'order_items.product_variant_id')
-            ->where('orders.status', 'delivered')
-            ->whereNull('orders.deleted_at')
-            ->whereNotNull('orders.delivered_at')
-            ->whereBetween('orders.delivered_at', [$startDate, $endDate])
-            ->select(DB::raw('SUM(order_items.total - (order_items.quantity * COALESCE(product_variants.purchase_price, products.buy_price, 0))) as profit'))
-            ->value('profit') ?? 0;
-
+        // Overview stats based on selected range (Today Sale + order count)
         $overviewStats = [
             'orders' => Order::whereBetween('created_at', [$startDate, $endDate])->whereNotIn('status', $invalidStatuses)->count(),
             'total_sale' => Order::whereNotIn('status', $invalidStatuses)->whereBetween('created_at', [$startDate, $endDate])->sum('total'),
-            'total_profit' => $rangeProfit,
-            'new_customers' => User::where('role', 'customer')->whereBetween('created_at', [$startDate, $endDate])->count(),
+        ];
+
+        // Courier stats — filtered by selected date range
+        $courierStats = [
+            'shipped_total' => Order::where('status', 'shipped')->whereBetween('created_at', [$startDate, $endDate])->sum('total'),
+            'shipped_count' => Order::where('status', 'shipped')->whereBetween('created_at', [$startDate, $endDate])->count(),
+            'delivered_total' => Order::where('status', 'delivered')->whereBetween('created_at', [$startDate, $endDate])->sum('total'),
+            'delivered_count' => Order::where('status', 'delivered')->whereBetween('created_at', [$startDate, $endDate])->count(),
+            'cancelled_total' => Order::where('status', 'cancelled')->whereBetween('created_at', [$startDate, $endDate])->sum('total'),
+            'cancelled_count' => Order::where('status', 'cancelled')->whereBetween('created_at', [$startDate, $endDate])->count(),
+        ];
+
+        // Pending action stats (still needed for sidebar)
+        $stats = [
+            'pending_orders' => Order::where('status', 'pending')->count(),
+            'processing_orders' => Order::where('status', 'processing')->count(),
+        ];
+
+        // Product Inventory Alert (with variant-level stock)
+        // Products with variants: check if ALL variants have 0 stock
+        $outOfStockWithVariants = Product::where('is_active', true)
+            ->whereHas('variants')
+            ->whereDoesntHave('variants', function ($q) {
+                $q->where('is_active', true)->where('stock_quantity', '>', 0);
+            })
+            ->count();
+
+        // Products without variants: stock_quantity <= 0
+        $outOfStockSimple = Product::where('is_active', true)
+            ->whereDoesntHave('variants')
+            ->where('stock_quantity', '<=', 0)
+            ->count();
+
+        // Low stock: products without variants with stock 1-10
+        $lowStockSimple = Product::where('is_active', true)
+            ->whereDoesntHave('variants')
+            ->where('stock_quantity', '>', 0)
+            ->where('stock_quantity', '<=', 10)
+            ->count();
+
+        // Low stock: variant products where total active variant stock is 1-10
+        $lowStockWithVariants = Product::where('is_active', true)
+            ->whereHas('variants', function ($q) {
+                $q->where('is_active', true)->where('stock_quantity', '>', 0);
+            })
+            ->get()
+            ->filter(function ($product) {
+                $totalStock = $product->variants->where('is_active', true)->sum('stock_quantity');
+                return $totalStock > 0 && $totalStock <= 10;
+            })
+            ->count();
+
+        // Low stock variants (individual variants with stock 1-10)
+        $lowStockVariants = ProductVariant::where('is_active', true)
+            ->where('stock_quantity', '>', 0)
+            ->where('stock_quantity', '<=', 10)
+            ->count();
+
+        $inventoryAlert = [
+            'out_of_stock' => $outOfStockWithVariants + $outOfStockSimple,
+            'low_stock' => $lowStockSimple + $lowStockWithVariants,
+            'low_stock_variants' => $lowStockVariants,
+            'total_active' => Product::where('is_active', true)->count(),
+            'total_inactive' => Product::where('is_active', false)->count(),
         ];
 
         // This month stats
@@ -78,29 +154,9 @@ class DashboardController extends Controller
             ? (($thisMonthStats['revenue'] - $lastMonthStats['revenue']) / $lastMonthStats['revenue']) * 100 
             : 0;
 
-        // Lifetime stats
-        $totalProfit = DB::table('order_items')
-            ->join('orders', 'orders.id', '=', 'order_items.order_id')
-            ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
-            ->leftJoin('product_variants', 'product_variants.id', '=', 'order_items.product_variant_id')
-            ->whereNotIn('orders.status', $invalidStatuses)
-            ->whereNull('orders.deleted_at')
-            ->select(DB::raw('SUM(order_items.total - (order_items.quantity * COALESCE(product_variants.purchase_price, products.buy_price, 0))) as profit'))
-            ->value('profit') ?? 0;
-
-        $stats = [
-            'total_users' => User::where('role', 'customer')->count(),
-            'total_products' => Product::count(),
-            'total_orders' => Order::whereNotIn('status', $invalidStatuses)->count(),
-            'total_sale' => Order::whereNotIn('status', $invalidStatuses)->sum('total'),
-            'pending_orders' => Order::where('status', 'pending')->count(),
-            'processing_orders' => Order::where('status', 'processing')->count(),
-            'total_profit' => $totalProfit,
-        ];
-
-        // Sales data for last 7 days chart
+        // Sales data for last 30 days chart
         $salesChart = Order::where('status', 'delivered')
-            ->where('created_at', '>=', now()->subDays(7))
+            ->where('created_at', '>=', now()->subDays(30))
             ->select(
                 DB::raw('DATE(created_at) as date'),
                 DB::raw('SUM(total) as revenue'),
@@ -112,11 +168,11 @@ class DashboardController extends Controller
 
         // Fill in missing days
         $chartData = [];
-        for ($i = 6; $i >= 0; $i--) {
+        for ($i = 29; $i >= 0; $i--) {
             $date = now()->subDays($i)->format('Y-m-d');
             $dayData = $salesChart->firstWhere('date', $date);
             $chartData[] = [
-                'label' => now()->subDays($i)->format('D'),
+                'label' => now()->subDays($i)->format('d M'),
                 'date' => $date,
                 'revenue' => $dayData->revenue ?? 0,
                 'orders' => $dayData->orders ?? 0,
@@ -145,23 +201,19 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Low stock products count
-        $lowStockCount = Product::where('is_active', true)
-            ->where('stock_quantity', '<=', 10)
-            ->count();
-
         // Abandoned cart summary
         $abandonedSummary = AbandonedCart::getSummary();
 
         return view('admin.dashboard', compact(
             'stats',
             'overviewStats',
+            'courierStats',
+            'inventoryAlert',
             'thisMonthStats',
             'revenueChange',
             'chartData',
             'recentOrders',
             'topProducts',
-            'lowStockCount',
             'abandonedSummary',
             'range',
             'startDate',

@@ -8,25 +8,75 @@
     $activeView = $view ?? 'all';
 @endphp
 
-<div class="mb-3 small fw-semibold">
-    <a href="{{ route('admin.orders.index') }}" class="text-decoration-none {{ $activeView === 'all' ? 'text-primary' : 'text-muted' }}">
-        All ({{ $filterCounts['all'] ?? 0 }})
-    </a>
+@php
+    $statusColorMap = [
+        'pending' => '#f59e0b',
+        'processing' => '#3b82f6',
+        'shipped' => '#8b5cf6',
+        'in_transit' => '#06b6d4',
+        'out_for_delivery' => '#14b8a6',
+        'delivered' => '#10b981',
+        'cancelled' => '#ef4444',
+        'returned' => '#f43f5e',
+        'failed_delivery' => '#dc2626',
+    ];
+@endphp
 
-    @foreach($statuses as $statusTab)
-        <span class="mx-1 text-muted">|</span>
-        <a
-            href="{{ route('admin.orders.index', ['view' => $statusTab->key]) }}"
-            class="text-decoration-none {{ $activeView === $statusTab->key ? 'text-primary' : 'text-muted' }}"
-        >
-            {{ $statusTab->label }} ({{ $filterCounts[$statusTab->key] ?? 0 }})
+<style>
+    .order-stat-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid rgba(0,0,0,0.05);
+        background: #fff;
+    }
+    .order-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.08)!important;
+    }
+    .order-stat-card.active {
+        background-color: #f8f9fa;
+        box-shadow: inset 0 0 0 2px #e9ecef;
+    }
+</style>
+
+<div class="row g-2 mb-4">
+    <!-- Total Orders -->
+    <div class="col-6 col-sm-4 col-md-3 col-lg">
+        <a href="{{ route('admin.orders.index') }}" class="text-decoration-none">
+            <div class="card h-100 order-stat-card shadow-sm rounded-3 {{ $activeView === 'all' ? 'active' : '' }}">
+                <div class="card-body p-3">
+                    <div class="text-muted text-uppercase fw-bold mb-1" style="font-size: 0.65rem; letter-spacing: 0.5px;">Total Orders</div>
+                    <h3 class="mb-0 fw-bolder text-dark">{{ number_format($filterCounts['all'] ?? 0) }}</h3>
+                </div>
+            </div>
         </a>
+    </div>
+
+    @foreach($statuses as $st)
+        @php
+            $color = $st->color ?? ($statusColorMap[$st->key] ?? '#6c757d');
+        @endphp
+        <div class="col-6 col-sm-4 col-md-3 col-lg">
+            <a href="{{ route('admin.orders.index', ['view' => $st->key]) }}" class="text-decoration-none">
+                <div class="card h-100 order-stat-card shadow-sm rounded-3 {{ $activeView === $st->key ? 'active' : '' }}" style="border-bottom: 3px solid {{ $color }};">
+                    <div class="card-body p-3">
+                        <div class="text-muted text-uppercase fw-bold mb-1 text-truncate" style="font-size: 0.65rem; letter-spacing: 0.5px;" title="{{ $st->label }}">{{ $st->label }}</div>
+                        <h3 class="mb-0 fw-bolder" style="color: {{ $color }};">{{ number_format($filterCounts[$st->key] ?? 0) }}</h3>
+                    </div>
+                </div>
+            </a>
+        </div>
     @endforeach
 
-    <span class="mx-1 text-muted">|</span>
-    <a href="{{ route('admin.orders.index', ['view' => 'trash']) }}" class="text-decoration-none {{ $activeView === 'trash' ? 'text-primary' : 'text-muted' }}">
-        Trash ({{ $filterCounts['trash'] ?? 0 }})
-    </a>
+    <div class="col-6 col-sm-4 col-md-3 col-lg">
+        <a href="{{ route('admin.orders.index', ['view' => 'trash']) }}" class="text-decoration-none">
+            <div class="card h-100 order-stat-card shadow-sm rounded-3 {{ $activeView === 'trash' ? 'active' : '' }}" style="border-bottom: 3px solid #6c757d;">
+                <div class="card-body p-3">
+                    <div class="text-muted text-uppercase fw-bold mb-1" style="font-size: 0.65rem; letter-spacing: 0.5px;">Trash</div>
+                    <h3 class="mb-0 fw-bolder" style="color: #6c757d;">{{ number_format($filterCounts['trash'] ?? 0) }}</h3>
+                </div>
+            </div>
+        </a>
+    </div>
 </div>
 
 <div class="card">
@@ -392,6 +442,43 @@
         @include('admin.partials.pagination', ['paginator' => $orders])
     </div>
 </div>
+
+@php
+    $cancellationReasonsStr = \App\Models\Setting::getValue('general', 'cancellation_reasons', 'Out of Stock,Customer Request,Fraudulent,Payment Failed,Other');
+    $cancellationReasons = array_filter(array_map('trim', explode(',', $cancellationReasonsStr)));
+    // Remove "Other" if it exists so we can always append it at the end
+    $cancellationReasons = array_filter($cancellationReasons, fn($r) => strtolower($r) !== 'other');
+@endphp
+
+{{-- Cancel Order Modal --}}
+<div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger bg-opacity-10 border-0">
+                <h5 class="modal-title text-danger"><i class="bi bi-x-circle me-2"></i>Cancel Order(s)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3">Please select a reason for cancelling the selected order(s):</p>
+                <select class="form-select mb-3" id="cancelReasonSelect">
+                    <option value="">-- Select Reason (Optional) --</option>
+                    @foreach($cancellationReasons as $reason)
+                        <option value="{{ $reason }}">{{ $reason }}</option>
+                    @endforeach
+                    <option value="other">Other (Specify)</option>
+                </select>
+                <div id="cancelReasonOtherDiv" style="display:none;">
+                    <label class="form-label small fw-semibold">Specify Reason <span class="text-muted fw-normal">(will be saved)</span></label>
+                    <input type="text" class="form-control" id="cancelReasonOtherInput" placeholder="Type reason here...">
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-danger" id="confirmCancelOrderBtn">Confirm Cancellation</button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -434,7 +521,40 @@ document.addEventListener('DOMContentLoaded', function () {
         checkbox.addEventListener('change', syncSelectionState);
     });
 
+    let isBulkCancelConfirmed = false;
+    const cancelModalEl = document.getElementById('cancelOrderModal');
+    let cancelModal = null;
+
+    if (cancelModalEl) {
+        cancelModal = new bootstrap.Modal(cancelModalEl);
+        document.getElementById('confirmCancelOrderBtn').addEventListener('click', function() {
+            let val = document.getElementById('cancelReasonSelect').value;
+            if (val === 'other') {
+                val = document.getElementById('cancelReasonOtherInput').value.trim();
+                if (!val) { alert('Please specify a reason'); return; }
+            }
+            isBulkCancelConfirmed = true;
+            cancelModal.hide();
+            
+            if (val) {
+                let hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'cancel_reason';
+                hiddenInput.value = val;
+                form.appendChild(hiddenInput);
+            }
+            form.submit();
+        });
+        
+        document.getElementById('cancelReasonSelect').addEventListener('change', function() {
+            document.getElementById('cancelReasonOtherDiv').style.display = this.value === 'other' ? 'block' : 'none';
+            if (this.value === 'other') document.getElementById('cancelReasonOtherInput').focus();
+        });
+    }
+
     form.addEventListener('submit', function (event) {
+        if (isBulkCancelConfirmed) return; // let it pass if confirmed via modal
+
         const checked = checkboxes.some(function (checkbox) {
             return checkbox.checked;
         });
@@ -456,6 +576,15 @@ document.addEventListener('DOMContentLoaded', function () {
             confirmationMessage = 'Are you sure you want to move selected orders to trash?';
         } else if (actionSelect.value === 'force_delete') {
             confirmationMessage = 'WARNING: Are you sure you want to permanently delete selected orders? This action cannot be undone!';
+        }
+
+        if (actionSelect.value === 'cancelled' && cancelModal) {
+            event.preventDefault(); // Pause for modal
+            document.getElementById('cancelReasonSelect').value = '';
+            document.getElementById('cancelReasonOtherDiv').style.display = 'none';
+            document.getElementById('cancelReasonOtherInput').value = '';
+            cancelModal.show();
+            return;
         }
 
         if (!window.confirm(confirmationMessage)) {

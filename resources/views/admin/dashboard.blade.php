@@ -9,22 +9,30 @@
     <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-calendar-day me-2"></i>Daily Overview</h5>
     
     <form action="{{ route('admin.dashboard') }}" method="GET" class="d-flex align-items-center gap-2" id="filterForm">
-        <select name="range" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+        <select name="range" class="form-select form-select-sm w-auto" id="rangeSelect" onchange="handleRangeChange(this)">
             <option value="today" {{ $range == 'today' ? 'selected' : '' }}>Today</option>
             <option value="yesterday" {{ $range == 'yesterday' ? 'selected' : '' }}>Yesterday</option>
-            <option value="last_30_days" {{ $range == 'last_30_days' ? 'selected' : '' }}>Last 30 Days</option>
+            <option value="this_week" {{ $range == 'this_week' ? 'selected' : '' }}>This Week</option>
+            <option value="this_month" {{ $range == 'this_month' ? 'selected' : '' }}>This Month</option>
+            <option value="last_month" {{ $range == 'last_month' ? 'selected' : '' }}>Last Month</option>
+            <option value="this_year" {{ $range == 'this_year' ? 'selected' : '' }}>This Year</option>
+            <option value="last_year" {{ $range == 'last_year' ? 'selected' : '' }}>Last Year</option>
             <option value="custom" {{ $range == 'custom' ? 'selected' : '' }}>Custom Date</option>
         </select>
         
-        @if($range == 'custom')
-            <input type="date" name="start_date" value="{{ $startDate->format('Y-m-d') }}" class="form-control form-control-sm w-auto" onchange="this.form.submit()">
+        <div id="customDateFields" style="{{ $range == 'custom' ? '' : 'display:none;' }}" class="d-flex align-items-center gap-2">
+            <input type="date" name="start_date" value="{{ $startDate->format('Y-m-d') }}" class="form-control form-control-sm w-auto">
             <span class="text-muted small">to</span>
-            <input type="date" name="end_date" value="{{ $endDate->format('Y-m-d') }}" class="form-control form-control-sm w-auto" onchange="this.form.submit()">
-        @endif
+            <input type="date" name="end_date" value="{{ $endDate->format('Y-m-d') }}" class="form-control form-control-sm w-auto">
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="bi bi-funnel"></i> Filter
+            </button>
+        </div>
     </form>
 </div>
 
 <div class="row g-3 mb-4">
+    {{-- Today Sale (filtered by date range) --}}
     <div class="col-sm-6 col-lg-3">
         <a href="{{ route('admin.bi.sales-reports') }}" class="text-decoration-none d-block h-100 text-dark">
             <div class="card stat-card h-100 border-start border-primary border-4 hover-elevate">
@@ -37,7 +45,10 @@
                         </div>
                         <div class="flex-grow-1 ms-3">
                             <h4 class="mb-0">৳{{ number_format($overviewStats['total_sale'], 2) }}</h4>
-                            <span class="text-muted small">Total Sale ({{ ucfirst(str_replace('_', ' ', $range)) }})</span>
+                            <span class="text-muted small">
+                                Sale ({{ ucfirst(str_replace('_', ' ', $range)) }})
+                                <span class="badge bg-primary bg-opacity-10 text-primary ms-1">{{ number_format($overviewStats['orders']) }} Order</span>
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -45,39 +56,23 @@
         </a>
     </div>
 
+    {{-- Courier Shipped (filtered) --}}
     <div class="col-sm-6 col-lg-3">
-        <a href="{{ route('admin.bi.sales-reports') }}" class="text-decoration-none d-block h-100 text-dark">
-            <div class="card stat-card h-100 border-start border-success border-4 hover-elevate">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <div class="bg-success bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-graph-up-arrow text-success fs-4"></i>
-                            </div>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h4 class="mb-0">৳{{ number_format($overviewStats['total_profit'], 2) }}</h4>
-                            <span class="text-muted small">Total Profit ({{ ucfirst(str_replace('_', ' ', $range)) }})</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </a>
-    </div>
-
-    <div class="col-sm-6 col-lg-3">
-        <a href="{{ route('admin.orders.index', ['date' => $range == 'today' ? 'today' : '']) }}" class="text-decoration-none d-block h-100 text-dark">
+        <a href="{{ route('admin.orders.index', ['status' => 'shipped']) }}" class="text-decoration-none d-block h-100 text-dark">
             <div class="card stat-card h-100 border-start border-info border-4 hover-elevate">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
                             <div class="bg-info bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-cart-check text-info fs-4"></i>
+                                <i class="bi bi-truck text-info fs-4"></i>
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h4 class="mb-0">{{ number_format($overviewStats['orders']) }}</h4>
-                            <span class="text-muted small">Orders ({{ ucfirst(str_replace('_', ' ', $range)) }})</span>
+                            <h4 class="mb-0">৳{{ number_format($courierStats['shipped_total'], 2) }}</h4>
+                            <span class="text-muted small">
+                                Courier Shipped
+                                <span class="badge bg-info bg-opacity-10 text-info ms-1">{{ number_format($courierStats['shipped_count']) }} Parcel</span>
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -85,19 +80,47 @@
         </a>
     </div>
 
+    {{-- Courier Delivered (filtered) --}}
     <div class="col-sm-6 col-lg-3">
-        <a href="{{ route('admin.users.index', ['date' => $range == 'today' ? 'today' : '']) }}" class="text-decoration-none d-block h-100 text-dark">
-            <div class="card stat-card h-100 border-start border-warning border-4 hover-elevate">
+        <a href="{{ route('admin.orders.index', ['status' => 'delivered']) }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 border-start border-success border-4 hover-elevate">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
-                            <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-person-plus text-warning fs-4"></i>
+                            <div class="bg-success bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-check-circle text-success fs-4"></i>
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h4 class="mb-0">{{ number_format($overviewStats['new_customers']) }}</h4>
-                            <span class="text-muted small">New Customers ({{ ucfirst(str_replace('_', ' ', $range)) }})</span>
+                            <h4 class="mb-0">৳{{ number_format($courierStats['delivered_total'], 2) }}</h4>
+                            <span class="text-muted small">
+                                Courier Delivered
+                                <span class="badge bg-success bg-opacity-10 text-success ms-1">{{ number_format($courierStats['delivered_count']) }} Parcel</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    {{-- Courier Cancelled (filtered) --}}
+    <div class="col-sm-6 col-lg-3">
+        <a href="{{ route('admin.orders.index', ['status' => 'cancelled']) }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 border-start border-danger border-4 hover-elevate">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-danger bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-x-circle text-danger fs-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h4 class="mb-0">৳{{ number_format($courierStats['cancelled_total'], 2) }}</h4>
+                            <span class="text-muted small">
+                                Courier Cancelled
+                                <span class="badge bg-danger bg-opacity-10 text-danger ms-1">{{ number_format($courierStats['cancelled_count']) }} Parcel</span>
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -190,22 +213,22 @@
     </div>
 </div>
 
-<!-- Lifetime Performance -->
-<h5 class="mb-3 fw-bold text-dark"><i class="bi bi-trophy me-2"></i>Lifetime Performance Summary</h5>
+<!-- Product Inventory Alert -->
+<h5 class="mb-3 fw-bold text-dark"><i class="bi bi-exclamation-triangle me-2"></i>Product Inventory Alert</h5>
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-lg-3">
-        <a href="{{ route('admin.bi.sales-reports') }}" class="text-decoration-none d-block h-100 text-dark">
-            <div class="card stat-card h-100 hover-elevate border-start border-primary border-4">
+        <a href="{{ route('admin.products.index', ['stock' => 'out_of_stock']) }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 border-start border-danger border-4 hover-elevate">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
-                            <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-currency-dollar text-primary fs-4"></i>
+                            <div class="bg-danger bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-exclamation-octagon text-danger fs-4"></i>
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h3 class="mb-0">৳{{ number_format($stats['total_sale'], 2) }}</h3>
-                            <span class="text-muted small">Total Sale (Lifetime)</span>
+                            <h3 class="mb-0 {{ $inventoryAlert['out_of_stock'] > 0 ? 'text-danger' : '' }}">{{ number_format($inventoryAlert['out_of_stock']) }}</h3>
+                            <span class="text-muted small">Out of Stock</span>
                         </div>
                     </div>
                 </div>
@@ -214,58 +237,63 @@
     </div>
 
     <div class="col-sm-6 col-lg-3">
-        <a href="{{ route('admin.bi.sales-reports') }}" class="text-decoration-none d-block h-100 text-dark">
-            <div class="card stat-card h-100 hover-elevate border-start border-success border-4">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <div class="bg-success bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-graph-up-arrow text-success fs-4"></i>
-                            </div>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h3 class="mb-0">৳{{ number_format($stats['total_profit'], 2) }}</h3>
-                            <span class="text-muted small">Total Profit (Lifetime)</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </a>
-    </div>
-
-    <div class="col-sm-6 col-lg-3">
-        <a href="{{ route('admin.orders.index') }}" class="text-decoration-none d-block h-100 text-dark">
-            <div class="card stat-card h-100 hover-elevate border-start border-info border-4">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <div class="bg-info bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-receipt text-info fs-4"></i>
-                            </div>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h3 class="mb-0">{{ number_format($stats['total_orders']) }}</h3>
-                            <span class="text-muted small">Total Orders</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </a>
-    </div>
-
-    <div class="col-sm-6 col-lg-3">
-        <a href="{{ route('admin.users.index') }}" class="text-decoration-none d-block h-100 text-dark">
-            <div class="card stat-card h-100 hover-elevate border-start border-warning border-4">
+        <a href="{{ route('admin.products.index', ['stock' => 'low_stock']) }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 border-start border-warning border-4 hover-elevate">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
                             <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
-                                <i class="bi bi-people text-warning fs-4"></i>
+                                <i class="bi bi-exclamation-triangle text-warning fs-4"></i>
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h3 class="mb-0">{{ number_format($stats['total_users']) }}</h3>
-                            <span class="text-muted small">Total Customers</span>
+                            <h3 class="mb-0 {{ $inventoryAlert['low_stock'] > 0 ? 'text-warning' : '' }}">{{ number_format($inventoryAlert['low_stock']) }}</h3>
+                            <span class="text-muted small">
+                                Low Stock (≤10)
+                                @if($inventoryAlert['low_stock_variants'] > 0)
+                                    <span class="badge bg-warning bg-opacity-10 text-warning ms-1">{{ $inventoryAlert['low_stock_variants'] }} variants</span>
+                                @endif
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <a href="{{ route('admin.products.index', ['status' => 'active']) }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 border-start border-success border-4 hover-elevate">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-check2-circle text-success fs-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0">{{ number_format($inventoryAlert['total_active']) }}</h3>
+                            <span class="text-muted small">Active Products</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <a href="{{ route('admin.products.index', ['status' => 'inactive']) }}" class="text-decoration-none d-block h-100 text-dark">
+            <div class="card stat-card h-100 border-start border-secondary border-4 hover-elevate">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-secondary bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-pause-circle text-secondary fs-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0">{{ number_format($inventoryAlert['total_inactive']) }}</h3>
+                            <span class="text-muted small">Inactive Products</span>
                         </div>
                     </div>
                 </div>
@@ -279,7 +307,7 @@
     <div class="col-lg-8">
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="card-title mb-0 fw-semibold">Revenue - Last 7 Days</h6>
+                <h6 class="card-title mb-0 fw-semibold">Revenue - Last 30 Days</h6>
                 <a href="{{ route('admin.bi.sales-reports') }}" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-graph-up me-1"></i> View Full Report
                 </a>
@@ -464,7 +492,40 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // Handle range select - show/hide custom date fields
+    function handleRangeChange(select) {
+        const customFields = document.getElementById('customDateFields');
+        if (select.value === 'custom') {
+            customFields.style.display = 'flex';
+        } else {
+            customFields.style.display = 'none';
+            select.form.submit();
+        }
+    }
+
     const chartData = @json($chartData);
+
+    // Calculate top 7 and bottom 7 days for coloring
+    const revenuesWithIndices = chartData.map((d, index) => ({ index: index, revenue: d.revenue }));
+    // Sort descending
+    revenuesWithIndices.sort((a, b) => b.revenue - a.revenue);
+    
+    // Top 7 (greater than 0)
+    const top7Indices = revenuesWithIndices.filter(r => r.revenue > 0).slice(0, 7).map(r => r.index);
+    // Bottom 7 (greater than 0, not in top 7)
+    const bottom7Indices = revenuesWithIndices.filter(r => r.revenue > 0 && !top7Indices.includes(r.index)).slice(-7).map(r => r.index);
+
+    const backgroundColors = chartData.map((d, index) => {
+        if (top7Indices.includes(index)) return 'rgba(25, 135, 84, 0.8)'; // Green for Top 7
+        if (bottom7Indices.includes(index)) return 'rgba(220, 53, 69, 0.8)'; // Red for Bottom 7
+        return 'rgba(13, 110, 253, 0.8)'; // Blue for others
+    });
+
+    const hoverBackgroundColors = chartData.map((d, index) => {
+        if (top7Indices.includes(index)) return '#198754';
+        if (bottom7Indices.includes(index)) return '#dc3545';
+        return '#0d6efd';
+    });
 
     // Revenue Chart
     new Chart(document.getElementById('revenueChart'), {
@@ -472,11 +533,11 @@
         data: {
             labels: chartData.map(d => d.label),
             datasets: [{
-                label: 'Revenue ($)',
+                label: 'Revenue (৳)',
                 data: chartData.map(d => d.revenue),
-                backgroundColor: 'rgba(13, 110, 253, 0.8)',
-                hoverBackgroundColor: '#0d6efd',
-                borderRadius: 6,
+                backgroundColor: backgroundColors,
+                hoverBackgroundColor: hoverBackgroundColors,
+                borderRadius: 0,
                 borderSkipped: false,
             }]
         },
@@ -494,7 +555,7 @@
                     },
                     ticks: {
                         callback: function(value) {
-                            return '$' + value.toLocaleString();
+                            return '৳' + value.toLocaleString();
                         }
                     }
                 },

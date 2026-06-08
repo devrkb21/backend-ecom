@@ -393,10 +393,23 @@ class OrderController extends Controller
         // Log status change
         $oldLabel = OrderStatus::where('key', $oldStatus)->value('label') ?? ucfirst($oldStatus);
         $newLabel = OrderStatus::where('key', $newStatus)->value('label') ?? ucfirst($newStatus);
-        OrderActivityLog::log($order, 'status_change', "Status changed: {$oldLabel} → {$newLabel}", null, [
+        
+        $reason = $request->input('cancel_reason');
+        $logMessage = "Status changed: {$oldLabel} → {$newLabel}";
+        if ($newStatus === 'cancelled' && $reason) {
+            $logMessage .= " (Reason: {$reason})";
+        }
+
+        $logMetadata = [
             'old_status' => $oldStatus,
             'new_status' => $newStatus,
-        ]);
+        ];
+        if ($newStatus === 'cancelled' && $reason) {
+            $logMetadata['reason'] = $reason;
+            $this->saveNewCancelReason($reason);
+        }
+
+        OrderActivityLog::log($order, 'status_change', $logMessage, null, $logMetadata);
 
         // Send SMS notification
         try {
@@ -600,6 +613,7 @@ class OrderController extends Controller
             'order_ids' => ['required', 'array', 'min:1'],
             'order_ids.*' => ['required', 'integer', 'distinct', Rule::exists('orders', 'id')],
             'bulk_action' => ['required', 'string', Rule::in($allowedActions)],
+            'cancel_reason' => ['nullable', 'string', 'max:500'],
         ]);
 
         $action = (string) $validated['bulk_action'];
@@ -619,6 +633,11 @@ class OrderController extends Controller
 
         $updated = 0;
         $skipped = 0;
+
+        $reason = $request->input('cancel_reason');
+        if ($action === 'cancelled' && $reason) {
+            $this->saveNewCancelReason($reason);
+        }
 
         foreach ($orders as $order) {
             if (!$order instanceof Order) {
@@ -664,23 +683,44 @@ class OrderController extends Controller
                 continue;
             }
 
-            if ((string) $order->status === $action) {
+            $oldStatus = $order->status;
+            if ((string) $oldStatus === $action) {
                 $skipped++;
                 continue;
             }
 
-            if ($action === 'cancelled' && $order->status !== 'cancelled') {
+            if ($action === 'cancelled' && $oldStatus !== 'cancelled') {
                 $this->restoreOrderStock($order);
             }
 
             $bulkUpdateData = ['status' => $action];
             if ($action === 'delivered') {
                 $bulkUpdateData['delivered_at'] = now();
-            } elseif ($order->status === 'delivered' && $action !== 'delivered') {
+            } elseif ($oldStatus === 'delivered' && $action !== 'delivered') {
                 $bulkUpdateData['delivered_at'] = null;
             }
             $order->update($bulkUpdateData);
             $updated++;
+
+            // Log status change
+            $oldLabel = $statusLabelMap[$oldStatus] ?? ucfirst($oldStatus);
+            $newLabel = $statusLabelMap[$action] ?? ucfirst($action);
+            
+            $logMessage = "Status changed: {$oldLabel} → {$newLabel} (Bulk Action)";
+            if ($action === 'cancelled' && $reason) {
+                $logMessage .= " (Reason: {$reason})";
+            }
+
+            $logMetadata = [
+                'old_status' => $oldStatus,
+                'new_status' => $action,
+                'is_bulk' => true,
+            ];
+            if ($action === 'cancelled' && $reason) {
+                $logMetadata['reason'] = $reason;
+            }
+
+            OrderActivityLog::log($order, 'status_change', $logMessage, null, $logMetadata);
 
             // Send SMS notification
             try {
@@ -973,6 +1013,29 @@ class OrderController extends Controller
             if ($item->product) {
                 $item->product->incrementStock($item->quantity);
             }
+        }
+    }
+
+    private function saveNewCancelReason(?string $reason): void
+    {
+        $reason = trim((string) $reason);
+        if (!$reason) return;
+
+        $existingReasonsStr = \App\Models\Setting::getValue('general', 'cancellation_reasons', 'Out of Stock,Customer Request,Fraudulent,Payment Failed,Other');
+        $existingReasons = array_filter(array_map('trim', explode(',', $existingReasonsStr)));
+        
+        $found = false;
+        foreach ($existingReasons as $er) {
+            if (strtolower($er) === strtolower($reason)) {
+                $found = true; break;
+            }
+        }
+        
+        if (!$found) {
+            $existingReasons = array_filter($existingReasons, fn($r) => strtolower($r) !== 'other');
+            $existingReasons[] = $reason;
+            $existingReasons[] = 'Other';
+            \App\Models\Setting::setValue('general', 'cancellation_reasons', implode(',', $existingReasons));
         }
     }
 

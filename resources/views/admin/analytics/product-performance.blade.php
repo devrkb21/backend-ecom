@@ -26,10 +26,13 @@
             <p class="text-muted mb-0">Best sellers, slow movers & product insights</p>
         </div>
         <div class="btn-group">
-            <a href="?period=week&days={{ $days }}" class="btn btn-{{ $period == 'week' ? 'primary' : 'outline-primary' }} btn-sm">Week</a>
-            <a href="?period=month&days={{ $days }}" class="btn btn-{{ $period == 'month' ? 'primary' : 'outline-primary' }} btn-sm">Month</a>
-            <a href="?period=quarter&days={{ $days }}" class="btn btn-{{ $period == 'quarter' ? 'primary' : 'outline-primary' }} btn-sm">Quarter</a>
-            <a href="?period=year&days={{ $days }}" class="btn btn-{{ $period == 'year' ? 'primary' : 'outline-primary' }} btn-sm">Year</a>
+            <a href="?period=today&days={{ $days }}" class="btn btn-{{ $period == 'today' ? 'primary' : 'outline-primary' }} btn-sm">Today</a>
+            <a href="?period=yesterday&days={{ $days }}" class="btn btn-{{ $period == 'yesterday' ? 'primary' : 'outline-primary' }} btn-sm">Yesterday</a>
+            <a href="?period=this_week&days={{ $days }}" class="btn btn-{{ in_array($period, ['week', 'this_week']) ? 'primary' : 'outline-primary' }} btn-sm">This Week</a>
+            <a href="?period=this_month&days={{ $days }}" class="btn btn-{{ in_array($period, ['month', 'this_month']) ? 'primary' : 'outline-primary' }} btn-sm">This Month</a>
+            <a href="?period=last_month&days={{ $days }}" class="btn btn-{{ $period == 'last_month' ? 'primary' : 'outline-primary' }} btn-sm">Last Month</a>
+            <a href="?period=this_year&days={{ $days }}" class="btn btn-{{ in_array($period, ['year', 'this_year']) ? 'primary' : 'outline-primary' }} btn-sm">This Year</a>
+            <a href="?period=last_year&days={{ $days }}" class="btn btn-{{ $period == 'last_year' ? 'primary' : 'outline-primary' }} btn-sm">Last Year</a>
         </div>
     </div>
 

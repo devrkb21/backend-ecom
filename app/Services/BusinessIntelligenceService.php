@@ -51,6 +51,18 @@ class BusinessIntelligenceService
             ->where('payment_status', 'refunded')
             ->sum('total');
 
+        // Cancelled metrics
+        $currentCancelled = Order::whereBetween('created_at', [$start, $end])
+            ->where('status', 'cancelled');
+        $currentCancelledRevenue = (clone $currentCancelled)->sum('total');
+        $currentCancelledCount = (clone $currentCancelled)->count();
+
+        $previousCancelledRevenue = Order::whereBetween('created_at', [$previousStart, $previousEnd])
+            ->where('status', 'cancelled')
+            ->sum('total');
+        
+        $cancelledGrowth = $previousCancelledRevenue > 0 ? (($currentCancelledRevenue - $previousCancelledRevenue) / $previousCancelledRevenue) * 100 : 0;
+
         return [
             'period' => $period,
             'start_date' => $start->toDateString(),
@@ -63,22 +75,27 @@ class BusinessIntelligenceService
             'aov_growth' => round($aovGrowth, 1),
             'refunds' => round($refunds, 2),
             'net_revenue' => round($currentRevenue - $refunds, 2),
+            'cancelled_revenue' => round($currentCancelledRevenue, 2),
+            'cancelled_count' => $currentCancelledCount,
+            'cancelled_growth' => round($cancelledGrowth, 1),
         ];
     }
 
     /**
      * Get daily sales data for charts
      */
-    public function getDailySalesChart(int $days = 30): array
+    public function getDailySalesChart(string $period = 'month'): array
     {
-        $startDate = now()->subDays($days)->startOfDay();
+        $dates = $this->getDateRange($period);
+        $start = $dates['start']->startOfDay();
+        $end = $dates['end']->endOfDay();
 
         $sales = Order::select(
             DB::raw('DATE(created_at) as date'),
             DB::raw('SUM(total) as revenue'),
             DB::raw('COUNT(*) as orders')
         )
-            ->where('created_at', '>=', $startDate)
+            ->whereBetween('created_at', [$start, $end])
             ->whereNotIn('status', ['cancelled', 'failed'])
             ->groupBy('date')
             ->orderBy('date')
@@ -89,11 +106,13 @@ class BusinessIntelligenceService
         $revenueData = [];
         $ordersData = [];
 
-        for ($i = $days; $i >= 0; $i--) {
-            $date = now()->subDays($i)->toDateString();
-            $labels[] = Carbon::parse($date)->format('M d');
+        $current = $start->copy();
+        while ($current <= $end) {
+            $date = $current->toDateString();
+            $labels[] = $current->format('M d');
             $revenueData[] = isset($sales[$date]) ? round($sales[$date]->revenue, 2) : 0;
             $ordersData[] = isset($sales[$date]) ? $sales[$date]->orders : 0;
+            $current->addDay();
         }
 
         return [
@@ -135,6 +154,44 @@ class BusinessIntelligenceService
                 ];
             })
             ->toArray();
+    }
+
+    /**
+     * Get cancellations by reason
+     */
+    public function getCancellationByReason(string $period = 'month'): array
+    {
+        $dates = $this->getDateRange($period);
+
+        $logs = \App\Models\OrderActivityLog::where('type', 'status_change')
+            ->whereBetween('created_at', [$dates['start'], $dates['end']])
+            ->where('metadata', 'LIKE', '%"new_status":"cancelled"%')
+            ->get();
+        
+        $reasons = [];
+
+        foreach ($logs as $log) {
+            $metadata = $log->metadata ?? [];
+            if (($metadata['new_status'] ?? '') === 'cancelled') {
+                $reason = $metadata['reason'] ?? 'Unspecified';
+                if (!isset($reasons[$reason])) {
+                    $reasons[$reason] = 0;
+                }
+                $reasons[$reason]++;
+            }
+        }
+
+        $formatted = [];
+        foreach ($reasons as $reason => $count) {
+            $formatted[] = [
+                'reason' => $reason,
+                'count' => $count,
+            ];
+        }
+
+        usort($formatted, fn($a, $b) => $b['count'] <=> $a['count']);
+
+        return $formatted;
     }
 
     /**
@@ -220,16 +277,16 @@ class BusinessIntelligenceService
     /**
      * Get hourly sales distribution
      */
-    public function getHourlySalesDistribution(int $days = 30): array
+    public function getHourlySalesDistribution(string $period = 'month'): array
     {
-        $startDate = now()->subDays($days);
+        $dates = $this->getDateRange($period);
 
         $hourlyData = Order::select(
             DB::raw('HOUR(created_at) as hour'),
             DB::raw('COUNT(*) as orders'),
             DB::raw('SUM(total) as revenue')
         )
-            ->where('created_at', '>=', $startDate)
+            ->whereBetween('created_at', [$dates['start'], $dates['end']])
             ->whereNotIn('status', ['cancelled', 'failed'])
             ->groupBy('hour')
             ->orderBy('hour')
@@ -812,17 +869,29 @@ class BusinessIntelligenceService
                 'previous_start' => now()->subDay()->startOfDay(),
                 'previous_end' => now()->subDay()->endOfDay(),
             ],
-            'week' => [
+            'yesterday' => [
+                'start' => now()->subDay()->startOfDay(),
+                'end' => now()->subDay()->endOfDay(),
+                'previous_start' => now()->subDays(2)->startOfDay(),
+                'previous_end' => now()->subDays(2)->endOfDay(),
+            ],
+            'week', 'this_week' => [
                 'start' => now()->startOfWeek(),
                 'end' => now()->endOfWeek(),
                 'previous_start' => now()->subWeek()->startOfWeek(),
                 'previous_end' => now()->subWeek()->endOfWeek(),
             ],
-            'month' => [
+            'month', 'this_month' => [
                 'start' => now()->startOfMonth(),
                 'end' => now()->endOfMonth(),
                 'previous_start' => now()->subMonth()->startOfMonth(),
                 'previous_end' => now()->subMonth()->endOfMonth(),
+            ],
+            'last_month' => [
+                'start' => now()->subMonth()->startOfMonth(),
+                'end' => now()->subMonth()->endOfMonth(),
+                'previous_start' => now()->subMonths(2)->startOfMonth(),
+                'previous_end' => now()->subMonths(2)->endOfMonth(),
             ],
             'quarter' => [
                 'start' => now()->startOfQuarter(),
@@ -830,11 +899,17 @@ class BusinessIntelligenceService
                 'previous_start' => now()->subQuarter()->startOfQuarter(),
                 'previous_end' => now()->subQuarter()->endOfQuarter(),
             ],
-            'year' => [
+            'year', 'this_year' => [
                 'start' => now()->startOfYear(),
                 'end' => now()->endOfYear(),
                 'previous_start' => now()->subYear()->startOfYear(),
                 'previous_end' => now()->subYear()->endOfYear(),
+            ],
+            'last_year' => [
+                'start' => now()->subYear()->startOfYear(),
+                'end' => now()->subYear()->endOfYear(),
+                'previous_start' => now()->subYears(2)->startOfYear(),
+                'previous_end' => now()->subYears(2)->endOfYear(),
             ],
             default => [
                 'start' => now()->startOfMonth(),

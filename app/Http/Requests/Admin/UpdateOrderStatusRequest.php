@@ -25,11 +25,13 @@ class UpdateOrderStatusRequest extends FormRequest
                         $query->where('is_active', true);
                     }),
                 ],
+                'cancel_reason' => ['nullable', 'string', 'max:500'],
             ];
         }
 
         return [
             'status' => ['required', 'string', Rule::in(['pending', 'processing', 'shipped', 'delivered', 'cancelled'])],
+            'cancel_reason' => ['nullable', 'string', 'max:500'],
         ];
     }
 }
