@@ -36,8 +36,10 @@
 <div class="container-fluid">
     <div class="row mb-4 align-items-center">
         <div class="col-md-6">
-            <h4 class="mb-0">SteadFast Courier</h4>
-            <p class="text-muted">Manage courier integration and API settings</p>
+            <div class="d-flex align-items-center gap-3">
+                <img src="https://steadfast.com.bd/landing-page/asset/images/logo/logo.svg" alt="SteadFast Courier Logo" style="height: 38px;">
+            </div>
+            <p class="text-muted mt-1">Manage courier integration and API settings</p>
         </div>
         <div class="col-md-6 text-md-end mt-3 mt-md-0">
             @if(old('steadfast_enabled', $settings->get('steadfast_enabled')?->value) === '1')
