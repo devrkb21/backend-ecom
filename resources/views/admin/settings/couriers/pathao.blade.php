@@ -42,8 +42,10 @@
 <div class="container-fluid">
     <div class="row mb-4 align-items-center">
         <div class="col-md-6">
-            <h4 class="mb-0">Pathao Courier</h4>
-            <p class="text-muted">Manage Pathao Courier integration, API settings, and store configurations.</p>
+            <div class="d-flex align-items-center gap-3">
+                <img src="https://merchant.pathao.com/assets/logo_pathao_courier.a3ef9b7c.svg" alt="Pathao Courier Logo" style="height: 32px;">
+            </div>
+            <p class="text-muted mt-1">Manage Pathao Courier integration, API settings, and store configurations.</p>
         </div>
         <div class="col-md-6 text-md-end mt-3 mt-md-0">
             @if(old('pathao_enabled', $settings->get('pathao_enabled')?->value) === '1')

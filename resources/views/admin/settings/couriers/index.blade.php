@@ -17,8 +17,8 @@
             <a href="{{ route('admin.settings.couriers.steadfast') }}" class="text-decoration-none">
                 <div class="card h-100 border hover-shadow transition-all">
                     <div class="card-body text-center p-4">
-                        <div class="mb-3">
-                            <i class="bi bi-truck" style="font-size: 2.5rem; color: #00B795 !important;"></i>
+                        <div class="mb-3 d-flex justify-content-center align-items-center" style="height: 60px;">
+                            <img src="https://steadfast.com.bd/landing-page/asset/images/logo/logo.svg" alt="SteadFast Courier Logo" style="max-height: 50px; max-width: 100%;">
                         </div>
                         <h5 class="card-title text-dark mb-1">SteadFast Courier</h5>
                         <div class="mt-2">
@@ -38,8 +38,8 @@
             <a href="{{ route('admin.settings.couriers.pathao') }}" class="text-decoration-none">
                 <div class="card h-100 border hover-shadow transition-all">
                     <div class="card-body text-center p-4">
-                        <div class="mb-3">
-                            <i class="bi bi-truck" style="font-size: 2.5rem; color: #E83434 !important;"></i>
+                        <div class="mb-3 d-flex justify-content-center align-items-center" style="height: 60px;">
+                            <img src="https://merchant.pathao.com/assets/logo_pathao_courier.a3ef9b7c.svg" alt="Pathao Courier Logo" style="max-height: 40px; max-width: 100%;">
                         </div>
                         <h5 class="card-title text-dark mb-1">Pathao Courier</h5>
                         <div class="mt-2">
