@@ -21,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
 
         try {
             if (\Schema::hasTable('settings')) {
-                $mailSettings = Setting::getGroup('integration', false);
+                $mailSettings = Setting::where('group', 'integration')->pluck('value', 'key')->toArray();
                 
                 if (!empty($mailSettings['mail_enabled']) && !empty($mailSettings['mail_mailer'])) {
                     Config::set('mail.default', $mailSettings['mail_mailer']);
@@ -37,6 +37,17 @@ class AppServiceProvider extends ServiceProvider
                     if (!empty($mailSettings['mail_from_name'])) {
                         Config::set('mail.from.name', $mailSettings['mail_from_name']);
                     }
+                }
+
+                // Dynamic Pathao courier settings integration
+                $pathaoSettings = Setting::where('group', 'courier')->pluck('value', 'key')->toArray();
+                if (!empty($pathaoSettings)) {
+                    Config::set('pathao.pathao_client_id', $pathaoSettings['pathao_client_id'] ?? '');
+                    Config::set('pathao.pathao_client_secret', $pathaoSettings['pathao_client_secret'] ?? '');
+                    Config::set('pathao.pathao_secret_token', $pathaoSettings['pathao_secret_token'] ?? '');
+                    Config::set('pathao.webhook_integration_secret', $pathaoSettings['pathao_webhook_integration_secret'] ?? '');
+                    Config::set('pathao.sandbox', filter_var($pathaoSettings['pathao_sandbox'] ?? '0', FILTER_VALIDATE_BOOLEAN));
+                    Config::set('pathao.pathao_db_table_name', 'pathao-courier');
                 }
             }
         } catch (\Exception $e) {

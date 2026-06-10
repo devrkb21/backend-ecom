@@ -22,6 +22,7 @@
     ];
 
     $steadfastEnabled = filter_var(\App\Models\Setting::getValue('courier', 'steadfast_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+    $pathaoEnabled = filter_var(\App\Models\Setting::getValue('courier', 'pathao_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
 @endphp
 
 <style>
@@ -38,6 +39,54 @@
         background-color: var(--active-bg-color, #f8f9fa) !important;
         box-shadow: 0 0 0 2px var(--active-border-color, #e9ecef) !important;
         transform: translateY(-2px);
+    }
+    
+    /* Courier Brand Styling Overrides */
+    .text-steadfast-brand {
+        color: #00B795 !important;
+    }
+    .text-pathao-brand {
+        color: #E83434 !important;
+    }
+    .btn-outline-steadfast {
+        color: #00B795 !important;
+        border-color: #00B795 !important;
+        background-color: transparent;
+    }
+    .btn-outline-steadfast:hover {
+        color: #fff !important;
+        background-color: #00B795 !important;
+        border-color: #00B795 !important;
+    }
+    .btn-steadfast {
+        color: #fff !important;
+        background-color: #00B795 !important;
+        border-color: #00B795 !important;
+    }
+    .btn-steadfast:hover {
+        color: #fff !important;
+        background-color: #00967a !important;
+        border-color: #00967a !important;
+    }
+    .btn-outline-pathao {
+        color: #E83434 !important;
+        border-color: #E83434 !important;
+        background-color: transparent;
+    }
+    .btn-outline-pathao:hover {
+        color: #fff !important;
+        background-color: #E83434 !important;
+        border-color: #E83434 !important;
+    }
+    .btn-pathao {
+        color: #fff !important;
+        background-color: #E83434 !important;
+        border-color: #E83434 !important;
+    }
+    .btn-pathao:hover {
+        color: #fff !important;
+        background-color: #c92c2c !important;
+        border-color: #c92c2c !important;
     }
 </style>
 
@@ -256,7 +305,10 @@
                                 <option value="{{ $statusOption->key }}">Mark as {{ $statusOption->label }}</option>
                             @endforeach
                             @if($steadfastEnabled ?? false)
-                                <option value="steadfast_send" class="text-success fw-bold">🚀 Send to SteadFast Courier (Pending/Processing only)</option>
+                                <option value="steadfast_send" class="text-steadfast-brand fw-bold" style="color: #00B795 !important;">🚀 Send to SteadFast Courier (Pending/Processing only)</option>
+                            @endif
+                            @if($pathaoEnabled ?? false)
+                                <option value="pathao_send" class="text-pathao-brand fw-bold" style="color: #E83434 !important;">🚀 Send to Pathao Courier (Pending/Processing only)</option>
                             @endif
                             <option value="trash">Move to Trash</option>
                         @endif
@@ -400,32 +452,60 @@
                                 </td>
                                 <td>
                                     @if($order->carrier)
-                                        <div class="small fw-semibold text-primary">
-                                            <i class="bi bi-truck"></i> {{ ucfirst($order->carrier) }}
+                                        @php
+                                            $carrierLower = strtolower($order->carrier);
+                                            $carrierClass = $carrierLower === 'steadfast' ? 'text-steadfast-brand' : ($carrierLower === 'pathao' ? 'text-pathao-brand' : 'text-primary');
+                                            $badgeBg = $carrierLower === 'steadfast' ? '#00B795' : ($carrierLower === 'pathao' ? '#E83434' : '#6c757d');
+                                        @endphp
+                                        <div class="small fw-semibold {{ $carrierClass }}">
+                                            <i class="bi bi-truck text-muted me-1"></i>{{ ucfirst($order->carrier) }}
                                         </div>
                                         @if($order->tracking_number)
-                                            <div class="small text-muted" style="font-size: 0.75rem;">
+                                            <div class="mt-1">
                                                 @if($order->carrier_tracking_url)
-                                                    <a href="{{ $order->carrier_tracking_url }}" target="_blank" class="text-decoration-none text-muted" title="Track Parcel">
-                                                        #{{ $order->tracking_number }} <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                                    <a href="{{ $order->carrier_tracking_url }}" target="_blank" class="badge text-white d-inline-flex align-items-center gap-1 text-decoration-none px-2 py-1" style="background-color: {{ $badgeBg }} !important; font-size: 0.7rem;" title="Track Parcel">
+                                                        #{{ $order->tracking_number }} <i class="bi bi-box-arrow-up-right" style="font-size: 0.65rem;"></i>
                                                     </a>
                                                 @else
-                                                    #{{ $order->tracking_number }}
+                                                    <span class="badge bg-secondary text-white d-inline-block px-2 py-1" style="font-size: 0.7rem;">
+                                                        #{{ $order->tracking_number }}
+                                                    </span>
                                                 @endif
                                             </div>
                                         @endif
                                     @else
-                                        @if(filter_var(\App\Models\Setting::getValue('courier', 'steadfast_enabled', '0'), FILTER_VALIDATE_BOOLEAN) && in_array($order->status, ['pending', 'processing']))
-                                            <button type="button" class="btn btn-sm btn-outline-success py-0 px-2 btn-send-steadfast" style="font-size: 0.75rem;" 
-                                                    data-bs-toggle="modal" data-bs-target="#steadfastModal"
-                                                    data-order-id="{{ $order->id }}"
-                                                    data-order-total="{{ $order->total }}"
-                                                    data-order-notes="{{ $order->notes }}"
-                                                    data-customer-name="{{ trim($order->shipping_name) ?: ($order->user?->name ?: 'Guest') }}"
-                                                    data-customer-phone="{{ $order->shipping_phone ?: $order->user?->phone }}"
-                                                    data-customer-address="{{ trim($order->shipping_address . ' ' . ($order->checkout_fields_payload['shipping_location_text'] ?? '') . ' ' . ($order->checkout_fields_payload['shipping_area'] ?? '')) }}">
-                                                <i class="bi bi-send-check"></i> Send to SteadFast
-                                            </button>
+                                        @php
+                                            $canSend = in_array($order->status, ['pending', 'processing']);
+                                        @endphp
+                                        
+                                        @if($canSend && ($steadfastEnabled || $pathaoEnabled))
+                                            <div class="d-flex flex-column gap-1">
+                                                @if($steadfastEnabled)
+                                                    <button type="button" class="btn btn-sm btn-outline-steadfast py-0 px-2 btn-send-steadfast" style="font-size: 0.75rem;" 
+                                                            data-bs-toggle="modal" data-bs-target="#steadfastModal"
+                                                            data-order-id="{{ $order->id }}"
+                                                            data-order-total="{{ $order->total }}"
+                                                            data-order-notes="{{ $order->notes }}"
+                                                            data-customer-name="{{ trim($order->shipping_name) ?: ($order->user?->name ?: 'Guest') }}"
+                                                            data-customer-phone="{{ $order->shipping_phone ?: $order->user?->phone }}"
+                                                            data-customer-address="{{ trim($order->shipping_address . ' ' . ($order->checkout_fields_payload['shipping_location_text'] ?? '') . ' ' . ($order->checkout_fields_payload['shipping_area'] ?? '')) }}">
+                                                        <i class="bi bi-send-check"></i> Send to SteadFast
+                                                    </button>
+                                                @endif
+                                                @if($pathaoEnabled)
+                                                    <button type="button" class="btn btn-sm btn-outline-pathao py-0 px-2 btn-send-pathao" style="font-size: 0.75rem;" 
+                                                            data-bs-toggle="modal" data-bs-target="#pathaoModal"
+                                                            data-order-id="{{ $order->id }}"
+                                                            data-order-total="{{ $order->total }}"
+                                                            data-order-notes="{{ $order->notes }}"
+                                                            data-customer-name="{{ trim($order->shipping_name) ?: ($order->user?->name ?: 'Guest') }}"
+                                                            data-customer-phone="{{ $order->shipping_phone ?: $order->user?->phone }}"
+                                                            data-customer-address="{{ trim($order->shipping_address . ' ' . ($order->checkout_fields_payload['shipping_location_text'] ?? '') . ' ' . ($order->checkout_fields_payload['shipping_area'] ?? '')) }}"
+                                                            data-order-items="{{ $order->items_count ?: $order->items()->count() ?: 1 }}">
+                                                        <i class="bi bi-send-check"></i> Send to Pathao
+                                                    </button>
+                                                @endif
+                                            </div>
                                         @else
                                             <span class="text-muted small">-</span>
                                         @endif
@@ -526,18 +606,25 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header border-bottom-0 pb-0">
-                <h5 class="modal-title"><i class="bi bi-truck me-2 text-success"></i>Send to SteadFast Courier</h5>
+                <h5 class="modal-title"><i class="bi bi-truck me-2 text-steadfast-brand"></i>Send to SteadFast Courier</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="steadfastForm" method="POST">
                 @csrf
                 <div class="modal-body">
-                    <div class="alert alert-info py-2 mb-3">
-                        <small>
-                        <strong>Recipient:</strong> <span id="sfModalName"></span><br>
-                        <strong>Phone:</strong> <span id="sfModalPhone"></span><br>
-                        <strong>Address:</strong> <span id="sfModalAddress"></span>
-                        </small>
+                    <div class="mb-3">
+                        <label for="sf_recipient_name" class="form-label fw-bold">Recipient Name</label>
+                        <input type="text" class="form-control" id="sf_recipient_name" name="recipient_name" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="sf_recipient_phone" class="form-label fw-bold">Recipient Phone</label>
+                        <input type="text" class="form-control" id="sf_recipient_phone" name="recipient_phone" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="sf_recipient_address" class="form-label fw-bold">Recipient Address</label>
+                        <textarea class="form-control" id="sf_recipient_address" name="recipient_address" rows="2" required></textarea>
                     </div>
                     
                     <div class="mb-3">
@@ -556,11 +643,189 @@
                 </div>
                 <div class="modal-footer border-top-0 pt-0">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">
+                    <button type="submit" class="btn btn-steadfast">
                         <i class="bi bi-send-check me-1"></i> Send to Courier
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+@endif
+
+@if($pathaoEnabled)
+{{-- Shared Pathao Courier Modal --}}
+<div class="modal fade" id="pathaoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title"><i class="bi bi-truck me-2 text-pathao-brand"></i>Send to Pathao Courier</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="pathaoForm" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="pathao_recipient_name" class="form-label fw-bold">Recipient Name</label>
+                        <input type="text" class="form-control" id="pathao_recipient_name" name="recipient_name" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="pathao_recipient_phone" class="form-label fw-bold">Recipient Phone</label>
+                        <input type="text" class="form-control" id="pathao_recipient_phone" name="recipient_phone" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="pathao_recipient_address" class="form-label fw-bold">Recipient Address</label>
+                        <textarea class="form-control" id="pathao_recipient_address" name="recipient_address" rows="2" required></textarea>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="pathao_cod_amount" class="form-label fw-bold">COD Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">৳</span>
+                                <input type="number" step="0.01" class="form-control" id="pathao_cod_amount" name="amount_to_collect" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="pathao_item_quantity" class="form-label fw-bold">Quantity</label>
+                            <input type="number" class="form-control" id="pathao_item_quantity" name="item_quantity" value="1" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="pathao_item_weight" class="form-label fw-bold">Weight (KG)</label>
+                            <input type="number" step="0.1" class="form-control" id="pathao_item_weight" name="item_weight" value="0.5" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Item Type</label>
+                            <div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="item_type" id="pathao_item_type_parcel" value="2" checked>
+                                    <label class="form-check-label" for="pathao_item_type_parcel">Parcel</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="item_type" id="pathao_item_type_document" value="1">
+                                    <label class="form-check-label" for="pathao_item_type_document">Doc</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Delivery Type</label>
+                        <div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="delivery_type" id="pathao_delivery_type_normal" value="48" checked>
+                                <label class="form-check-label" for="pathao_delivery_type_normal">Normal (48h)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="delivery_type" id="pathao_delivery_type_ondemand" value="12">
+                                <label class="form-check-label" for="pathao_delivery_type_ondemand">On Demand (12h)</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="pathao_special_instruction" class="form-label fw-bold">Special Instruction (Optional)</label>
+                        <textarea class="form-control" id="pathao_special_instruction" name="special_instruction" rows="2" placeholder="Instructions for Pathao courier"></textarea>
+                    </div>
+
+                    <!-- Manual Location Mapping Toggle -->
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" id="toggleManualLocation" name="manual_location" value="1">
+                        <label class="form-check-label fw-bold" for="toggleManualLocation">Select Location Manually</label>
+                    </div>
+
+                    <!-- Manual Location Selects (Hidden by Default) -->
+                    <div id="manualLocationContainer" class="p-3 border rounded bg-light mb-3" style="display: none;">
+                        @php
+                            $pathaoCities = \Illuminate\Support\Facades\DB::table('pathao_cities')->orderBy('name')->get();
+                        @endphp
+                        <div class="mb-3">
+                            <label for="pathao_city" class="form-label fw-bold">City</label>
+                            <select class="form-select" id="pathao_city" name="recipient_city">
+                                <option value="">Select City</option>
+                                @foreach($pathaoCities as $city)
+                                    <option value="{{ $city->id }}">{{ $city->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="pathao_zone" class="form-label fw-bold">Zone</label>
+                            <select class="form-select" id="pathao_zone" name="recipient_zone" disabled>
+                                <option value="">Select Zone</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="pathao_area" class="form-label fw-bold">Area</label>
+                            <select class="form-select" id="pathao_area" name="recipient_area" disabled>
+                                <option value="">Select Area</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-pathao">
+                        <i class="bi bi-send-check me-1"></i> Send to Pathao
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- Pathao Bulk Courier Modal --}}
+<div class="modal fade" id="pathaoBulkModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title text-pathao-brand"><i class="bi bi-truck me-2"></i>Bulk Send to Pathao</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3">Please configure default options for the bulk dispatch to Pathao Courier:</p>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="bulk_pathao_item_type" class="form-label fw-bold">Item Type</label>
+                        <select class="form-select" id="bulk_pathao_item_type">
+                            <option value="2">Parcel</option>
+                            <option value="1">Document</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="bulk_pathao_delivery_type" class="form-label fw-bold">Delivery Type</label>
+                        <select class="form-select" id="bulk_pathao_delivery_type">
+                            <option value="48">Normal (48h)</option>
+                            <option value="12">On Demand (12h)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="bulk_pathao_item_weight" class="form-label fw-bold">Default Weight (KG) per package</label>
+                    <input type="number" step="0.1" class="form-control" id="bulk_pathao_item_weight" value="0.5" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="bulk_pathao_special_instruction" class="form-label fw-bold">Delivery Notes / Special Instructions</label>
+                    <textarea class="form-control" id="bulk_pathao_special_instruction" rows="2" placeholder="Instructions applied to all selected orders"></textarea>
+                </div>
+                
+                <p class="small text-warning mt-2 mb-0">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Addresses will be auto-resolved on the backend using customer's Bangladeshi shipping district and upazila name mapping.
+                </p>
+            </div>
+            <div class="modal-footer border-top-0 pt-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-pathao" id="confirmPathaoBulkBtn">Confirm & Bulk Send</button>
+            </div>
         </div>
     </div>
 </div>
@@ -583,11 +848,11 @@ document.addEventListener('DOMContentLoaded', function () {
             form.action = '/admin/orders/' + orderId + '/steadfast';
             
             // Populate data
-            document.getElementById('sfModalName').textContent = button.getAttribute('data-customer-name');
-            document.getElementById('sfModalPhone').textContent = button.getAttribute('data-customer-phone');
-            document.getElementById('sfModalAddress').textContent = button.getAttribute('data-customer-address');
-            document.getElementById('sf_cod_amount').value = button.getAttribute('data-order-total');
-            document.getElementById('sf_steadfast_note').value = button.getAttribute('data-order-notes');
+            document.getElementById('sf_recipient_name').value = button.getAttribute('data-customer-name') || '';
+            document.getElementById('sf_recipient_phone').value = button.getAttribute('data-customer-phone') || '';
+            document.getElementById('sf_recipient_address').value = button.getAttribute('data-customer-address') || '';
+            document.getElementById('sf_cod_amount').value = button.getAttribute('data-order-total') || '';
+            document.getElementById('sf_steadfast_note').value = button.getAttribute('data-order-notes') || '';
         });
     }
 
@@ -659,8 +924,51 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    let isBulkPathaoConfirmed = false;
+    const pathaoBulkModalEl = document.getElementById('pathaoBulkModal');
+    let pathaoBulkModal = null;
+
+    if (pathaoBulkModalEl) {
+        pathaoBulkModal = new bootstrap.Modal(pathaoBulkModalEl);
+        document.getElementById('confirmPathaoBulkBtn').addEventListener('click', function() {
+            isBulkPathaoConfirmed = true;
+            pathaoBulkModal.hide();
+            
+            const itemType = document.getElementById('bulk_pathao_item_type').value;
+            const deliveryType = document.getElementById('bulk_pathao_delivery_type').value;
+            const itemWeight = document.getElementById('bulk_pathao_item_weight').value;
+            const specInstruction = document.getElementById('bulk_pathao_special_instruction').value;
+            
+            let inputItemType = document.createElement('input');
+            inputItemType.type = 'hidden';
+            inputItemType.name = 'item_type';
+            inputItemType.value = itemType;
+            form.appendChild(inputItemType);
+            
+            let inputDeliveryType = document.createElement('input');
+            inputDeliveryType.type = 'hidden';
+            inputDeliveryType.name = 'delivery_type';
+            inputDeliveryType.value = deliveryType;
+            form.appendChild(inputDeliveryType);
+            
+            let inputWeight = document.createElement('input');
+            inputWeight.type = 'hidden';
+            inputWeight.name = 'item_weight';
+            inputWeight.value = itemWeight;
+            form.appendChild(inputWeight);
+            
+            let inputInstruction = document.createElement('input');
+            inputInstruction.type = 'hidden';
+            inputInstruction.name = 'special_instruction';
+            inputInstruction.value = specInstruction;
+            form.appendChild(inputInstruction);
+            
+            form.submit();
+        });
+    }
+
     form.addEventListener('submit', function (event) {
-        if (isBulkCancelConfirmed) return; // let it pass if confirmed via modal
+        if (isBulkCancelConfirmed || isBulkPathaoConfirmed) return; // let it pass if confirmed via modal
 
         const checked = checkboxes.some(function (checkbox) {
             return checkbox.checked;
@@ -694,10 +1002,123 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
+        if (actionSelect.value === 'pathao_send' && pathaoBulkModal) {
+            event.preventDefault(); // Pause for modal
+            pathaoBulkModal.show();
+            return;
+        }
+
         if (!window.confirm(confirmationMessage)) {
             event.preventDefault();
         }
     });
+
+    // --- Pathao Single Modal Logic ---
+    const pathaoModalEl = document.getElementById('pathaoModal');
+    if (pathaoModalEl) {
+        pathaoModalEl.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const orderId = button.getAttribute('data-order-id');
+            const pathaoForm = document.getElementById('pathaoForm');
+            pathaoForm.action = '/admin/orders/' + orderId + '/pathao';
+            
+            document.getElementById('pathao_recipient_name').value = button.getAttribute('data-customer-name') || '';
+            document.getElementById('pathao_recipient_phone').value = button.getAttribute('data-customer-phone') || '';
+            document.getElementById('pathao_recipient_address').value = button.getAttribute('data-customer-address') || '';
+            document.getElementById('pathao_cod_amount').value = button.getAttribute('data-order-total') || '';
+            document.getElementById('pathao_item_quantity').value = button.getAttribute('data-order-items') || '1';
+            document.getElementById('pathao_special_instruction').value = button.getAttribute('data-order-notes') || '';
+            
+            document.getElementById('toggleManualLocation').checked = false;
+            document.getElementById('manualLocationContainer').style.display = 'none';
+            const citySel = document.getElementById('pathao_city');
+            if (citySel) {
+                citySel.value = '';
+                citySel.required = false;
+            }
+            const zoneSel = document.getElementById('pathao_zone');
+            if (zoneSel) {
+                zoneSel.innerHTML = '<option value="">Select Zone</option>';
+                zoneSel.disabled = true;
+                zoneSel.required = false;
+            }
+            const areaSel = document.getElementById('pathao_area');
+            if (areaSel) {
+                areaSel.innerHTML = '<option value="">Select Area</option>';
+                areaSel.disabled = true;
+                areaSel.required = false;
+            }
+        });
+    }
+
+    // --- Pathao Single Modal AJAX Loader ---
+    const toggleManualLocation = document.getElementById('toggleManualLocation');
+    const manualLocationContainer = document.getElementById('manualLocationContainer');
+    const citySelect = document.getElementById('pathao_city');
+    const zoneSelect = document.getElementById('pathao_zone');
+    const areaSelect = document.getElementById('pathao_area');
+
+    if (toggleManualLocation && manualLocationContainer) {
+        toggleManualLocation.addEventListener('change', function() {
+            if (this.checked) {
+                manualLocationContainer.style.display = 'block';
+                if (citySelect) citySelect.required = true;
+                if (zoneSelect) zoneSelect.required = true;
+                if (areaSelect) areaSelect.required = true;
+            } else {
+                manualLocationContainer.style.display = 'none';
+                if (citySelect) citySelect.required = false;
+                if (zoneSelect) zoneSelect.required = false;
+                if (areaSelect) areaSelect.required = false;
+            }
+        });
+    }
+
+    if (citySelect) {
+        citySelect.addEventListener('change', function() {
+            const cityId = this.value;
+            zoneSelect.innerHTML = '<option value="">Select Zone</option>';
+            zoneSelect.disabled = true;
+            areaSelect.innerHTML = '<option value="">Select Area</option>';
+            areaSelect.disabled = true;
+
+            if (!cityId) return;
+
+            fetch(`/admin/pathao/zones?city_id=${cityId}`)
+                .then(res => res.json())
+                .then(data => {
+                    data.forEach(zone => {
+                        const option = document.createElement('option');
+                        option.value = zone.id;
+                        option.textContent = zone.name;
+                        zoneSelect.appendChild(option);
+                    });
+                    zoneSelect.disabled = false;
+                });
+        });
+    }
+
+    if (zoneSelect) {
+        zoneSelect.addEventListener('change', function() {
+            const zoneId = this.value;
+            areaSelect.innerHTML = '<option value="">Select Area</option>';
+            areaSelect.disabled = true;
+
+            if (!zoneId) return;
+
+            fetch(`/admin/pathao/areas?zone_id=${zoneId}`)
+                .then(res => res.json())
+                .then(data => {
+                    data.forEach(area => {
+                        const option = document.createElement('option');
+                        option.value = area.id;
+                        option.textContent = area.name;
+                        areaSelect.appendChild(option);
+                    });
+                    areaSelect.disabled = false;
+                });
+        });
+    }
 
     syncSelectionState();
 });

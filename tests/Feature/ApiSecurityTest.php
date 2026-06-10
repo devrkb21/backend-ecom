@@ -45,6 +45,9 @@ class ApiSecurityTest extends TestCase
             'POST api/v1/checkout/track',
             'GET api/v1/orders/{id}/payment-summary',
             'GET api/v1/orders/number/{orderNumber}',
+            'POST api/v1/contact',
+            'GET api/v1/public/loyalty/check',
+            'GET api/v1/orders/number/{orderNumber}/guest',
         ];
 
         $unexpectedPublicRoutes = [];

@@ -440,7 +440,7 @@ class Order extends Model
     public function generateTrackingUrl(string $trackingNumber, string $carrier): ?string
     {
         $carriers = [
-            'pathao' => 'https://merchant.pathao.com/tracking?consignment_id=' . $trackingNumber,
+            'pathao' => 'https://merchant.pathao.com/tracking?consignment_id=' . $trackingNumber . '&phone=' . urlencode($this->shipping_phone ?: ''),
             'steadfast' => 'https://steadfast.com.bd/tl/' . $trackingNumber,
             'redx' => 'https://redx.com.bd/track/' . $trackingNumber,
             'paperfly' => 'https://paperfly.com.bd/tracking/' . $trackingNumber,

@@ -29,6 +29,9 @@ class SteadfastController extends Controller
     public function sendSingle(Request $request, Order $order)
     {
         $request->validate([
+            'recipient_name' => 'required|string|max:255',
+            'recipient_phone' => 'required|string',
+            'recipient_address' => 'required|string|min:10',
             'cod_amount' => 'required|numeric|min:0',
             'note' => 'nullable|string'
         ]);
@@ -40,15 +43,11 @@ class SteadfastController extends Controller
         try {
             $this->initializeSteadfast();
 
-            $customerName = trim($order->shipping_name) ?: ($order->user?->name ?: 'Guest Checkout');
-            $customerPhone = $order->shipping_phone ?: $order->user?->phone;
-            $customerAddress = trim($order->shipping_address . ' ' . ($order->checkout_fields_payload['shipping_location_text'] ?? '') . ' ' . ($order->checkout_fields_payload['shipping_area'] ?? ''));
-
             $orderData = [
                 'invoice' => $order->order_number,
-                'recipient_name' => mb_substr($customerName, 0, 100),
-                'recipient_phone' => $customerPhone,
-                'recipient_address' => $customerAddress ?: 'Not Provided',
+                'recipient_name' => mb_substr($request->recipient_name, 0, 100),
+                'recipient_phone' => $request->recipient_phone,
+                'recipient_address' => $request->recipient_address,
                 'cod_amount' => (float)$request->cod_amount,
                 'note' => $request->note ?? $order->notes,
             ];

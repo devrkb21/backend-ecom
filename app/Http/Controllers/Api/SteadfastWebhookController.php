@@ -106,6 +106,10 @@ class SteadfastWebhookController extends Controller
                     break;
             }
 
+            $trackingMessage = $request->input('tracking_message', "Package marked as {$statusName}");
+            $updatedAtString = $request->input('updated_at');
+            $occurredAt = $updatedAtString ? \Carbon\Carbon::parse($updatedAtString) : now();
+
             if ($orderUpdated) {
                 \App\Models\OrderActivityLog::log(
                     $order,
@@ -114,13 +118,39 @@ class SteadfastWebhookController extends Controller
                 );
             }
 
+            // Always add tracking event for delivery_status
+            $trackingEventStatus = 'in_transit';
+            if (in_array($newStatus, ['delivered', 'partial_delivered'])) {
+                $trackingEventStatus = 'delivered';
+            } elseif ($newStatus === 'cancelled') {
+                $trackingEventStatus = 'exception';
+            }
+
+            $order->addTrackingEvent(
+                $trackingEventStatus,
+                $trackingMessage,
+                null,
+                $status,
+                $occurredAt
+            );
+
         } elseif ($notificationType === 'tracking_update') {
-            // Log tracking update message if needed
             $trackingMessage = $request->input('tracking_message', 'No message');
+            $updatedAtString = $request->input('updated_at');
+            $occurredAt = $updatedAtString ? \Carbon\Carbon::parse($updatedAtString) : now();
+
             \App\Models\OrderActivityLog::log(
                 $order,
                 'tracking_update',
                 "SteadFast Tracking Update: {$trackingMessage}"
+            );
+
+            $order->addTrackingEvent(
+                'tracking_updated',
+                $trackingMessage,
+                null,
+                null,
+                $occurredAt
             );
         }
 

@@ -123,6 +123,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('orders/{order}/items', [OrderController::class, 'updateItems'])->name('orders.update-items');
         Route::post('orders/{order}/steadfast', [\App\Http\Controllers\Admin\SteadfastController::class, 'sendSingle'])->name('orders.steadfast.send');
         Route::post('orders/steadfast/bulk', [\App\Http\Controllers\Admin\SteadfastController::class, 'sendBulk'])->name('orders.steadfast.bulk');
+        Route::post('orders/{order}/pathao', [\App\Http\Controllers\Admin\PathaoController::class, 'sendSingle'])->name('orders.pathao.send');
+        Route::post('orders/pathao/bulk', [\App\Http\Controllers\Admin\PathaoController::class, 'sendBulk'])->name('orders.pathao.bulk');
+        Route::get('pathao/zones', [\App\Http\Controllers\Admin\PathaoController::class, 'getZones'])->name('pathao.zones');
+        Route::get('pathao/areas', [\App\Http\Controllers\Admin\PathaoController::class, 'getAreas'])->name('pathao.areas');
 
         // Order Tracking
         Route::get('orders/{order}/tracking', [OrderTrackingController::class, 'edit'])->name('orders.tracking.edit');
@@ -203,6 +207,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('couriers/steadfast', [\App\Http\Controllers\Admin\SteadfastCourierController::class, 'dashboard'])->name('couriers.steadfast');
             Route::put('couriers/steadfast', [\App\Http\Controllers\Admin\SteadfastCourierController::class, 'update'])->name('couriers.steadfast.update');
             Route::post('couriers/steadfast/balance', [\App\Http\Controllers\Admin\SteadfastCourierController::class, 'checkBalance'])->name('couriers.steadfast.balance');
+
+            // Pathao Courier
+            Route::get('couriers/pathao', [\App\Http\Controllers\Admin\PathaoCourierController::class, 'dashboard'])->name('couriers.pathao');
+            Route::put('couriers/pathao', [\App\Http\Controllers\Admin\PathaoCourierController::class, 'update'])->name('couriers.pathao.update');
+            Route::post('couriers/pathao/sync', [\App\Http\Controllers\Admin\PathaoCourierController::class, 'syncLocations'])->name('couriers.pathao.sync');
+            Route::post('couriers/pathao/store', [\App\Http\Controllers\Admin\PathaoCourierController::class, 'createStore'])->name('couriers.pathao.store');
+            Route::post('couriers/pathao/test-connection', [\App\Http\Controllers\Admin\PathaoCourierController::class, 'testConnection'])->name('couriers.pathao.test-connection');
 
             // Order Statuses
             Route::get('order-statuses', [OrderStatusController::class, 'index'])->name('order-statuses');

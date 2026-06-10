@@ -18,12 +18,12 @@
                 <div class="card h-100 border hover-shadow transition-all">
                     <div class="card-body text-center p-4">
                         <div class="mb-3">
-                            <i class="bi bi-truck text-primary" style="font-size: 2.5rem;"></i>
+                            <i class="bi bi-truck" style="font-size: 2.5rem; color: #00B795 !important;"></i>
                         </div>
                         <h5 class="card-title text-dark mb-1">SteadFast Courier</h5>
                         <div class="mt-2">
                             @if($steadfastEnabled)
-                                <span class="badge bg-success rounded-pill px-3 py-2"><i class="bi bi-check-circle me-1"></i> Active</span>
+                                <span class="badge rounded-pill px-3 py-2 text-white" style="background-color: #00B795 !important;"><i class="bi bi-check-circle me-1"></i> Active</span>
                             @else
                                 <span class="badge bg-secondary rounded-pill px-3 py-2">Inactive</span>
                             @endif
@@ -33,7 +33,28 @@
             </a>
         </div>
 
-        <!-- Add more couriers here in the future (e.g. Pathao, eCourier, RedX) -->
+        <!-- Pathao Courier Card -->
+        <div class="col-md-4 col-lg-3">
+            <a href="{{ route('admin.settings.couriers.pathao') }}" class="text-decoration-none">
+                <div class="card h-100 border hover-shadow transition-all">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="bi bi-truck" style="font-size: 2.5rem; color: #E83434 !important;"></i>
+                        </div>
+                        <h5 class="card-title text-dark mb-1">Pathao Courier</h5>
+                        <div class="mt-2">
+                            @if($pathaoEnabled)
+                                <span class="badge rounded-pill px-3 py-2 text-white" style="background-color: #E83434 !important;"><i class="bi bi-check-circle me-1"></i> Active</span>
+                            @else
+                                <span class="badge bg-secondary rounded-pill px-3 py-2">Inactive</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Add more couriers here in the future (e.g. eCourier, RedX) -->
     </div>
 </div>
 
