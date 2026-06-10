@@ -607,7 +607,7 @@ class OrderController extends Controller
             $activeStatusKeys = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
         }
 
-        $allowedActions = array_merge($activeStatusKeys, ['trash', 'restore', 'force_delete', 'steadfast_send']);
+        $allowedActions = array_merge($activeStatusKeys, ['trash', 'restore', 'force_delete', 'steadfast_send', 'pathao_send']);
 
         $validated = $request->validate([
             'order_ids' => ['required', 'array', 'min:1'],
@@ -618,6 +618,10 @@ class OrderController extends Controller
 
         if ($validated['bulk_action'] === 'steadfast_send') {
             return app(\App\Http\Controllers\Admin\SteadfastController::class)->sendBulk($request);
+        }
+
+        if ($validated['bulk_action'] === 'pathao_send') {
+            return app(\App\Http\Controllers\Admin\PathaoController::class)->sendBulk($request);
         }
 
         $action = (string) $validated['bulk_action'];

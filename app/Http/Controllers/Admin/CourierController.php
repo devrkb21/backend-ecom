@@ -10,7 +10,8 @@ class CourierController extends Controller
     public function index()
     {
         $steadfastEnabled = filter_var(Setting::getValue('courier', 'steadfast_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+        $pathaoEnabled = filter_var(Setting::getValue('courier', 'pathao_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
 
-        return view('admin.settings.couriers.index', compact('steadfastEnabled'));
+        return view('admin.settings.couriers.index', compact('steadfastEnabled', 'pathaoEnabled'));
     }
 }

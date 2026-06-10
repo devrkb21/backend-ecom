@@ -3,6 +3,36 @@
 @section('title', 'SteadFast Courier')
 
 @section('content')
+<style>
+    /* Steadfast Brand styling overrides */
+    .text-steadfast-brand {
+        color: #00B795 !important;
+    }
+    .btn-steadfast {
+        background-color: #00B795 !important;
+        border-color: #00B795 !important;
+        color: #fff !important;
+    }
+    .btn-steadfast:hover {
+        background-color: #00967a !important;
+        border-color: #00967a !important;
+        color: #fff !important;
+    }
+    .border-steadfast-tab {
+        border-bottom-color: #00B795 !important;
+    }
+    .steadfast-light-box {
+        background-color: #F0FDF4 !important;
+        border: 1px solid #C6F6D5 !important;
+        color: #22543D !important;
+    }
+    .steadfast-badge-active {
+        background-color: rgba(0, 183, 149, 0.1) !important;
+        color: #00B795 !important;
+        border: 1px solid rgba(0, 183, 149, 0.3) !important;
+    }
+</style>
+
 <div class="container-fluid">
     <div class="row mb-4 align-items-center">
         <div class="col-md-6">
@@ -11,7 +41,7 @@
         </div>
         <div class="col-md-6 text-md-end mt-3 mt-md-0">
             @if(old('steadfast_enabled', $settings->get('steadfast_enabled')?->value) === '1')
-                <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-3 py-2">
+                <span class="badge steadfast-badge-active rounded-pill px-3 py-2">
                     <i class="bi bi-circle-fill small me-1"></i> Active
                 </span>
             @else
@@ -25,8 +55,8 @@
     <!-- Tabs Nav -->
     <ul class="nav nav-tabs mb-4 border-bottom-0" id="steadfastTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active px-4 py-2 text-dark bg-transparent rounded-top border-bottom border-3 border-warning fw-semibold" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button" role="tab" aria-controls="dashboard" aria-selected="true">
-                <i class="bi bi-speedometer2 me-2 text-warning"></i> Dashboard
+            <button class="nav-link active px-4 py-2 text-dark bg-transparent rounded-top border-bottom border-3 border-steadfast-tab fw-semibold" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button" role="tab" aria-controls="dashboard" aria-selected="true">
+                <i class="bi bi-speedometer2 me-2 text-steadfast-brand"></i> Dashboard
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -45,7 +75,7 @@
                 <div class="col-md-4">
                     <div class="card border h-100 shadow-sm">
                         <div class="card-body d-flex align-items-center">
-                            <div class="bg-warning bg-opacity-10 p-3 rounded me-3 text-warning">
+                            <div class="p-3 rounded me-3 text-steadfast-brand" style="background-color: rgba(0, 183, 149, 0.1);">
                                 <i class="bi bi-send-fill fs-4"></i>
                             </div>
                             <div>
@@ -59,12 +89,12 @@
                 <div class="col-md-4">
                     <div class="card border h-100 shadow-sm">
                         <div class="card-body d-flex align-items-center">
-                            <div class="bg-warning bg-opacity-10 p-3 rounded me-3 text-warning">
+                            <div class="p-3 rounded me-3 text-steadfast-brand" style="background-color: rgba(0, 183, 149, 0.1);">
                                 <i class="bi bi-box-seam fs-4"></i>
                             </div>
                             <div>
                                 <h6 class="text-muted mb-1 text-uppercase small fw-bold">Pending Send</h6>
-                                <h3 class="mb-0 fw-bold text-warning">{{ $pendingSendCount }}</h3>
+                                <h3 class="mb-0 fw-bold text-steadfast-brand">{{ $pendingSendCount }}</h3>
                             </div>
                         </div>
                     </div>
@@ -73,12 +103,12 @@
                 <div class="col-md-4">
                     <div class="card border h-100 shadow-sm">
                         <div class="card-body d-flex align-items-center">
-                            <div class="bg-success bg-opacity-10 p-3 rounded me-3 text-success">
+                            <div class="p-3 rounded me-3 text-steadfast-brand" style="background-color: rgba(0, 183, 149, 0.1);">
                                 <i class="bi bi-wallet2 fs-4"></i>
                             </div>
                             <div>
                                 <h6 class="text-muted mb-1 text-uppercase small fw-bold">Account Balance</h6>
-                                <h3 class="mb-0 fw-bold text-success" id="balanceDisplay">{{ $settings->get('steadfast_last_balance')?->value !== null && $settings->get('steadfast_last_balance')?->value !== '' ? '৳' . number_format((float)$settings->get('steadfast_last_balance')->value, 2) : '--' }}</h3>
+                                <h3 class="mb-0 fw-bold text-steadfast-brand" id="balanceDisplay">{{ $settings->get('steadfast_last_balance')?->value !== null && $settings->get('steadfast_last_balance')?->value !== '' ? '৳' . number_format((float)$settings->get('steadfast_last_balance')->value, 2) : '--' }}</h3>
                             </div>
                         </div>
                     </div>
@@ -87,18 +117,18 @@
 
             <div class="card mb-4 border shadow-sm">
                 <div class="card-body p-4">
-                    <h6 class="fw-bold mb-3"><i class="bi bi-wallet2 text-warning me-2"></i>SteadFast Account Balance</h6>
-                    <button type="button" class="btn btn-warning fw-semibold text-dark px-4" id="checkBalanceBtn">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-wallet2 text-steadfast-brand me-2"></i>SteadFast Account Balance</h6>
+                    <button type="button" class="btn btn-steadfast fw-semibold px-4" id="checkBalanceBtn">
                         <i class="bi bi-arrow-repeat me-1"></i> Check Balance
                     </button>
                     <div id="balanceResult" class="mt-2 text-muted small d-none"></div>
                 </div>
             </div>
 
-            <div class="card border shadow-sm bg-warning bg-opacity-10 border-warning">
+            <div class="card border shadow-sm steadfast-light-box">
                 <div class="card-body p-4">
-                    <h6 class="fw-bold text-dark mb-3"><i class="bi bi-file-earmark-text text-warning me-2"></i>How to use SteadFast Courier</h6>
-                    <ol class="text-muted mb-0 small lh-lg">
+                    <h6 class="fw-bold text-dark mb-3"><i class="bi bi-file-earmark-text text-steadfast-brand me-2"></i>How to use SteadFast Courier</h6>
+                    <ol class="text-dark mb-0 small lh-lg">
                         <li>Go to <strong>API Settings</strong> tab and enter your SteadFast API Key & Secret Key.</li>
                         <li>Enable the courier integration using the toggle.</li>
                         <li>Go to <strong>Orders</strong> page - click "Send Courier" button on any pending/processing order.</li>
@@ -128,7 +158,7 @@
 
                         <div class="card border shadow-sm mb-4">
                             <div class="card-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0 fw-semibold"><i class="bi bi-truck text-warning me-2"></i>SteadFast Courier Integration</h6>
+                                <h6 class="mb-0 fw-semibold"><i class="bi bi-truck text-steadfast-brand me-2"></i>SteadFast Courier Integration</h6>
                                 <div class="form-check form-switch mb-0">
                                     <input class="form-check-input" type="checkbox" id="steadfast_enabled" name="steadfast_enabled" value="1" data-integration-toggle="steadfast_enabled" {{ $isChecked('steadfast_enabled') ? 'checked' : '' }}>
                                     <label class="form-check-label fw-semibold" for="steadfast_enabled">Enable</label>
@@ -165,9 +195,15 @@
                                         </div>
                                     </div>
                                     
-                                    <div class="alert alert-info mt-4 mb-0 bg-info bg-opacity-10 border-info">
-                                        <strong>Callback / Webhook URL:</strong> <code class="text-primary">{{ route('api.webhooks.steadfast') }}</code><br>
-                                        <small>Copy this URL and the Auth Token above, then paste them in your SteadFast / Packzy merchant dashboard to receive automatic status updates.</small>
+                                    <div class="mt-4 p-3 rounded steadfast-light-box">
+                                        <label class="form-label fw-bold mb-1"><i class="bi bi-link-45deg text-steadfast-brand me-1"></i>Callback / Webhook URL</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control form-control-sm bg-white text-dark" value="{{ route('api.webhooks.steadfast') }}" readonly id="steadfastWebhookUrl">
+                                            <button class="btn btn-sm btn-steadfast" type="button" onclick="navigator.clipboard.writeText(document.getElementById('steadfastWebhookUrl').value); alert('Copied to clipboard!');">
+                                                <i class="bi bi-clipboard"></i> Copy
+                                            </button>
+                                        </div>
+                                        <small class="text-muted d-block mt-2">Copy this URL and the Auth Token above, then paste them in your SteadFast / Packzy merchant dashboard to receive automatic status updates.</small>
                                     </div>
                                 </div>
 
@@ -181,7 +217,7 @@
                         </div>
 
                         <div class="d-flex justify-content-start">
-                            <button type="submit" class="btn btn-primary px-4">
+                            <button type="submit" class="btn btn-steadfast px-4">
                                 <i class="bi bi-save me-1"></i> Save Changes
                             </button>
                         </div>
@@ -201,16 +237,16 @@
         tabs.forEach(tab => {
             tab.addEventListener('shown.bs.tab', function (event) {
                 tabs.forEach(t => {
-                    t.classList.remove('text-dark', 'border-bottom', 'border-3', 'border-warning', 'fw-semibold');
+                    t.classList.remove('text-dark', 'border-bottom', 'border-3', 'border-steadfast-tab', 'fw-semibold');
                     t.classList.add('text-muted', 'border-0');
                     // Handle icon color
                     const icon = t.querySelector('i');
-                    if(icon) icon.classList.remove('text-warning');
+                    if(icon) icon.classList.remove('text-steadfast-brand');
                 });
                 event.target.classList.remove('text-muted', 'border-0');
-                event.target.classList.add('text-dark', 'border-bottom', 'border-3', 'border-warning', 'fw-semibold');
+                event.target.classList.add('text-dark', 'border-bottom', 'border-3', 'border-steadfast-tab', 'fw-semibold');
                 const activeIcon = event.target.querySelector('i');
-                if(activeIcon) activeIcon.classList.add('text-warning');
+                if(activeIcon) activeIcon.classList.add('text-steadfast-brand');
             });
         });
 

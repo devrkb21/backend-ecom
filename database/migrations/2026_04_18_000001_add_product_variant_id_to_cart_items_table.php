@@ -72,6 +72,18 @@ return new class extends Migration
 
     private function hasIndex(string $table, string $index): bool
     {
+        if (DB::getDriverName() === 'sqlite') {
+            $results = DB::select("PRAGMA index_list('{$table}')");
+            foreach ($results as $row) {
+                // In some older PHP/sqlite versions, indices might be objects or arrays
+                $name = is_object($row) ? ($row->name ?? null) : ($row['name'] ?? null);
+                if ($name === $index) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         return (bool) DB::table('information_schema.statistics')
             ->whereRaw('table_schema = DATABASE()')
             ->where('table_name', $table)
@@ -81,6 +93,10 @@ return new class extends Migration
 
     private function hasForeignKey(string $table, string $constraint): bool
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return false;
+        }
+
         return (bool) DB::table('information_schema.table_constraints')
             ->whereRaw('constraint_schema = DATABASE()')
             ->where('table_name', $table)
