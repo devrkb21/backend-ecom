@@ -49,9 +49,22 @@ class StoreOrderRequest extends FormRequest
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
 
+        $landingPageSlug = $this->input('landing_page_slug');
+        $showLocation = true;
+        if ($landingPageSlug) {
+            $lp = \App\Models\LandingPage::where('slug', $landingPageSlug)->first();
+            if ($lp && !$lp->show_location) {
+                $showLocation = false;
+            }
+        }
+
         foreach ($enabledFields as $field) {
             $key = (string) ($field['key'] ?? '');
             if ($key === '') {
+                continue;
+            }
+
+            if (!$showLocation && in_array($field['type'] ?? '', ['location_division', 'location_district', 'location_upazila', 'location_union'], true)) {
                 continue;
             }
 

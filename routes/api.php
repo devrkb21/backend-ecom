@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderNoteController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\SavedPaymentMethodController;
+use App\Http\Controllers\Api\LandingPageController as ApiLandingPageController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -84,6 +85,9 @@ Route::prefix('v1')->group(function () {
         // Pages
         Route::get('/pages', [PageController::class, 'index']);
         Route::get('/pages/{slug}', [PageController::class, 'show']);
+
+        // Landing Pages
+        Route::get('/landing-pages/slug/{slug}', [ApiLandingPageController::class, 'showBySlug']);
 
         // Categories
         Route::get('/categories', [CategoryController::class, 'index']);

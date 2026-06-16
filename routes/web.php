@@ -29,6 +29,7 @@ use App\Http\Controllers\Admin\FlashSaleController;
 use App\Http\Controllers\Admin\LoyaltyController;
 use App\Http\Controllers\Admin\SmsTemplateController;
 use App\Http\Controllers\Admin\FraudBlockController;
+use App\Http\Controllers\Admin\LandingPageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -59,6 +60,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Pages CRUD
         Route::resource('pages', PageController::class)->except(['show']);
+
+        // Landing Pages CRUD
+        Route::resource('landing-pages', LandingPageController::class);
 
         // Customer Groups & Customer Analytics
         Route::resource('customer-groups', App\Http\Controllers\Admin\CustomerGroupController::class);

@@ -53,7 +53,7 @@
                                 <button type="button" class="btn btn-outline-primary btn-sm flex-grow-1" onclick="showMediaDetails({{ $item->id }})">
                                     <i class="bi bi-eye"></i>
                                 </button>
-                                <form action="{{ route('admin.media.destroy', $item) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this file?');">
+                                <form action="{{ route('admin.media.destroy', $item) }}" method="POST" class="d-inline media-delete-form">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="btn btn-outline-danger btn-sm">
@@ -160,5 +160,59 @@ function copyUrl() {
     input.select();
     document.execCommand('copy');
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.media-delete-form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!confirm('Delete this file?')) {
+                return;
+            }
+            
+            const btn = form.querySelector('button[type="submit"]');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            
+            const url = form.action;
+            const csrfToken = form.querySelector('input[name="_token"]').value;
+            const col = form.closest('.col-6');
+            
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-HTTP-Method-Override': 'DELETE',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    col.style.transition = 'all 0.3s ease';
+                    col.style.opacity = '0';
+                    col.style.transform = 'scale(0.8)';
+                    setTimeout(() => {
+                        col.remove();
+                        const remaining = document.querySelectorAll('.media-item');
+                        if (remaining.length === 0) {
+                            window.location.reload();
+                        }
+                    }, 300);
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                    alert(data.message || 'Failed to delete file.');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                alert('An error occurred while deleting.');
+            });
+        });
+    });
+});
 </script>
 @endpush
