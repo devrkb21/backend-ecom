@@ -435,6 +435,16 @@
                             <th>Created</th>
                             <td>{{ $abandonedCart->created_at->format('M d, Y H:i') }}</td>
                         </tr>
+                        @if($abandonedCart->landing_page_slug)
+                        <tr>
+                            <th>Landing Page</th>
+                            <td>
+                                <a href="{{ rtrim(config('app.frontend_url', ''), '/') . '/l/' . $abandonedCart->landing_page_slug }}" target="_blank" class="badge text-white" style="background-color: #6f42c1;">
+                                    {{ $abandonedCart->landing_page_slug }} <i class="fas fa-external-link-alt ms-1" style="font-size: 0.75em;"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        @endif
                         <tr>
                             <th>Last Activity</th>
                             <td>

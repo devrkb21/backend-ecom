@@ -157,6 +157,9 @@ class PathaoWebhookListener
                 'status_change',
                 "Order status updated to {$statusName} via Pathao webhook (Event: {$eventName})"
             );
+
+            // Send automatic SMS notification for status change
+            app(\App\Services\SmsService::class)->sendOrderStatusSms($order, $newStatus);
         }
 
         // Determine tracking event status category

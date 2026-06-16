@@ -13,6 +13,7 @@ class AbandonedCart extends Model
     protected $fillable = [
         'user_id',
         'cart_id',
+        'landing_page_slug',
         'session_id',
         'status',
         'checkout_step',
@@ -401,6 +402,7 @@ class AbandonedCart extends Model
             'status' => 'pending',
             'user_id' => $userId ?? $abandonedCart->user_id,
             'session_id' => $sessionId ?? $abandonedCart->session_id,
+            'landing_page_slug' => $data['landing_page_slug'] ?? $abandonedCart->landing_page_slug,
             'checkout_step' => $data['checkout_step'] ?? $abandonedCart->checkout_step,
             'email' => $data['email'] ?? $abandonedCart->email,
             'phone' => $data['phone'] ?? $abandonedCart->phone,

@@ -36,8 +36,12 @@ class Media extends Model
             \App\Models\ProductImage::where('image', $path)->delete();
 
             // Nullify references in other tables
-            \App\Models\Category::where('image', $path)->update(['image' => null]);
-            \App\Models\Category::where('banner_image', $path)->update(['banner_image' => null]);
+            if (\Illuminate\Support\Facades\Schema::hasColumn('categories', 'image')) {
+                \App\Models\Category::where('image', $path)->update(['image' => null]);
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('categories', 'banner_image')) {
+                \App\Models\Category::where('banner_image', $path)->update(['banner_image' => null]);
+            }
             
             \App\Models\ProductVariant::where('image', $path)->update(['image' => null]);
             \App\Models\ProductAttributeValue::where('image', $path)->update(['image' => null]);
@@ -54,8 +58,12 @@ class Media extends Model
                     $url = \Illuminate\Support\Facades\Storage::disk($media->disk)->url($path);
                     
                     \App\Models\ProductImage::where('image', $url)->delete();
-                    \App\Models\Category::where('image', $url)->update(['image' => null]);
-                    \App\Models\Category::where('banner_image', $url)->update(['banner_image' => null]);
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('categories', 'image')) {
+                        \App\Models\Category::where('image', $url)->update(['image' => null]);
+                    }
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('categories', 'banner_image')) {
+                        \App\Models\Category::where('banner_image', $url)->update(['banner_image' => null]);
+                    }
                     \App\Models\ProductVariant::where('image', $url)->update(['image' => null]);
                     \App\Models\ProductAttributeValue::where('image', $url)->update(['image' => null]);
                     \App\Models\LoyaltyReward::where('image', $url)->update(['image' => null]);

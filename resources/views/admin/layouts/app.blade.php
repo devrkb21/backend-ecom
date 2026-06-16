@@ -12,6 +12,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <!-- Advanced Color Picker (Pickr) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/nano.min.css"/>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <style>
         :root {
             --sidebar-width: 250px;
@@ -92,12 +93,8 @@
             list-style: none;
             margin: 0;
             padding: 0;
-            max-height: 0;
+            display: none;
             overflow: hidden;
-            transition: max-height 0.25s ease;
-        }
-        .sidebar .menu-group.is-open > .submenu {
-            max-height: 1200px;
         }
         .sidebar .submenu .nav-link {
             padding: 0.5rem 1.25rem 0.5rem 2.9rem;
@@ -414,7 +411,8 @@
                 $isMarketingActive = request()->routeIs('admin.coupons.*')
                     || request()->routeIs('admin.flash-sales.*')
                     || request()->routeIs('admin.loyalty.*')
-                    || request()->routeIs('admin.reviews.*');
+                    || request()->routeIs('admin.reviews.*')
+                    || request()->routeIs('admin.landing-pages.*');
 
                 $isSalesManagerActive = request()->routeIs('admin.returns.*')
                     || (request()->routeIs('admin.orders.*') && request('status') === 'pending');
@@ -554,6 +552,11 @@
                             @if($pendingReviews > 0)
                                 <span class="badge bg-warning text-dark ms-1">{{ $pendingReviews }}</span>
                             @endif
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.landing-pages.*') ? 'active' : '' }}" href="{{ route('admin.landing-pages.index') }}">
+                            <i class="bi bi-window-sidebar"></i> Landing Pages
                         </a>
                     </li>
                 </ul>
@@ -1149,8 +1152,31 @@
                 }
             };
 
-            const setGroupOpen = (groupItem, isOpen, shouldPersist = true) => {
-                groupItem.classList.toggle('is-open', isOpen);
+            const setGroupOpen = (groupItem, isOpen, shouldPersist = true, animate = true) => {
+                const $groupItem = $(groupItem);
+                const $submenu = $groupItem.find('.submenu');
+                
+                if ($submenu.length > 0) {
+                    if (!animate) {
+                        if (isOpen) {
+                            $groupItem.addClass('is-open');
+                            $submenu.show();
+                        } else {
+                            $groupItem.removeClass('is-open');
+                            $submenu.hide();
+                        }
+                    } else {
+                        if (isOpen) {
+                            $groupItem.addClass('is-open');
+                            $submenu.stop(true, true).slideDown(450);
+                        } else {
+                            $groupItem.removeClass('is-open');
+                            $submenu.stop(true, true).slideUp(450);
+                        }
+                    }
+                } else {
+                    $groupItem.toggleClass('is-open', isOpen);
+                }
 
                 const toggleButton = groupItem.querySelector('[data-group-toggle]');
                 if (toggleButton) {
@@ -1191,9 +1217,9 @@
                 const isActive = groupItem.dataset.active === '1';
                 const hasSavedState = Object.prototype.hasOwnProperty.call(menuState, groupName);
                 const savedState = hasSavedState ? menuState[groupName] : null;
-                const shouldOpen = isActive || savedState === 1 || savedState === '1';
+                const shouldOpen = hasSavedState ? (savedState === 1 || savedState === '1') : isActive;
 
-                setGroupOpen(groupItem, shouldOpen, false);
+                setGroupOpen(groupItem, shouldOpen, false, false);
 
                 const toggleButton = groupItem.querySelector('[data-group-toggle]');
                 if (toggleButton) {
@@ -1204,12 +1230,12 @@
                         if (!currentlyOpen) {
                             menuGroups.forEach((otherGroup) => {
                                 if (otherGroup !== groupItem && otherGroup.classList.contains('is-open')) {
-                                    setGroupOpen(otherGroup, false, true);
+                                    setGroupOpen(otherGroup, false, true, true);
                                 }
                             });
                         }
 
-                        setGroupOpen(groupItem, !currentlyOpen, true);
+                        setGroupOpen(groupItem, !currentlyOpen, true, true);
                         updateBulkToggleButton();
                     });
                 }
@@ -1228,7 +1254,7 @@
                 const shouldExpandAll = !areAllGroupsOpen();
 
                 menuGroups.forEach((groupItem) => {
-                    setGroupOpen(groupItem, shouldExpandAll, true);
+                    setGroupOpen(groupItem, shouldExpandAll, true, true);
                 });
 
                 updateBulkToggleButton();

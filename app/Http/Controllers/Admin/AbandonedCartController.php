@@ -41,6 +41,11 @@ class AbandonedCartController extends Controller
             $query->where('checkout_step', $request->checkout_step);
         }
 
+        // Filter by landing page slug
+        if ($request->filled('landing_page_slug')) {
+            $query->where('landing_page_slug', $request->landing_page_slug);
+        }
+
         // Filter by contact info presence
         if ($request->filled('has_contact')) {
             if ($request->has_contact === 'yes') {
@@ -50,13 +55,14 @@ class AbandonedCartController extends Controller
             }
         }
 
-        // Search by email, phone, or name
+        // Search by email, phone, name, or landing page slug
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('email', 'like', "%{$search}%")
                   ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('name', 'like', "%{$search}%");
+                  ->orWhere('name', 'like', "%{$search}%")
+                  ->orWhere('landing_page_slug', 'like', "%{$search}%");
             });
         }
 
@@ -99,8 +105,12 @@ class AbandonedCartController extends Controller
         $abandonedCarts = $query->paginate($perPage)->withQueryString();
 
         $stats = AbandonedCart::getSummary();
+        $landingPages = AbandonedCart::select('landing_page_slug')
+            ->distinct()
+            ->whereNotNull('landing_page_slug')
+            ->pluck('landing_page_slug');
 
-        return view('admin.abandoned-carts.index', compact('abandonedCarts', 'stats'));
+        return view('admin.abandoned-carts.index', compact('abandonedCarts', 'stats', 'landingPages'));
     }
 
     /**
@@ -313,6 +323,7 @@ class AbandonedCartController extends Controller
                 'Items',
                 'Total',
                 'Checkout Step',
+                'Landing Page',
                 'Last Activity',
             ]);
 
@@ -327,6 +338,7 @@ class AbandonedCartController extends Controller
                     $cart->item_count,
                     $cart->total,
                     $cart->checkout_step_label,
+                    $cart->landing_page_slug,
                     $cart->last_activity_at?->format('Y-m-d H:i'),
                 ]);
             }

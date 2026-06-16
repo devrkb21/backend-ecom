@@ -152,6 +152,11 @@ class Product extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function landingPages(): HasMany
+    {
+        return $this->hasMany(LandingPage::class);
+    }
+
     /**
      * Backward compatibility: alias for regular_price
      */

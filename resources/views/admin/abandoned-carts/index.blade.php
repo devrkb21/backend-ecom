@@ -300,6 +300,15 @@
                     <input type="text" name="search" class="form-control form-control-sm" placeholder="Email, Phone, Name" value="{{ request('search') }}">
                 </div>
                 <div class="col-md-2">
+                    <label class="form-label">Landing Page</label>
+                    <select name="landing_page_slug" class="form-select form-select-sm">
+                        <option value="">All Pages</option>
+                        @foreach($landingPages as $slug)
+                            <option value="{{ $slug }}" {{ request('landing_page_slug') == $slug ? 'selected' : '' }}>{{ $slug }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
                     <label class="form-label">Priority</label>
                     <select name="priority" class="form-select form-select-sm">
                         <option value="">All</option>
@@ -414,6 +423,11 @@
                                 {{-- Placeholder for future summary logic --}}
                                 @if($cart->coupon_code)
                                     <br><span class="badge bg-success">{{ $cart->coupon_code }}</span>
+                                @endif
+                                @if($cart->landing_page_slug)
+                                    <br><span class="badge mt-1 text-white" style="background-color: #6f42c1;">
+                                        <i class="fas fa-magic me-1"></i>Landing: {{ $cart->landing_page_slug }}
+                                    </span>
                                 @endif
                             </td>
                             <td>

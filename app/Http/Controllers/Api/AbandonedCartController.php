@@ -77,6 +77,7 @@ class AbandonedCartController extends Controller
     {
         $validated = $request->validate([
             'checkout_step' => 'required|string|in:cart,shipping,payment',
+            'landing_page_slug' => 'nullable|string|max:100',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:20',
             'name' => 'nullable|string|max:255',
@@ -205,6 +206,7 @@ class AbandonedCartController extends Controller
         // Track the abandoned cart
         $abandonedCart = AbandonedCart::trackCheckout([
             'checkout_step' => $validated['checkout_step'],
+            'landing_page_slug' => $validated['landing_page_slug'] ?? null,
             'email' => $validated['email'] ?? $request->user()?->email,
             'phone' => $validated['phone'] ?? $request->user()?->phone,
             'name' => $validated['name'] ?? $request->user()?->name,

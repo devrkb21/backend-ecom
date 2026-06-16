@@ -116,6 +116,9 @@ class SteadfastWebhookController extends Controller
                     'status_change',
                     "Order status updated to {$statusName} via SteadFast webhook (Status: {$status})"
                 );
+
+                // Send automatic SMS notification for status change
+                app(\App\Services\SmsService::class)->sendOrderStatusSms($order, $order->status);
             }
 
             // Always add tracking event for delivery_status
