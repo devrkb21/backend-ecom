@@ -503,69 +503,87 @@
         }
     }
 
-    const chartData = @json($chartData);
+    (function initDashboardCharts() {
+        const chartData = @json($chartData);
 
-    // Calculate top 7 and bottom 7 days for coloring
-    const revenuesWithIndices = chartData.map((d, index) => ({ index: index, revenue: d.revenue }));
-    // Sort descending
-    revenuesWithIndices.sort((a, b) => b.revenue - a.revenue);
-    
-    // Top 7 (greater than 0)
-    const top7Indices = revenuesWithIndices.filter(r => r.revenue > 0).slice(0, 7).map(r => r.index);
-    // Bottom 7 (greater than 0, not in top 7)
-    const bottom7Indices = revenuesWithIndices.filter(r => r.revenue > 0 && !top7Indices.includes(r.index)).slice(-7).map(r => r.index);
+        // Calculate top 7 and bottom 7 days for coloring
+        const revenuesWithIndices = chartData.map((d, index) => ({ index: index, revenue: d.revenue }));
+        // Sort descending
+        revenuesWithIndices.sort((a, b) => b.revenue - a.revenue);
+        
+        // Top 7 (greater than 0)
+        const top7Indices = revenuesWithIndices.filter(r => r.revenue > 0).slice(0, 7).map(r => r.index);
+        // Bottom 7 (greater than 0, not in top 7)
+        const bottom7Indices = revenuesWithIndices.filter(r => r.revenue > 0 && !top7Indices.includes(r.index)).slice(-7).map(r => r.index);
 
-    const backgroundColors = chartData.map((d, index) => {
-        if (top7Indices.includes(index)) return 'rgba(25, 135, 84, 0.8)'; // Green for Top 7
-        if (bottom7Indices.includes(index)) return 'rgba(220, 53, 69, 0.8)'; // Red for Bottom 7
-        return 'rgba(13, 110, 253, 0.8)'; // Blue for others
-    });
+        const backgroundColors = chartData.map((d, index) => {
+            if (top7Indices.includes(index)) return 'rgba(25, 135, 84, 0.8)';
+            if (bottom7Indices.includes(index)) return 'rgba(220, 53, 69, 0.8)';
+            return 'rgba(13, 110, 253, 0.8)';
+        });
 
-    const hoverBackgroundColors = chartData.map((d, index) => {
-        if (top7Indices.includes(index)) return '#198754';
-        if (bottom7Indices.includes(index)) return '#dc3545';
-        return '#0d6efd';
-    });
+        const hoverBackgroundColors = chartData.map((d, index) => {
+            if (top7Indices.includes(index)) return '#198754';
+            if (bottom7Indices.includes(index)) return '#dc3545';
+            return '#0d6efd';
+        });
 
-    // Revenue Chart
-    new Chart(document.getElementById('revenueChart'), {
-        type: 'bar',
-        data: {
-            labels: chartData.map(d => d.label),
-            datasets: [{
-                label: 'Revenue (৳)',
-                data: chartData.map(d => d.revenue),
-                backgroundColor: backgroundColors,
-                hoverBackgroundColor: hoverBackgroundColors,
-                borderRadius: 0,
-                borderSkipped: false,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(0,0,0,0.05)'
+        function renderCharts() {
+            var canvas = document.getElementById('revenueChart');
+            if (!canvas) return;
+
+            // Destroy existing Chart instance if any (prevents "Canvas already in use" on re-navigation)
+            if (window.__dashboardRevenueChart) {
+                window.__dashboardRevenueChart.destroy();
+                window.__dashboardRevenueChart = null;
+            }
+
+            window.__dashboardRevenueChart = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: chartData.map(d => d.label),
+                    datasets: [{
+                        label: 'Revenue (৳)',
+                        data: chartData.map(d => d.revenue),
+                        backgroundColor: backgroundColors,
+                        hoverBackgroundColor: hoverBackgroundColors,
+                        borderRadius: 0,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false }
                     },
-                    ticks: {
-                        callback: function(value) {
-                            return '৳' + value.toLocaleString();
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            ticks: {
+                                callback: function(value) {
+                                    return '৳' + value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            grid: { display: false }
                         }
                     }
-                },
-                x: {
-                    grid: {
-                        display: false
-                    }
                 }
-            }
+            });
         }
-    });
+
+        // Defer to next animation frame to ensure canvas layout is fully resolved
+        // (important for document.write()-based SPA navigation)
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                requestAnimationFrame(renderCharts);
+            });
+        } else {
+            requestAnimationFrame(renderCharts);
+        }
+    })();
 </script>
 @endpush

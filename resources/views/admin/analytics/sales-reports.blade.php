@@ -417,137 +417,166 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Daily Sales Chart
-const dailyCtx = document.getElementById('dailySalesChart').getContext('2d');
-new Chart(dailyCtx, {
-    type: 'line',
-    data: {
-        labels: @json($dailyChart['labels']),
-        datasets: [
-            {
-                label: 'Revenue (৳)',
-                data: @json($dailyChart['datasets'][0]['data']),
-                borderColor: '#4e73df',
-                backgroundColor: 'rgba(78, 115, 223, 0.1)',
-                fill: true,
-                tension: 0.3,
-                yAxisID: 'y',
-            },
-            {
-                label: 'Orders',
-                data: @json($dailyChart['datasets'][1]['data']),
-                borderColor: '#1cc88a',
-                backgroundColor: 'transparent',
-                borderDash: [5, 5],
-                tension: 0.3,
-                yAxisID: 'y1',
-            }
-        ]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        scales: {
-            y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Revenue (৳)' } },
-            y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Orders' }, grid: { drawOnChartArea: false } }
-        }
+(function initSalesReportsCharts() {
+    // Store chart instances to destroy on re-navigation
+    var _charts = [];
+
+    function destroyAll() {
+        _charts.forEach(function(c) { try { c.destroy(); } catch(e) {} });
+        _charts = [];
     }
-});
 
-// Cancellation Reason Pie Chart
-const cancelReasonCanvas = document.getElementById('cancellationReasonChart');
-if (cancelReasonCanvas) {
-    const cancelReasonCtx = cancelReasonCanvas.getContext('2d');
-    new Chart(cancelReasonCtx, {
-        type: 'pie',
-        data: {
-            labels: @json(array_column($byCancellationReason, 'reason')),
-            datasets: [{
-                data: @json(array_column($byCancellationReason, 'count')),
-                backgroundColor: ['#e74a3b', '#c0392b', '#e06666', '#990000', '#cc0000', '#f4cccc', '#ea9999', '#85200c'],
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom' } }
-        }
-    });
-}
+    function renderCharts() {
+        destroyAll();
 
-// Payment Method Pie Chart
-const paymentCtx = document.getElementById('paymentMethodChart').getContext('2d');
-new Chart(paymentCtx, {
-    type: 'doughnut',
-    data: {
-        labels: @json(array_column($byPaymentMethod, 'method')),
-        datasets: [{
-            data: @json(array_column($byPaymentMethod, 'total')),
-            backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'],
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom' } }
-    }
-});
-
-// Order Source Pie Chart
-const orderSourceCtx = document.getElementById('orderSourceChart').getContext('2d');
-new Chart(orderSourceCtx, {
-    type: 'doughnut',
-    data: {
-        labels: @json(array_column($byOrderSource, 'source')),
-        datasets: [{
-            data: @json(array_column($byOrderSource, 'total')),
-            backgroundColor: ['#1cc88a', '#4e73df', '#e74a3b', '#f6c23e', '#36b9cc', '#858796', '#5a5c69'],
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { 
-            legend: { position: 'bottom' },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        let label = context.label || '';
-                        if (label) {
-                            label += ': ';
+        // Daily Sales Chart
+        var dailyCanvas = document.getElementById('dailySalesChart');
+        if (dailyCanvas) {
+            _charts.push(new Chart(dailyCanvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: @json($dailyChart['labels']),
+                    datasets: [
+                        {
+                            label: 'Revenue (৳)',
+                            data: @json($dailyChart['datasets'][0]['data']),
+                            borderColor: '#4e73df',
+                            backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                            fill: true,
+                            tension: 0.3,
+                            yAxisID: 'y',
+                        },
+                        {
+                            label: 'Orders',
+                            data: @json($dailyChart['datasets'][1]['data']),
+                            borderColor: '#1cc88a',
+                            backgroundColor: 'transparent',
+                            borderDash: [5, 5],
+                            tension: 0.3,
+                            yAxisID: 'y1',
                         }
-                        if (context.parsed !== null) {
-                            let total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            let percentage = total > 0 ? Math.round((context.parsed / total) * 100) : 0;
-                            label += '৳' + context.parsed.toLocaleString() + ' (' + percentage + '%)';
-                        }
-                        return label;
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Revenue (৳)' } },
+                        y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Orders' }, grid: { drawOnChartArea: false } }
                     }
                 }
-            }
+            }));
+        }
+
+        // Cancellation Reason Pie Chart
+        var cancelReasonCanvas = document.getElementById('cancellationReasonChart');
+        if (cancelReasonCanvas) {
+            _charts.push(new Chart(cancelReasonCanvas.getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: @json(array_column($byCancellationReason, 'reason')),
+                    datasets: [{
+                        data: @json(array_column($byCancellationReason, 'count')),
+                        backgroundColor: ['#e74a3b', '#c0392b', '#e06666', '#990000', '#cc0000', '#f4cccc', '#ea9999', '#85200c'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            }));
+        }
+
+        // Payment Method Pie Chart
+        var paymentCanvas = document.getElementById('paymentMethodChart');
+        if (paymentCanvas) {
+            _charts.push(new Chart(paymentCanvas.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: @json(array_column($byPaymentMethod, 'method')),
+                    datasets: [{
+                        data: @json(array_column($byPaymentMethod, 'total')),
+                        backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            }));
+        }
+
+        // Order Source Pie Chart
+        var orderSourceCanvas = document.getElementById('orderSourceChart');
+        if (orderSourceCanvas) {
+            _charts.push(new Chart(orderSourceCanvas.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: @json(array_column($byOrderSource, 'source')),
+                    datasets: [{
+                        data: @json(array_column($byOrderSource, 'total')),
+                        backgroundColor: ['#1cc88a', '#4e73df', '#e74a3b', '#f6c23e', '#36b9cc', '#858796', '#5a5c69'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed !== null) {
+                                        let total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        let percentage = total > 0 ? Math.round((context.parsed / total) * 100) : 0;
+                                        label += '৳' + context.parsed.toLocaleString() + ' (' + percentage + '%)';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            }));
+        }
+
+        // Hourly Distribution Chart
+        var hourlyCanvas = document.getElementById('hourlyChart');
+        if (hourlyCanvas) {
+            _charts.push(new Chart(hourlyCanvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: @json($hourlyDistribution['labels']),
+                    datasets: [{
+                        label: 'Orders',
+                        data: @json($hourlyDistribution['orders']),
+                        backgroundColor: 'rgba(78, 115, 223, 0.8)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } },
+                    plugins: { legend: { display: false } }
+                }
+            }));
         }
     }
-});
 
-// Hourly Distribution Chart
-const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
-new Chart(hourlyCtx, {
-    type: 'bar',
-    data: {
-        labels: @json($hourlyDistribution['labels']),
-        datasets: [{
-            label: 'Orders',
-            data: @json($hourlyDistribution['orders']),
-            backgroundColor: 'rgba(78, 115, 223, 0.8)',
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: { y: { beginAtZero: true } },
-        plugins: { legend: { display: false } }
+    // Defer to next animation frame to ensure canvas layout is fully resolved
+    // (important for document.write()-based SPA navigation)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            requestAnimationFrame(renderCharts);
+        });
+    } else {
+        requestAnimationFrame(renderCharts);
     }
-});
+})();
 </script>
 @endpush

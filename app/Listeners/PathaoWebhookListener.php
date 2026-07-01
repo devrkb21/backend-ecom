@@ -159,7 +159,33 @@ class PathaoWebhookListener
             );
 
             // Send automatic SMS notification for status change
-            app(\App\Services\SmsService::class)->sendOrderStatusSms($order, $newStatus);
+            try {
+                $smsResult = app(\App\Services\SmsService::class)->sendOrderStatusSms($order, $newStatus);
+                if ($smsResult['success']) {
+                    OrderActivityLog::log($order, 'sms_sent', "SMS sent: Status → {$statusName} (via Pathao webhook)", $smsResult['message'] ?? null, [
+                        'status' => $newStatus,
+                        'phone' => $order->shipping_phone,
+                    ]);
+                } elseif (!str_contains($smsResult['message'] ?? '', 'not enabled')) {
+                    OrderActivityLog::log($order, 'sms_failed', 'SMS failed (via Pathao webhook)', $smsResult['message'] ?? null, [
+                        'status' => $newStatus,
+                        'error' => $smsResult['message'] ?? 'Unknown error',
+                    ]);
+                }
+                Log::info('Pathao Webhook SMS Result', [
+                    'order_id' => $order->id,
+                    'status' => $newStatus,
+                    'sms_success' => $smsResult['success'],
+                    'sms_message' => $smsResult['message'] ?? null,
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('Pathao Webhook SMS Exception', [
+                    'order_id' => $order->id,
+                    'status' => $newStatus,
+                    'error' => $e->getMessage(),
+                ]);
+                OrderActivityLog::log($order, 'sms_failed', 'SMS failed (exception via Pathao webhook)', $e->getMessage());
+            }
         }
 
         // Determine tracking event status category

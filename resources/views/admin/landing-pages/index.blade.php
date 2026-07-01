@@ -6,7 +6,7 @@
 @section('content')
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-semibold"><i class="bi bi-file-earmark-text me-2"></i>Single Product Landing Pages</h6>
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-file-earmark-text me-2"></i>Landing Pages</h6>
         <div class="d-flex gap-2">
             <form action="{{ route('admin.landing-pages.index') }}" method="GET" class="d-flex">
                 <div class="input-group input-group-sm">
@@ -29,7 +29,7 @@
                     <tr>
                         <th>ID</th>
                         <th>Title</th>
-                        <th>Product</th>
+                        <th>Products</th>
                         <th>Frontend Custom URL</th>
                         <th>Template Type</th>
                         <th>Clicks (Views)</th>
@@ -48,12 +48,19 @@
                                 @endif
                             </td>
                             <td>
+                                @php
+                                    $lpProductIds = $lp->product_ids ?? ($lp->product_id ? [$lp->product_id] : []);
+                                    $lpCount = count($lpProductIds);
+                                @endphp
                                 @if($lp->product)
-                                    <a href="{{ route('admin.products.edit', $lp->product) }}" target="_blank">
+                                    <a href="{{ route('admin.products.edit', $lp->product) }}" target="_blank" class="d-block text-truncate" style="max-width:160px;" title="{{ $lp->product->name }}">
                                         {{ $lp->product->name }}
                                     </a>
+                                    @if($lpCount > 1)
+                                        <span class="badge bg-primary bg-opacity-10 text-primary">+{{ $lpCount - 1 }} more</span>
+                                    @endif
                                 @else
-                                    <span class="text-danger">Product Missing</span>
+                                    <span class="text-muted small">—</span>
                                 @endif
                             </td>
                             <td>
