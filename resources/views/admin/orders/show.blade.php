@@ -4,6 +4,28 @@
 @section('page-title', 'Order Details')
 
 @section('content')
+<style>
+    .btn-outline-steadfast {
+        color: #00B795 !important;
+        border-color: #00B795 !important;
+        background-color: transparent !important;
+    }
+    .btn-outline-steadfast:hover {
+        color: #fff !important;
+        background-color: #00B795 !important;
+        border-color: #00B795 !important;
+    }
+    .btn-outline-pathao {
+        color: #E83434 !important;
+        border-color: #E83434 !important;
+        background-color: transparent !important;
+    }
+    .btn-outline-pathao:hover {
+        color: #fff !important;
+        background-color: #E83434 !important;
+        border-color: #E83434 !important;
+    }
+</style>
 {{-- ==================== PHP Variables (kept exactly as before) ==================== --}}
 @php
     $checkoutPayloadForCustomer = is_array($order->checkout_fields_payload) ? $order->checkout_fields_payload : [];
@@ -170,7 +192,7 @@
                     <i class="bi bi-truck"></i> SteadFast: {{ $order->tracking_number }}
                 </span>
             @elseif(!$isPathaoSent && in_array($order->status, ['pending', 'processing']))
-                <button type="button" class="btn btn-sm btn-outline-success" style="border-color: #00B795 !important; color: #00B795 !important;" data-bs-toggle="modal" data-bs-target="#steadfastModal">
+                <button type="button" class="btn btn-sm btn-outline-steadfast" data-bs-toggle="modal" data-bs-target="#steadfastModal">
                     <i class="bi bi-truck me-1"></i> Send to SteadFast
                 </button>
             @endif
@@ -181,7 +203,7 @@
                     <i class="bi bi-truck"></i> Pathao: {{ $order->tracking_number }}
                 </a>
             @elseif(!$isSteadfastSent && in_array($order->status, ['pending', 'processing']))
-                <button type="button" class="btn btn-sm btn-outline-danger" style="border-color: #E83434 !important; color: #E83434 !important;" data-bs-toggle="modal" data-bs-target="#pathaoModal">
+                <button type="button" class="btn btn-sm btn-outline-pathao" data-bs-toggle="modal" data-bs-target="#pathaoModal">
                     <i class="bi bi-truck me-1"></i> Send to Pathao
                 </button>
             @endif
