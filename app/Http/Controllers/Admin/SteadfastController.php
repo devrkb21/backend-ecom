@@ -74,13 +74,27 @@ class SteadfastController extends Controller
                     'carrier_tracking_url' => $consignment['tracking_link'] ?? ('https://packzy.com/track/' . $consignment['tracking_code']),
                 ];
 
-                if ($order->status === 'pending') {
+                $statusChangedToProcessing = ($order->status === 'pending');
+                if ($statusChangedToProcessing) {
                     $updateData['status'] = 'processing';
                 }
 
                 $order->update($updateData);
 
                 \App\Models\OrderActivityLog::log($order, 'status_change', "Order sent to SteadFast. Consignment ID: {$consignment['consignment_id']}, Tracking Code: {$consignment['tracking_code']}");
+
+                if ($statusChangedToProcessing) {
+                    try {
+                        $smsResult = app(\App\Services\SmsService::class)->sendOrderStatusSms($order, 'processing');
+                        if ($smsResult['success']) {
+                            \App\Models\OrderActivityLog::log($order, 'sms_sent', "SMS sent: Status → Processing (via Steadfast)", $smsResult['message'] ?? null, ['status' => 'processing']);
+                        } elseif (!str_contains($smsResult['message'] ?? '', 'not enabled')) {
+                            \App\Models\OrderActivityLog::log($order, 'sms_failed', 'SMS failed', $smsResult['message'] ?? null, ['status' => 'processing', 'error' => $smsResult['message'] ?? '']);
+                        }
+                    } catch (\Throwable $e) {
+                        \Log::warning('Order SMS failed', ['order_id' => $order->id, 'status' => 'processing', 'error' => $e->getMessage()]);
+                    }
+                }
 
                 return back()->with('success', 'Order sent to SteadFast Courier successfully.');
             } else {
@@ -169,13 +183,27 @@ class SteadfastController extends Controller
                                 'carrier_tracking_url' => $item['tracking_link'] ?? ('https://packzy.com/track/' . $item['tracking_code']),
                             ];
 
-                            if ($order->status === 'pending') {
+                            $statusChangedToProcessing = ($order->status === 'pending');
+                            if ($statusChangedToProcessing) {
                                 $updateData['status'] = 'processing';
                             }
 
                             $order->update($updateData);
 
                             \App\Models\OrderActivityLog::log($order, 'status_change', "Order bulk sent to SteadFast. Consignment ID: {$item['consignment_id']}, Tracking Code: {$item['tracking_code']}");
+
+                            if ($statusChangedToProcessing) {
+                                try {
+                                    $smsResult = app(\App\Services\SmsService::class)->sendOrderStatusSms($order, 'processing');
+                                    if ($smsResult['success']) {
+                                        \App\Models\OrderActivityLog::log($order, 'sms_sent', "SMS sent: Status → Processing (via Steadfast Bulk)", $smsResult['message'] ?? null, ['status' => 'processing']);
+                                    } elseif (!str_contains($smsResult['message'] ?? '', 'not enabled')) {
+                                        \App\Models\OrderActivityLog::log($order, 'sms_failed', 'SMS failed', $smsResult['message'] ?? null, ['status' => 'processing', 'error' => $smsResult['message'] ?? '']);
+                                    }
+                                } catch (\Throwable $e) {
+                                    \Log::warning('Order SMS failed', ['order_id' => $order->id, 'status' => 'processing', 'error' => $e->getMessage()]);
+                                }
+                            }
                             $successCount++;
                         }
                     }

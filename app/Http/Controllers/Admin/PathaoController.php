@@ -117,13 +117,27 @@ class PathaoController extends Controller
                     'carrier_tracking_url' => $trackingUrl,
                 ];
 
-                if ($order->status === 'pending') {
+                $statusChangedToProcessing = ($order->status === 'pending');
+                if ($statusChangedToProcessing) {
                     $updateData['status'] = 'processing';
                 }
 
                 $order->update($updateData);
 
                 \App\Models\OrderActivityLog::log($order, 'status_change', "Order sent to Pathao Courier. Consignment ID: {$consignmentId}");
+
+                if ($statusChangedToProcessing) {
+                    try {
+                        $smsResult = app(\App\Services\SmsService::class)->sendOrderStatusSms($order, 'processing');
+                        if ($smsResult['success']) {
+                            \App\Models\OrderActivityLog::log($order, 'sms_sent', "SMS sent: Status → Processing (via Pathao)", $smsResult['message'] ?? null, ['status' => 'processing']);
+                        } elseif (!str_contains($smsResult['message'] ?? '', 'not enabled')) {
+                            \App\Models\OrderActivityLog::log($order, 'sms_failed', 'SMS failed', $smsResult['message'] ?? null, ['status' => 'processing', 'error' => $smsResult['message'] ?? '']);
+                        }
+                    } catch (\Throwable $e) {
+                        \Log::warning('Order SMS failed', ['order_id' => $order->id, 'status' => 'processing', 'error' => $e->getMessage()]);
+                    }
+                }
 
                 return back()->with('success', 'Order sent to Pathao Courier successfully.');
             } else {
@@ -224,13 +238,27 @@ class PathaoController extends Controller
                                 'carrier_tracking_url' => $trackingUrl,
                             ];
 
-                            if ($order->status === 'pending') {
+                            $statusChangedToProcessing = ($order->status === 'pending');
+                            if ($statusChangedToProcessing) {
                                 $updateData['status'] = 'processing';
                             }
 
                             $order->update($updateData);
 
                             \App\Models\OrderActivityLog::log($order, 'status_change', "Order bulk sent to Pathao Courier. Consignment ID: {$consignmentId}");
+
+                            if ($statusChangedToProcessing) {
+                                try {
+                                    $smsResult = app(\App\Services\SmsService::class)->sendOrderStatusSms($order, 'processing');
+                                    if ($smsResult['success']) {
+                                        \App\Models\OrderActivityLog::log($order, 'sms_sent', "SMS sent: Status → Processing (via Pathao Bulk)", $smsResult['message'] ?? null, ['status' => 'processing']);
+                                    } elseif (!str_contains($smsResult['message'] ?? '', 'not enabled')) {
+                                        \App\Models\OrderActivityLog::log($order, 'sms_failed', 'SMS failed', $smsResult['message'] ?? null, ['status' => 'processing', 'error' => $smsResult['message'] ?? '']);
+                                    }
+                                } catch (\Throwable $e) {
+                                    \Log::warning('Order SMS failed', ['order_id' => $order->id, 'status' => 'processing', 'error' => $e->getMessage()]);
+                                }
+                            }
                             $successCount++;
                         } else {
                             $failCount++;
