@@ -640,20 +640,33 @@
             
             const pathStr = path.join(',');
             const isSubItem = path.includes('children');
+            const sanitizedPathId = pathStr.replace(/,/g, '_');
             
             content.innerHTML = `
-                <div class="card-body p-2 d-flex align-items-center gap-2">
-                    <div class="d-flex align-items-center gap-2 flex-grow-1">
+                <div class="card-body p-2">
+                    <div class="d-flex align-items-center gap-2 mb-2">
                         <i class="bi bi-grip-vertical text-muted"></i>
                         <input type="text" class="form-control form-control-sm" style="width: 150px" value="${item.label}" onchange="updateItem('${pathStr}', 'label', this.value)" placeholder="Label">
                         <input type="text" class="form-control form-control-sm flex-grow-1" value="${item.url}" onchange="updateItem('${pathStr}', 'url', this.value)" placeholder="URL">
+                        <div class="d-flex gap-1">
+                            <button type="button" class="btn btn-xs btn-outline-info" onclick="indentItem('${pathStr}')" title="Indent (Make Sub-item)"><i class="bi bi-chevron-right"></i></button>
+                            <button type="button" class="btn btn-xs btn-outline-info" onclick="outdentItem('${pathStr}')" title="Outdent (Move to Main)"><i class="bi bi-chevron-left"></i></button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary" onclick="moveItem('${pathStr}', -1)" title="Move Up"><i class="bi bi-chevron-up"></i></button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary" onclick="moveItem('${pathStr}', 1)" title="Move Down"><i class="bi bi-chevron-down"></i></button>
+                            <button type="button" class="btn btn-xs btn-outline-danger" onclick="removeItem('${pathStr}')" title="Remove"><i class="bi bi-trash"></i></button>
+                        </div>
                     </div>
-                    <div class="d-flex gap-1">
-                        <button type="button" class="btn btn-xs btn-outline-info" onclick="indentItem('${pathStr}')" title="Indent (Make Sub-item)"><i class="bi bi-chevron-right"></i></button>
-                        <button type="button" class="btn btn-xs btn-outline-info" onclick="outdentItem('${pathStr}')" title="Outdent (Move to Main)"><i class="bi bi-chevron-left"></i></button>
-                        <button type="button" class="btn btn-xs btn-outline-secondary" onclick="moveItem('${pathStr}', -1)" title="Move Up"><i class="bi bi-chevron-up"></i></button>
-                        <button type="button" class="btn btn-xs btn-outline-secondary" onclick="moveItem('${pathStr}', 1)" title="Move Down"><i class="bi bi-chevron-down"></i></button>
-                        <button type="button" class="btn btn-xs btn-outline-danger" onclick="removeItem('${pathStr}')" title="Remove"><i class="bi bi-trash"></i></button>
+                    <div class="d-flex align-items-center gap-3 ms-4 small text-muted">
+                        <div class="form-check form-switch m-0 d-flex align-items-center gap-1">
+                            <input class="form-check-input" type="checkbox" id="highlight_${sanitizedPathId}" ${item.highlight ? 'checked' : ''} onchange="updateItem('${pathStr}', 'highlight', this.checked); renderMenu();">
+                            <label class="form-check-label" for="highlight_${sanitizedPathId}">Highlight Item</label>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 ${item.highlight ? '' : 'd-none'}">
+                            <span>Background:</span>
+                            <input type="color" class="form-control form-control-color form-control-sm p-0 border-0" style="width:30px; height:24px; cursor:pointer;" value="${item.highlight_bg || '#1f1f1f'}" onchange="updateItem('${pathStr}', 'highlight_bg', this.value)">
+                            <span class="ms-1">Text/Border:</span>
+                            <input type="color" class="form-control form-control-color form-control-sm p-0 border-0" style="width:30px; height:24px; cursor:pointer;" value="${item.highlight_text || '#d4af37'}" onchange="updateItem('${pathStr}', 'highlight_text', this.value)">
+                        </div>
                     </div>
                 </div>
             `;
@@ -690,6 +703,9 @@
                 label: labelInput.value.trim(),
                 url: url,
                 type: type,
+                highlight: false,
+                highlight_bg: '#1f1f1f',
+                highlight_text: '#d4af37',
                 children: []
             });
 

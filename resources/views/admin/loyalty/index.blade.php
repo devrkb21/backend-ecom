@@ -186,45 +186,61 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const ctx = document.getElementById('pointsChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: {!! json_encode($chartData['labels']) !!},
-            datasets: [
-                {
-                    label: 'Points Earned',
-                    data: {!! json_encode($chartData['earned']) !!},
-                    borderColor: 'rgb(34, 197, 94)',
-                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                },
-                {
-                    label: 'Points Redeemed',
-                    data: {!! json_encode($chartData['redeemed']) !!},
-                    borderColor: 'rgb(239, 68, 68)',
-                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
+(function initLoyaltyCharts() {
+    function renderCharts() {
+        var canvas = document.getElementById('pointsChart');
+        if (!canvas) return;
+
+        // Destroy existing instance if any
+        if (window.__loyaltyPointsChart) {
+            window.__loyaltyPointsChart.destroy();
+            window.__loyaltyPointsChart = null;
+        }
+
+        window.__loyaltyPointsChart = new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: {!! json_encode($chartData['labels']) !!},
+                datasets: [
+                    {
+                        label: 'Points Earned',
+                        data: {!! json_encode($chartData['earned']) !!},
+                        borderColor: 'rgb(34, 197, 94)',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Points Redeemed',
+                        data: {!! json_encode($chartData['redeemed']) !!},
+                        borderColor: 'rgb(239, 68, 68)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }
+                ]
             },
-            scales: {
-                y: {
-                    beginAtZero: true
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' }
+                },
+                scales: {
+                    y: { beginAtZero: true }
                 }
             }
-        }
-    });
-});
+        });
+    }
+
+    // Defer to next animation frame to ensure canvas layout is fully resolved
+    // (important for document.write()-based SPA navigation)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            requestAnimationFrame(renderCharts);
+        });
+    } else {
+        requestAnimationFrame(renderCharts);
+    }
+})();
 </script>
 @endpush

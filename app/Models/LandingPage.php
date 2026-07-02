@@ -12,6 +12,7 @@ class LandingPage extends Model
 
     protected $fillable = [
         'product_id',
+        'product_ids',
         'title',
         'slug',
         'template_type',
@@ -29,16 +30,31 @@ class LandingPage extends Model
     protected function casts(): array
     {
         return [
-            'features' => 'array',
-            'testimonials' => 'array',
-            'is_active' => 'boolean',
+            'product_ids'   => 'array',
+            'features'      => 'array',
+            'testimonials'  => 'array',
+            'is_active'     => 'boolean',
             'show_location' => 'boolean',
-            'views_count' => 'integer',
+            'views_count'   => 'integer',
         ];
     }
 
+    /** Legacy single-product relation (kept for backward compat) */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * All linked products (via product_ids JSON array).
+     * Returns a Collection of Product models.
+     */
+    public function getLinkedProductsAttribute()
+    {
+        $ids = $this->product_ids ?? ($this->product_id ? [$this->product_id] : []);
+        if (empty($ids)) {
+            return collect();
+        }
+        return Product::whereIn('id', $ids)->with(['variants.attributeValues.attribute', 'images'])->get();
     }
 }

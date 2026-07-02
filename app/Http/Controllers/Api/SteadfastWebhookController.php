@@ -110,6 +110,15 @@ class SteadfastWebhookController extends Controller
             $updatedAtString = $request->input('updated_at');
             $occurredAt = $updatedAtString ? \Carbon\Carbon::parse($updatedAtString) : now();
 
+            // Determine the internal status key for SMS template lookup
+            $internalStatusKey = match (true) {
+                in_array($newStatus, ['pending', 'in_review', 'in_transit']) => 'shipped',
+                in_array($newStatus, ['delivered', 'success', 'partial_delivered']) => 'delivered',
+                in_array($newStatus, ['returned', 'return']) => 'returned',
+                in_array($newStatus, ['cancelled', 'cancel']) => 'cancelled',
+                default => $newStatus,
+            };
+
             if ($orderUpdated) {
                 \App\Models\OrderActivityLog::log(
                     $order,
@@ -118,7 +127,33 @@ class SteadfastWebhookController extends Controller
                 );
 
                 // Send automatic SMS notification for status change
-                app(\App\Services\SmsService::class)->sendOrderStatusSms($order, $order->status);
+                try {
+                    $smsResult = app(\App\Services\SmsService::class)->sendOrderStatusSms($order, $internalStatusKey);
+                    if ($smsResult['success']) {
+                        \App\Models\OrderActivityLog::log($order, 'sms_sent', "SMS sent: Status → {$statusName} (via SteadFast webhook)", $smsResult['message'] ?? null, [
+                            'status' => $internalStatusKey,
+                            'phone' => $order->shipping_phone,
+                        ]);
+                    } elseif (!str_contains($smsResult['message'] ?? '', 'not enabled')) {
+                        \App\Models\OrderActivityLog::log($order, 'sms_failed', 'SMS failed (via SteadFast webhook)', $smsResult['message'] ?? null, [
+                            'status' => $internalStatusKey,
+                            'error' => $smsResult['message'] ?? 'Unknown error',
+                        ]);
+                    }
+                    Log::info('SteadFast Webhook SMS Result', [
+                        'order_id' => $order->id,
+                        'status' => $internalStatusKey,
+                        'sms_success' => $smsResult['success'],
+                        'sms_message' => $smsResult['message'] ?? null,
+                    ]);
+                } catch (\Throwable $e) {
+                    Log::warning('SteadFast Webhook SMS Exception', [
+                        'order_id' => $order->id,
+                        'status' => $internalStatusKey,
+                        'error' => $e->getMessage(),
+                    ]);
+                    \App\Models\OrderActivityLog::log($order, 'sms_failed', 'SMS failed (exception via SteadFast webhook)', $e->getMessage());
+                }
             }
 
             // Always add tracking event for delivery_status

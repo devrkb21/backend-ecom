@@ -36,19 +36,26 @@ class LandingPageController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'title' => 'required|string|max:255',
-            'slug' => 'nullable|string|max:255|unique:landing_pages,slug',
-            'template_type' => 'required|string|in:default,clothing,am,khejur,digital_item,inner_item,sexual_item',
-            'theme_color' => 'required|string|regex:/^#[0-9A-Fa-f]{6}$/',
-            'banner_image' => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:4096',
+            'product_ids'    => 'required|array|min:1',
+            'product_ids.*'  => 'required|exists:products,id',
+            'title'          => 'required|string|max:255',
+            'slug'           => 'nullable|string|max:255|unique:landing_pages,slug',
+            'template_type'  => 'required|string|in:default,clothing,am,khejur,digital_item,inner_item,sexual_item',
+            'theme_color'    => 'required|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'banner_image'   => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:4096',
             'video_embed_code' => 'nullable|string',
-            'features' => 'nullable|array',
-            'testimonials' => 'nullable|array',
-            'custom_css' => 'nullable|string',
-            'is_active' => 'boolean',
-            'show_location' => 'boolean'
+            'features'       => 'nullable|array',
+            'testimonials'   => 'nullable|array',
+            'custom_css'     => 'nullable|string',
+            'is_active'      => 'boolean',
+            'show_location'  => 'boolean',
         ]);
+
+        // Normalize product_ids (unique ints)
+        $productIds = array_values(array_unique(array_map('intval', $validated['product_ids'])));
+        $validated['product_ids'] = $productIds;
+        // Keep primary product_id as first selected (backward compat)
+        $validated['product_id'] = $productIds[0] ?? null;
 
         $validated['slug'] = $validated['slug'] ? Str::slug($validated['slug']) : Str::slug($validated['title']);
         $validated['is_active'] = $request->has('is_active');
@@ -97,19 +104,26 @@ class LandingPageController extends Controller
     public function update(Request $request, LandingPage $landingPage)
     {
         $validated = $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'title' => 'required|string|max:255',
-            'slug' => 'nullable|string|max:255|unique:landing_pages,slug,' . $landingPage->id,
-            'template_type' => 'required|string|in:default,clothing,am,khejur,digital_item,inner_item,sexual_item',
-            'theme_color' => 'required|string|regex:/^#[0-9A-Fa-f]{6}$/',
-            'banner_image' => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:4096',
+            'product_ids'    => 'required|array|min:1',
+            'product_ids.*'  => 'required|exists:products,id',
+            'title'          => 'required|string|max:255',
+            'slug'           => 'nullable|string|max:255|unique:landing_pages,slug,' . $landingPage->id,
+            'template_type'  => 'required|string|in:default,clothing,am,khejur,digital_item,inner_item,sexual_item',
+            'theme_color'    => 'required|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'banner_image'   => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:4096',
             'video_embed_code' => 'nullable|string',
-            'features' => 'nullable|array',
-            'testimonials' => 'nullable|array',
-            'custom_css' => 'nullable|string',
-            'is_active' => 'boolean',
-            'show_location' => 'boolean'
+            'features'       => 'nullable|array',
+            'testimonials'   => 'nullable|array',
+            'custom_css'     => 'nullable|string',
+            'is_active'      => 'boolean',
+            'show_location'  => 'boolean',
         ]);
+
+        // Normalize product_ids
+        $productIds = array_values(array_unique(array_map('intval', $validated['product_ids'])));
+        $validated['product_ids'] = $productIds;
+        // Keep primary product_id as first selected (backward compat)
+        $validated['product_id'] = $productIds[0] ?? null;
 
         $validated['slug'] = $validated['slug'] ? Str::slug($validated['slug']) : Str::slug($validated['title']);
         $validated['is_active'] = $request->has('is_active');
@@ -125,7 +139,6 @@ class LandingPageController extends Controller
 
         // Handle Banner Image File Upload
         if ($request->hasFile('banner_image')) {
-            // Delete old banner if exists
             if ($landingPage->banner_image) {
                 $oldPath = str_replace('/storage/', '', $landingPage->banner_image);
                 Storage::disk('public')->delete($oldPath);
@@ -162,7 +175,6 @@ class LandingPageController extends Controller
 
     public function destroy(LandingPage $landingPage)
     {
-        // Delete banner image
         if ($landingPage->banner_image) {
             $oldPath = str_replace('/storage/', '', $landingPage->banner_image);
             Storage::disk('public')->delete($oldPath);
