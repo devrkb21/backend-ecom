@@ -264,10 +264,8 @@
         </div>
         @endif
     </div>
-    @if($blocks->hasPages())
-    <div class="card-footer border-0 d-flex justify-content-center">
-        {{ $blocks->links() }}
+    <div class="card-footer" id="blocksPaginationWrap">
+        @include('admin.partials.pagination', ['paginator' => $blocks, 'perPageOptions' => [25, 50, 100]])
     </div>
-    @endif
 </div>
 @endsection

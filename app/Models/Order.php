@@ -107,13 +107,12 @@ class Order extends Model
 
         return substr($sanitizedPrefix, 0, 20);
     }
-
     protected static function resolveOrderNumberGenerationMode(): string
     {
-        $rawMode = (string) Setting::getValue('general', 'order_number_generation_mode', 'timestamp_random');
+        $rawMode = (string) Setting::getValue('general', 'order_number_generation_mode', 'global_sequence');
         $allowedModes = ['timestamp_random', 'date_sequence', 'global_sequence', 'custom_format'];
 
-        return in_array($rawMode, $allowedModes, true) ? $rawMode : 'timestamp_random';
+        return in_array($rawMode, $allowedModes, true) ? $rawMode : 'global_sequence';
     }
 
     protected static function generateTimestampRandomOrderNumber(string $prefix): string
@@ -143,7 +142,7 @@ class Order extends Model
             $candidate = sprintf(
                 '%s-%s',
                 $basePrefix,
-                str_pad((string) ($startingSequence + $attempt), 8, '0', STR_PAD_LEFT)
+                str_pad((string) ($startingSequence + $attempt), 4, '0', STR_PAD_LEFT)
             );
 
             if (!static::withTrashed()->where('order_number', $candidate)->exists()) {
@@ -186,9 +185,9 @@ class Order extends Model
 
     protected static function generateCustomFormatOrderNumber(string $prefix): string
     {
-        $format = (string) Setting::getValue('general', 'order_number_custom_format', '{PREFIX}-{YYYY}{MM}{DD}-{SEQ:4}');
+        $format = (string) Setting::getValue('general', 'order_number_custom_format', '{PREFIX}-{SEQ:4}');
         if (trim($format) === '') {
-            $format = '{PREFIX}-{YYYY}{MM}{DD}-{SEQ:4}';
+            $format = '{PREFIX}-{SEQ:4}';
         }
 
         $now = now();

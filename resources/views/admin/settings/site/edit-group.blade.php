@@ -320,15 +320,38 @@
                                                 Timestamp + Random (e.g., ORD-20260419123045-AB12)
                                             </option>
                                             <option value="date_sequence" {{ $selectedMode === 'date_sequence' ? 'selected' : '' }}>
-                                                Date + Sequence (e.g., ORD-20260419-00001)
+                                                Date + Sequence (e.g., ORD-20260419-0001)
                                             </option>
                                             <option value="global_sequence" {{ $selectedMode === 'global_sequence' ? 'selected' : '' }}>
-                                                Global Sequence (e.g., ORD-00000001)
+                                                Global Sequence (e.g., ORD-0001)
                                             </option>
                                             <option value="custom_format" {{ $selectedMode === 'custom_format' ? 'selected' : '' }}>
                                                 Custom Format (Use template)
                                             </option>
                                         </select>
+                                    @elseif($setting->key === 'invoice_footer_bg_color')
+                                        @php
+                                            $sitePrimaryColor = \App\Models\Setting::getValue('appearance', 'primary_color', '#db2777');
+                                        @endphp
+                                        <div class="input-group advanced-color-picker">
+                                            <div class="color-picker-init" data-target="setting_{{ $setting->key }}"></div>
+                                            <input 
+                                                type="text" 
+                                                id="setting_{{ $setting->key }}"
+                                                name="settings[{{ $setting->key }}]" 
+                                                class="form-control hex-input" 
+                                                value="{{ old("settings.{$setting->key}", $setting->value) }}"
+                                                placeholder="Auto ({{ $sitePrimaryColor }})"
+                                            >
+                                            <button 
+                                                type="button" 
+                                                class="btn btn-outline-secondary btn-sm px-3" 
+                                                onclick="document.getElementById('setting_{{ $setting->key }}').value = ''; if (typeof Pickr !== 'undefined' && window.pickrInstances && window.pickrInstances['setting_{{ $setting->key }}']) { window.pickrInstances['setting_{{ $setting->key }}'].setColor(null); }"
+                                                title="Reset to website primary color"
+                                            >
+                                                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                                            </button>
+                                        </div>
                                     @elseif(str_contains($setting->key, 'color') || $setting->type === 'color')
                                         <div class="input-group advanced-color-picker">
                                             <div class="color-picker-init" data-target="setting_{{ $setting->key }}"></div>

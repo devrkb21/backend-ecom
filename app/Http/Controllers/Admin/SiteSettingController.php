@@ -146,7 +146,7 @@ class SiteSettingController extends Controller
             ],
             [
                 'key' => 'order_number_generation_mode',
-                'value' => 'timestamp_random',
+                'value' => 'global_sequence',
                 'type' => 'text',
                 'label' => 'Order Number Generation Mode',
                 'description' => 'Choose how order numbers are generated.',
@@ -314,6 +314,95 @@ class SiteSettingController extends Controller
     }
 
     /**
+     * Ensure invoice settings exist.
+     */
+    protected function ensureInvoiceSettingsExist(): void
+    {
+        $definitions = [
+            [
+                'key' => 'invoice_logo',
+                'value' => '',
+                'type' => 'image',
+                'label' => 'Invoice Logo',
+                'description' => 'Upload a shop logo for the invoice/shipping label.',
+                'is_public' => false,
+                'sort_order' => 1,
+            ],
+            [
+                'key' => 'invoice_company_name',
+                'value' => 'Inner Collection',
+                'type' => 'text',
+                'label' => 'Company Name',
+                'description' => 'Official company name printed on invoices and labels.',
+                'is_public' => false,
+                'sort_order' => 2,
+            ],
+            [
+                'key' => 'invoice_company_phone',
+                'value' => '',
+                'type' => 'text',
+                'label' => 'Company Phone',
+                'description' => 'Contact phone number printed on invoices and labels.',
+                'is_public' => false,
+                'sort_order' => 3,
+            ],
+            [
+                'key' => 'invoice_company_address',
+                'value' => '',
+                'type' => 'textarea',
+                'label' => 'Company Address',
+                'description' => 'Shop address printed on invoices and labels.',
+                'is_public' => false,
+                'sort_order' => 4,
+            ],
+            [
+                'key' => 'invoice_company_email',
+                'value' => '',
+                'type' => 'text',
+                'label' => 'Company Email',
+                'description' => 'Shop email address printed on invoices.',
+                'is_public' => false,
+                'sort_order' => 5,
+            ],
+            [
+                'key' => 'invoice_company_domain',
+                'value' => 'www.innercollection.com',
+                'type' => 'text',
+                'label' => 'Company Website Domain',
+                'description' => 'Website domain printed on the invoice header. Leave blank if not required.',
+                'is_public' => false,
+                'sort_order' => 6,
+            ],
+            [
+                'key' => 'invoice_footer_bg_color',
+                'value' => '#000000',
+                'type' => 'color',
+                'label' => 'Invoice Footer Background Color',
+                'description' => 'Background color of the invoice footer. Defaults to black (#000000).',
+                'is_public' => false,
+                'sort_order' => 7,
+            ],
+        ];
+
+        $created = false;
+
+        foreach ($definitions as $definition) {
+            $setting = Setting::firstOrCreate(
+                ['group' => 'invoice', 'key' => $definition['key']],
+                array_merge(['group' => 'invoice'], $definition)
+            );
+
+            if ($setting->wasRecentlyCreated) {
+                $created = true;
+            }
+        }
+
+        if ($created) {
+            Setting::clearCache('invoice');
+        }
+    }
+
+    /**
      * Show all settings grouped
      */
     public function index()
@@ -363,6 +452,10 @@ class SiteSettingController extends Controller
             $this->ensureAppearanceSettingsExist();
         }
 
+        if ($group === 'invoice') {
+            $this->ensureInvoiceSettingsExist();
+        }
+
         $settings = Setting::where('group', $group)->orderBy('sort_order')->get();
         
         if ($settings->isEmpty()) {
@@ -380,6 +473,7 @@ class SiteSettingController extends Controller
             'checkout' => 'Checkout Settings',
             'navigation' => 'Navigation Menu',
             'appearance' => 'Appearance & Colors',
+            'invoice' => 'Invoice Settings',
         ];
 
         if ($group === 'checkout') {
@@ -467,6 +561,10 @@ class SiteSettingController extends Controller
 
         if ($group === 'checkout') {
             $this->ensureCheckoutSettingsExist();
+        }
+
+        if ($group === 'invoice') {
+            $this->ensureInvoiceSettingsExist();
         }
 
         $settings = Setting::where('group', $group)->get();

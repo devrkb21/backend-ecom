@@ -539,9 +539,14 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-sm btn-outline-info">
-                                        <i class="bi bi-eye"></i> View
-                                    </a>
+                                    <div class="d-flex gap-1">
+                                        <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-sm btn-outline-info" title="View Order">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                        <a href="{{ route('admin.orders.print', $order) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Print Invoice/Label">
+                                            <i class="bi bi-printer"></i> Print
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         @empty

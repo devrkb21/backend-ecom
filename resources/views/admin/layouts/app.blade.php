@@ -8,8 +8,8 @@
     @if($favicon = \App\Models\Setting::getValue('general', 'site_favicon'))
         <link rel="icon" href="{{ $favicon }}">
     @endif
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
     <!-- Advanced Color Picker (Pickr) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/nano.min.css"/>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -850,15 +850,24 @@
         @endif
     </script>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
     <script>
         // Global Color Picker Initializer
+        window.pickrInstances = window.pickrInstances || {};
         window.initGlobalColorPickers = function(root = document) {
             root.querySelectorAll('.color-picker-init:not([data-pickr-initialized])').forEach(function(el) {
                 const targetInputId = el.getAttribute('data-target');
                 const targetInput = document.getElementById(targetInputId) || el.parentElement.querySelector('.hex-input');
-                const defaultColor = targetInput ? (targetInput.value || '#000000') : '#000000';
+                let defaultColor = '#000000';
+                if (targetInput) {
+                    if (targetInput.value) {
+                        defaultColor = targetInput.value;
+                    } else if (targetInput.placeholder) {
+                        const parsed = targetInput.placeholder.match(/#(?:[0-9a-fA-F]{3}){1,2}/);
+                        if (parsed) defaultColor = parsed[0];
+                    }
+                }
 
                 const pickr = Pickr.create({
                     el: el,
@@ -880,33 +889,44 @@
                             hsva: true,
                             cmyk: true,
                             input: true,
-                            clear: false,
+                            clear: true,
                             save: true
                         }
                     }
                 });
 
                 el.setAttribute('data-pickr-initialized', 'true');
+                if (targetInputId) {
+                    window.pickrInstances[targetInputId] = pickr;
+                }
 
                 pickr.on('save', (color, instance) => {
-                    const hex = color.toHEXA().toString();
-                    if (targetInput) {
+                    const hex = color ? color.toHEXA().toString() : '';
+                    if (targetInput && targetInput.value !== hex) {
                         targetInput.value = hex;
                         targetInput.dispatchEvent(new Event('change', { bubbles: true }));
                     }
                     instance.hide();
                 }).on('change', (color) => {
-                    const hex = color.toHEXA().toString();
-                    if (targetInput) {
+                    const hex = color ? color.toHEXA().toString() : '';
+                    if (targetInput && targetInput.value !== hex) {
                         targetInput.value = hex;
                         targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }).on('clear', (instance) => {
+                    if (targetInput && targetInput.value !== '') {
+                        targetInput.value = '';
+                        targetInput.dispatchEvent(new Event('change', { bubbles: true }));
                     }
                 });
 
                 if (targetInput) {
                     targetInput.addEventListener('change', function() {
                         try {
-                            pickr.setColor(this.value);
+                            const currentHex = pickr.getColor() ? pickr.getColor().toHEXA().toString() : '';
+                            if (this.value !== currentHex) {
+                                pickr.setColor(this.value || null);
+                            }
                         } catch (e) {}
                     });
                 }

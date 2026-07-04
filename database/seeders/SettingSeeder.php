@@ -32,11 +32,11 @@ class SettingSeeder extends Seeder
             ['group' => 'general', 'key' => 'address', 'type' => 'textarea', 'label' => 'Address', 'value' => 'Dhaka, Bangladesh', 'sort_order' => 10],
             ['group' => 'general', 'key' => 'currency', 'type' => 'text', 'label' => 'Currency Code', 'value' => 'BDT', 'sort_order' => 11],
             ['group' => 'general', 'key' => 'currency_symbol', 'type' => 'text', 'label' => 'Currency Symbol', 'value' => '৳', 'sort_order' => 12],
-            ['group' => 'general', 'key' => 'product_grid_columns', 'type' => 'number', 'label' => 'Product Grid Columns', 'value' => '5', 'sort_order' => 13],
             ['group' => 'general', 'key' => 'order_number_prefix', 'type' => 'text', 'label' => 'Order Number Prefix', 'value' => 'ORD', 'sort_order' => 14],
-            ['group' => 'general', 'key' => 'order_number_generation_mode', 'type' => 'text', 'label' => 'Order Number Generation Mode', 'value' => 'timestamp_random', 'sort_order' => 15],
-            ['group' => 'general', 'key' => 'stock_enabled', 'type' => 'boolean', 'label' => 'Enable Stock Tracking', 'value' => '1', 'sort_order' => 16],
-            ['group' => 'general', 'key' => 'order_source_options', 'type' => 'text', 'label' => 'Order Source Options (Comma separated)', 'value' => 'Web, Facebook, Instagram, WhatsApp', 'sort_order' => 17],
+            ['group' => 'general', 'key' => 'order_number_generation_mode', 'type' => 'text', 'label' => 'Order Number Generation Mode', 'value' => 'global_sequence', 'sort_order' => 15],
+            ['group' => 'general', 'key' => 'order_number_custom_format', 'type' => 'text', 'label' => 'Order Number Custom Format', 'value' => '{PREFIX}-{YYYY}{MM}{DD}-{SEQ:4}', 'sort_order' => 16],
+            ['group' => 'general', 'key' => 'stock_enabled', 'type' => 'boolean', 'label' => 'Enable Stock Tracking', 'value' => '1', 'sort_order' => 17],
+            ['group' => 'general', 'key' => 'order_source_options', 'type' => 'text', 'label' => 'Order Source Options (Comma separated)', 'value' => 'Web, Facebook, Instagram, WhatsApp', 'sort_order' => 18],
 
             // Social Media
             ['group' => 'social', 'key' => 'facebook', 'type' => 'text', 'label' => 'Facebook URL', 'value' => '', 'sort_order' => 1],
@@ -59,7 +59,6 @@ class SettingSeeder extends Seeder
             ['group' => 'footer', 'key' => 'newsletter_title', 'type' => 'text', 'label' => 'Newsletter Title', 'value' => 'Subscribe to our newsletter', 'sort_order' => 4],
             ['group' => 'footer', 'key' => 'newsletter_subtitle', 'type' => 'text', 'label' => 'Newsletter Subtitle', 'value' => 'Get the latest updates on new products and upcoming sales', 'sort_order' => 5],
 
-            // Banner/Promo
             ['group' => 'banner', 'key' => 'promo_enabled', 'type' => 'boolean', 'label' => 'Show Promo Banner', 'value' => '1', 'sort_order' => 1],
             ['group' => 'banner', 'key' => 'promo_text', 'type' => 'text', 'label' => 'Promo Text', 'value' => '🎉 Free shipping on orders over ৳2000!', 'sort_order' => 2],
             ['group' => 'banner', 'key' => 'promo_link', 'type' => 'text', 'label' => 'Promo Link', 'value' => '/products', 'sort_order' => 3],
@@ -83,12 +82,21 @@ class SettingSeeder extends Seeder
             ['group' => 'checkout', 'key' => 'require_shipping_area', 'type' => 'boolean', 'label' => 'Require Area Field', 'value' => '0', 'sort_order' => 14],
             ['group' => 'checkout', 'key' => 'show_order_notes', 'type' => 'boolean', 'label' => 'Show Order Notes Field', 'value' => '1', 'sort_order' => 15],
             ['group' => 'checkout', 'key' => 'require_order_notes', 'type' => 'boolean', 'label' => 'Require Order Notes Field', 'value' => '0', 'sort_order' => 16],
+
+            // Invoice Settings
+            ['group' => 'invoice', 'key' => 'invoice_logo', 'type' => 'image', 'label' => 'Invoice Logo', 'value' => '', 'sort_order' => 1, 'is_public' => false],
+            ['group' => 'invoice', 'key' => 'invoice_company_name', 'type' => 'text', 'label' => 'Company Name', 'value' => 'Inner Collection', 'sort_order' => 2, 'is_public' => false],
+            ['group' => 'invoice', 'key' => 'invoice_company_phone', 'type' => 'text', 'label' => 'Company Phone', 'value' => '', 'sort_order' => 3, 'is_public' => false],
+            ['group' => 'invoice', 'key' => 'invoice_company_address', 'type' => 'textarea', 'label' => 'Company Address', 'value' => '', 'sort_order' => 4, 'is_public' => false],
+            ['group' => 'invoice', 'key' => 'invoice_company_email', 'type' => 'text', 'label' => 'Company Email', 'value' => '', 'sort_order' => 5, 'is_public' => false],
+            ['group' => 'invoice', 'key' => 'invoice_company_domain', 'type' => 'text', 'label' => 'Company Website Domain', 'value' => 'www.innercollection.com', 'sort_order' => 6, 'is_public' => false],
+            ['group' => 'invoice', 'key' => 'invoice_footer_bg_color', 'type' => 'color', 'label' => 'Invoice Footer Background Color', 'value' => '#000000', 'sort_order' => 7, 'is_public' => false],
         ];
 
         foreach ($settings as $setting) {
             Setting::updateOrCreate(
                 ['group' => $setting['group'], 'key' => $setting['key']],
-                array_merge($setting, ['is_public' => true])
+                array_merge(['is_public' => true], $setting)
             );
         }
     }
