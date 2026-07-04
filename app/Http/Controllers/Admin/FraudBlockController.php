@@ -37,7 +37,8 @@ class FraudBlockController extends Controller
             });
         }
 
-        $blocks = $query->paginate(25)->withQueryString();
+        $perPage = (int) $request->input('per_page', 25);
+        $blocks = $query->paginate($perPage)->withQueryString();
         $summary = FraudBlock::getSummary();
         $defaults = \App\Models\Setting::getGroup('fraud_blocks', false);
 

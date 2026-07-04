@@ -211,6 +211,9 @@
         <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editCustomerInfoModal">
             <i class="bi bi-pencil-square me-1"></i> Edit Order
         </button>
+        <a href="{{ route('admin.orders.print', $order) }}" target="_blank" class="btn btn-sm btn-outline-dark">
+            <i class="bi bi-printer me-1"></i> Print
+        </a>
     </div>
 </div>
 

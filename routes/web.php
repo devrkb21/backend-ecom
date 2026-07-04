@@ -116,6 +116,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('orders/district-shipping-rate', [OrderController::class, 'getDistrictShippingRate'])->name('orders.district-shipping-rate');
         Route::post('orders/bulk-action', [OrderController::class, 'bulkAction'])->name('orders.bulk-action');
         Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show')->withTrashed();
+        Route::get('orders/{order}/print', [OrderController::class, 'print'])->name('orders.print')->withTrashed();
         Route::post('orders/{order}/restore', [OrderController::class, 'restore'])->name('orders.restore')->withTrashed();
         Route::patch('orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
         Route::patch('orders/{order}/source', [OrderController::class, 'updateSource'])->name('orders.update-source');

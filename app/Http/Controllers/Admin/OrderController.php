@@ -197,6 +197,28 @@ class OrderController extends Controller
         return view('admin.orders.show', compact('order', 'availableStatuses', 'activeCoupons', 'smsTemplates', 'districts'));
     }
 
+    public function print(Order $order)
+    {
+        $order->load([
+            'user',
+            'items.product',
+            'items.variant.attributeValues.attribute',
+            'payment',
+            'statusConfig',
+            'shippingDivision',
+            'shippingDistrict',
+            'shippingUpazila',
+            'shippingUnion',
+        ]);
+
+        $invoiceSettings = \App\Models\Setting::getGroup('invoice', false);
+        $steadfastEnabled = filter_var(\App\Models\Setting::getValue('courier', 'steadfast_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+        $pathaoEnabled = filter_var(\App\Models\Setting::getValue('courier', 'pathao_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+        $primaryColor = \App\Models\Setting::getValue('appearance', 'primary_color', '#db2777');
+
+        return view('admin.orders.print', compact('order', 'invoiceSettings', 'steadfastEnabled', 'pathaoEnabled', 'primaryColor'));
+    }
+
     public function create()
     {
         $shippingMethods = ShippingMethod::where('is_active', true)->orderBy('sort_order')->get();
