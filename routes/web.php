@@ -88,6 +88,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
 
         // Products CRUD
+        Route::get('products/export', [ProductController::class, 'export'])->name('products.export');
         Route::resource('products', ProductController::class);
 
         // Product Variants
@@ -114,6 +115,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
         Route::get('orders/search-products', [OrderController::class, 'searchProducts'])->name('orders.search-products');
         Route::get('orders/district-shipping-rate', [OrderController::class, 'getDistrictShippingRate'])->name('orders.district-shipping-rate');
+        Route::get('orders/export', [OrderController::class, 'export'])->name('orders.export');
         Route::post('orders/bulk-action', [OrderController::class, 'bulkAction'])->name('orders.bulk-action');
         Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show')->withTrashed();
         Route::get('orders/{order}/print', [OrderController::class, 'print'])->name('orders.print')->withTrashed();
@@ -124,6 +126,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('orders/{order}/remove-discount', [OrderController::class, 'removeDiscount'])->name('orders.remove-discount');
         Route::post('orders/{order}/send-sms', [OrderController::class, 'sendSms'])->name('orders.send-sms');
         Route::patch('orders/{order}/payment-status', [OrderController::class, 'updatePaymentStatus'])->name('orders.update-payment-status');
+        Route::post('orders/{order}/refund', [OrderController::class, 'refund'])->name('orders.refund');
         Route::patch('orders/{order}/customer-info', [OrderController::class, 'updateCustomerInfo'])->name('orders.update-customer-info');
         Route::post('orders/{order}/items', [OrderController::class, 'updateItems'])->name('orders.update-items');
         Route::post('orders/{order}/steadfast', [\App\Http\Controllers\Admin\SteadfastController::class, 'sendSingle'])->name('orders.steadfast.send');
@@ -170,6 +173,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('media/{media}', [MediaController::class, 'update'])->name('media.update');
         Route::delete('media/{media}', [MediaController::class, 'destroy'])->name('media.destroy');
         Route::post('media/bulk-destroy', [MediaController::class, 'bulkDestroy'])->name('media.bulk-destroy');
+        Route::post('media/bulk-convert-webp', [MediaController::class, 'bulkConvertWebp'])->name('media.bulk-convert-webp');
+        Route::post('media/{media}/convert-webp', [MediaController::class, 'singleConvertWebp'])->name('media.single-convert-webp');
 
 
         // Settings

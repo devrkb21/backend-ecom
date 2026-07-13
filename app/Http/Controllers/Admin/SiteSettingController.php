@@ -498,6 +498,50 @@ class SiteSettingController extends Controller
             ]);
         }
 
+        if ($group === 'hero') {
+            $bannersSetting = $settings->firstWhere('key', 'banners');
+            if (!$bannersSetting) {
+                // Read current individual settings to create the initial banner slide
+                $title = $settings->firstWhere('key', 'title')?->value ?? 'Welcome to Our Store';
+                $subtitle = $settings->firstWhere('key', 'subtitle')?->value ?? '';
+                $description = $settings->firstWhere('key', 'description')?->value ?? '';
+                $image = $settings->firstWhere('key', 'image')?->value ?? '';
+                $buttonText = $settings->firstWhere('key', 'button_text')?->value ?? 'Shop Now';
+                $buttonLink = $settings->firstWhere('key', 'button_link')?->value ?? '/products';
+                $enabled = filter_var($settings->firstWhere('key', 'enabled')?->value ?? '1', FILTER_VALIDATE_BOOLEAN);
+
+                $initialBanner = [
+                    'title' => $title,
+                    'subtitle' => $subtitle,
+                    'description' => $description,
+                    'image' => $image,
+                    'button_text' => $buttonText,
+                    'button_link' => $buttonLink,
+                    'enabled' => $enabled
+                ];
+
+                Setting::create([
+                    'group' => 'hero',
+                    'key' => 'banners',
+                    'type' => 'json',
+                    'label' => 'Banners Configuration',
+                    'value' => json_encode([$initialBanner]),
+                    'is_public' => true,
+                    'sort_order' => 8
+                ]);
+
+                // Reload settings for group
+                $settings = Setting::where('group', $group)->get();
+            }
+
+            return view('admin.settings.site.edit-hero', [
+                'settings' => $settings,
+                'group' => $group,
+                'groupLabel' => $groupLabels[$group] ?? ucfirst($group),
+                'banners' => json_decode($settings->firstWhere('key', 'banners')?->value ?? '[]', true)
+            ]);
+        }
+
         $data = [
             'settings' => $settings,
             'group' => $group,
@@ -533,6 +577,25 @@ class SiteSettingController extends Controller
     {
         if ($this->isRestrictedGroup($group)) {
             return $this->redirectToDedicatedIntegrationSettings();
+        }
+
+        if ($group === 'hero' && $request->has('settings.banners')) {
+            $bannersJson = $request->input('settings.banners', '[]');
+            $banners = json_decode((string) $bannersJson, true);
+            if (is_array($banners) && count($banners) > 0) {
+                $firstBanner = $banners[0];
+                $request->merge([
+                    'settings' => array_merge($request->input('settings', []), [
+                        'title' => $firstBanner['title'] ?? '',
+                        'subtitle' => $firstBanner['subtitle'] ?? '',
+                        'description' => $firstBanner['description'] ?? '',
+                        'image' => $firstBanner['image'] ?? '',
+                        'button_text' => $firstBanner['button_text'] ?? '',
+                        'button_link' => $firstBanner['button_link'] ?? '',
+                        'enabled' => ($firstBanner['enabled'] ?? true) ? '1' : '0'
+                    ])
+                ]);
+            }
         }
 
         if ($group === 'checkout') {

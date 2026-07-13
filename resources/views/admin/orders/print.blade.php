@@ -728,6 +728,9 @@
                                         , {{ $order->shippingDivision->name }}
                                     @endif
                                 </div>
+                                <div style="font-size: 10pt; line-height: 1.5; color: #333; margin-top: 4px;">
+                                    <strong>Phone:</strong> {{ $order->shipping_phone ?? $order->user?->phone }}
+                                </div>
                             </div>
                             
                             <!-- Invoice Info (right) -->
@@ -799,9 +802,10 @@
                                         </div>
                                         
                                         @php
-                                            $walletNo = '01888888888';
-                                            $transactionId = $order->transaction_id ?: 'TXHJDj';
-                                            $paidOn = $order->created_at ? $order->created_at->format('d-m-Y H:i:s') : '04-07-2024 22:33:90';
+                                            $checkoutFields = $order->checkout_fields_payload ?? [];
+                                            $walletNo = $checkoutFields['bkash_customer_wallet'] ?? 'N/A';
+                                            $transactionId = $checkoutFields['bkash_transaction_id'] ?? $order->transaction_id ?: 'N/A';
+                                            $paidOn = $checkoutFields['bkash_payment_time'] ?? ($order->created_at ? $order->created_at->format('d-m-Y H:i:s') : 'N/A');
                                             
                                             if ($order->payment) {
                                                 $paidOn = $order->payment->paid_at ? $order->payment->paid_at->format('d-m-Y H:i:s') : $paidOn;
@@ -1050,45 +1054,45 @@ Created: {{ $order->created_at->format('d/m/Y') }}@if($order->tracking_number)
             console.error("Barcode generation failed: ", e);
         }
 
-        // 2. Generate QR Codes using QRious (using 'L' level to decrease density for better thermal scannability)
-        try {
-            // Thermal 2x3 QR
-            new QRious({
-                element: document.getElementById('qr-thermal-2x3'),
-                value: qrValueText,
-                size: 60,
-                level: 'L'
-            });
-
-            // Thermal 3x3 QR
-            new QRious({
-                element: document.getElementById('qr-thermal-3x3'),
-                value: qrValueText,
-                size: 80,
-                level: 'L'
-            });
-
-            // A4 QR
-            new QRious({
-                element: document.getElementById('qr-a4'),
-                value: qrValueText,
-                size: 120,
-                level: 'L'
-            });
-
-            // Invoice QR
-            const qrInvoiceEl = document.getElementById('qr-invoice');
-            if (qrInvoiceEl) {
-                new QRious({
-                    element: qrInvoiceEl,
-                    value: qrInvoiceValueText,
-                    size: 180,
+        // 2. Helper function to generate high-resolution QR codes as img elements, fixing UTF-8/Bengali encoding issues
+        function generateQrImage(canvasId, value, displaySize) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            
+            try {
+                // Fix UTF-8 encoding bug in QRious (crucial for Bengali/Unicode script in Customer name/Address)
+                const encodedValue = unescape(encodeURIComponent(value));
+                
+                // Create QR code on the temporary canvas at 2x resolution
+                const qr = new QRious({
+                    element: canvas,
+                    value: encodedValue,
+                    size: displaySize * 2,
                     level: 'L'
                 });
+                
+                // Replace canvas with a crisp image element to prevent print blurriness and blank render bugs
+                const img = document.createElement('img');
+                img.src = canvas.toDataURL('image/png');
+                img.style.width = displaySize + 'px';
+                img.style.height = displaySize + 'px';
+                img.style.display = 'block';
+                
+                // Copy margin and class attributes from original canvas
+                if (canvas.style.margin) img.style.margin = canvas.style.margin;
+                if (canvas.className) img.className = canvas.className;
+                
+                canvas.parentNode.replaceChild(img, canvas);
+            } catch (err) {
+                console.error(`Failed to generate QR Image for #${canvasId}:`, err);
             }
-        } catch (e) {
-            console.error("QR Code generation failed: ", e);
         }
+
+        // 3. Generate QR Codes
+        generateQrImage('qr-thermal-2x3', qrValueText, 60);
+        generateQrImage('qr-thermal-3x3', qrValueText, 80);
+        generateQrImage('qr-a4', qrValueText, 120);
+        generateQrImage('qr-invoice', qrInvoiceValueText, 180);
     }
 
     // Zoom functionalities

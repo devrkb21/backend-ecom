@@ -137,10 +137,34 @@ class SettingService
      */
     protected function uploadImage(UploadedFile $file, string $group): string
     {
-        $filename = uniqid() . '_' . time() . '.' . $file->getClientOriginalExtension();
-        $path = "settings/{$group}";
+        $nameWithoutExt = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $safeName = preg_replace('/[^a-zA-Z0-9_\.-]/', '', $nameWithoutExt) ?? '';
+        $safeName = $safeName !== '' ? $safeName : 'setting';
         
-        $file->storeAs($path, $filename, 'public');
+        $originalExtension = strtolower($file->getClientOriginalExtension());
+        $mimeType = $file->getMimeType();
+        
+        $path = "settings/{$group}";
+        $fullPath = storage_path("app/public/{$path}");
+        
+        if (!file_exists($fullPath)) {
+            mkdir($fullPath, 0755, true);
+        }
+        
+        if ($mimeType === 'image/svg+xml' || $originalExtension === 'svg') {
+            $filename = $safeName . '_' . uniqid() . '.svg';
+            $file->storeAs($path, $filename, 'public');
+        } else {
+            $filename = $safeName . '_' . uniqid() . '.webp';
+            $tempPath = $file->getRealPath();
+            $destinationPath = $fullPath . '/' . $filename;
+            
+            $converted = \App\Http\Controllers\Admin\MediaController::convertToWebp($tempPath, $destinationPath, 85);
+            if (!$converted) {
+                $filename = $safeName . '_' . uniqid() . '.' . $originalExtension;
+                $file->storeAs($path, $filename, 'public');
+            }
+        }
 
         return "{$path}/{$filename}";
     }
@@ -159,6 +183,7 @@ class SettingService
                 ['key' => 'button_text', 'type' => 'text', 'label' => 'Button Text', 'value' => 'Shop Now'],
                 ['key' => 'button_link', 'type' => 'text', 'label' => 'Button Link', 'value' => '/products'],
                 ['key' => 'enabled', 'type' => 'boolean', 'label' => 'Show Hero Section', 'value' => '1'],
+                ['key' => 'banners', 'type' => 'json', 'label' => 'Banners Configuration', 'value' => '[]'],
             ],
             'general' => [
                 ['key' => 'site_name', 'type' => 'text', 'label' => 'Site Name', 'value' => 'Inner Collection'],

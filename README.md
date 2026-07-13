@@ -113,7 +113,7 @@ Key layers:
 - MySQL/MariaDB
 - Redis (cache, queue, session)
 - Stripe SDK (`stripe/stripe-php`)
-- bKash SDK (`karim007/laravel-bkash-tokenize`)
+- bKash SDK (`devrkb21/bkash-pgw-laravel`)
 - PHPUnit 11
 
 ## Requirements
