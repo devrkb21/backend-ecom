@@ -403,28 +403,238 @@ class SiteSettingController extends Controller
     }
 
     /**
-     * Show all settings grouped
+     * Show all settings grouped - Storefront Only
      */
     public function index()
     {
-        $this->ensureGeneralOrderSettingsExist();
-        $this->ensureCheckoutSettingsExist();
         $this->ensureNavigationSettingsExist();
         $this->ensureAppearanceSettingsExist();
 
-        $settings = Setting::whereNotIn('group', self::RESTRICTED_GROUPS)
+        $storefrontGroups = ['hero', 'navigation', 'appearance', 'seo', 'social', 'banner', 'footer'];
+
+        $settingsCollection = Setting::whereIn('group', $storefrontGroups)
             ->orderBy('group')
             ->orderBy('sort_order')
-            ->get()
-            ->groupBy('group');
+            ->get();
 
-        $groups = Setting::whereNotIn('group', self::RESTRICTED_GROUPS)
-            ->distinct()
+        $settings = $settingsCollection->groupBy('group');
+
+        $groups = $settingsCollection->pluck('group')->unique()->values()->toArray();
+
+        // Extra hero variables
+        $heroSettings = $settings->get('hero', collect());
+        $bannersSetting = $heroSettings->firstWhere('key', 'banners');
+        if (!$bannersSetting) {
+            // Read current individual settings to create the initial banner slide
+            $title = $heroSettings->firstWhere('key', 'title')?->value ?? 'Welcome to Our Store';
+            $subtitle = $heroSettings->firstWhere('key', 'subtitle')?->value ?? '';
+            $description = $heroSettings->firstWhere('key', 'description')?->value ?? '';
+            $image = $heroSettings->firstWhere('key', 'image')?->value ?? '';
+            $buttonText = $heroSettings->firstWhere('key', 'button_text')?->value ?? 'Shop Now';
+            $buttonLink = $heroSettings->firstWhere('key', 'button_link')?->value ?? '/products';
+            $enabled = filter_var($heroSettings->firstWhere('key', 'enabled')?->value ?? '1', FILTER_VALIDATE_BOOLEAN);
+
+            $initialBanner = [
+                'title' => $title,
+                'subtitle' => $subtitle,
+                'description' => $description,
+                'image' => $image,
+                'button_text' => $buttonText,
+                'button_link' => $buttonLink,
+                'enabled' => $enabled
+            ];
+
+            Setting::create([
+                'group' => 'hero',
+                'key' => 'banners',
+                'type' => 'json',
+                'label' => 'Banners Configuration',
+                'value' => json_encode([$initialBanner]),
+                'is_public' => true,
+                'sort_order' => 8
+            ]);
+
+            // Reload settings
+            $settingsCollection = Setting::whereIn('group', $storefrontGroups)
+                ->orderBy('group')
+                ->orderBy('sort_order')
+                ->get();
+            $settings = $settingsCollection->groupBy('group');
+            $heroSettings = $settings->get('hero', collect());
+        }
+        $banners = json_decode($heroSettings->firstWhere('key', 'banners')?->value ?? '[]', true);
+
+        // Extra navigation variables
+        $categories = \App\Models\Category::with('children')->whereNull('parent_id')->active()->ordered()->get();
+        $allCategories = $this->flattenCategories($categories);
+        $allPages = \App\Models\Page::active()->get();
+
+        $groupLabels = [
+            'hero' => 'Hero Section',
+            'social' => 'Social Media',
+            'seo' => 'SEO Settings',
+            'footer' => 'Footer Settings',
+            'banner' => 'Promo Banner',
+            'navigation' => 'Navigation Menu',
+            'appearance' => 'Appearance & Colors',
+        ];
+
+        return view('admin.settings.site.index', compact(
+            'settings',
+            'groups',
+            'groupLabels',
+            'banners',
+            'allCategories',
+            'allPages'
+        ));
+    }
+
+    /**
+     * Show unified system configurations dashboard page (General, Checkout, Invoice, Payment, Shipping, SMS, API etc.)
+     */
+    public function systemIndex(Request $request)
+    {
+        $this->ensureGeneralOrderSettingsExist();
+        $this->ensureCheckoutSettingsExist();
+        $this->ensureInvoiceSettingsExist();
+
+        $systemGroups = ['general', 'checkout', 'invoice'];
+        $settingsCollection = Setting::whereIn('group', $systemGroups)
             ->orderBy('group')
-            ->pluck('group')
-            ->toArray();
+            ->orderBy('sort_order')
+            ->get();
 
-        return view('admin.settings.site.index', compact('settings', 'groups'));
+        $settings = $settingsCollection->groupBy('group');
+
+        // Extra checkout variables
+        /** @var CheckoutAddressConfigService $checkoutConfigService */
+        $checkoutConfigService = app(CheckoutAddressConfigService::class);
+        $checkoutRaw = $checkoutConfigService->getRaw();
+        $checkoutSettingValues = [
+            'checkout_form_enabled' => (bool) ($checkoutRaw['checkout_form_enabled'] ?? true),
+            'enable_guest_checkout' => (bool) ($checkoutRaw['enable_guest_checkout'] ?? true),
+            'tax_enabled' => (bool) ($checkoutRaw['tax_enabled'] ?? false),
+            'tax_percentage' => (float) ($checkoutRaw['tax_percentage'] ?? 0),
+        ];
+        $checkoutFieldSchema = $checkoutRaw['checkout_fields_schema'] ?? $checkoutConfigService->getDefaultFieldSchema();
+        $fieldTypeOptions = $checkoutConfigService->getFieldTypeOptions();
+
+        // 1. Integrations Variables
+        $integrationSettings = Setting::where('group', 'integration')
+            ->orderBy('sort_order')
+            ->get()
+            ->keyBy('key');
+        $smsEnabled = filter_var($integrationSettings->get('sms_enabled')?->value ?? '0', FILTER_VALIDATE_BOOLEAN);
+
+        // 2. Courier Variables
+        $courierSettings = Setting::where('group', 'courier')->orderBy('sort_order')->get()->keyBy('key');
+        
+        $sentToCourierCountSteadfast = \App\Models\Order::where('carrier', 'steadfast')->count();
+        $pendingSendCountSteadfast = \App\Models\Order::whereIn('status', ['pending', 'processing'])
+            ->where(function($q) {
+                $q->whereNull('carrier')->orWhere('carrier', '!=', 'steadfast');
+            })
+            ->count();
+
+        $sentToCourierCountPathao = \App\Models\Order::where('carrier', 'pathao')->count();
+        $pendingSendCountPathao = \App\Models\Order::whereIn('status', ['pending', 'processing'])
+            ->where(function($q) {
+                $q->whereNull('carrier')->orWhere('carrier', '!=', 'pathao');
+            })
+            ->count();
+
+        $pathaoStores = [];
+        $pathaoConnectionSuccess = false;
+        $pathaoConnectionMessage = '';
+
+        if ($courierSettings->get('pathao_enabled')?->value == '1' &&
+            !empty($courierSettings->get('pathao_client_id')?->value) &&
+            !empty($courierSettings->get('pathao_client_secret')?->value)) {
+            
+            try {
+                $this->initializePathao();
+                $response = \devrkb21\PathaoLaravel\Facades\PathaoLaravel::GET_STORES();
+                if (isset($response['status']) && $response['status'] == 200) {
+                    $pathaoStores = $response['data']['data'] ?? [];
+                    $pathaoConnectionSuccess = true;
+                } else {
+                    $pathaoConnectionMessage = $response['message'] ?? 'Could not retrieve stores from Pathao.';
+                }
+            } catch (\Exception $e) {
+                $pathaoConnectionMessage = $e->getMessage();
+            }
+        }
+
+        // 3. Payment Gateways Variables
+        $gateways = \App\Models\PaymentGateway::orderBy('sort_order')->get();
+        $currencySymbol = (string) Setting::getValue('general', 'currency_symbol', '৳');
+
+        // 4. Shipping Methods Variables
+        $methods = \App\Models\ShippingMethod::withCount('locationRules')
+            ->orderBy('sort_order')
+            ->get();
+
+        // 5. Order Statuses Variables
+        $statuses = \App\Models\OrderStatus::query()
+            ->withCount('orders')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        // 6. Cancellation Reasons Variables
+        $cancellationReasonsStr = Setting::getValue('general', 'cancellation_reasons', 'Out of Stock,Customer Request,Fraudulent,Payment Failed,Other');
+        $cancellationReasons = array_values(array_filter(array_map('trim', explode(',', $cancellationReasonsStr))));
+
+        // 7. SMS Templates Variables
+        $smsTemplates = \App\Services\SmsService::getOrderSmsTemplates();
+
+        $groupLabels = [
+            'general' => 'General Settings',
+            'checkout' => 'Checkout Settings',
+            'invoice' => 'Invoice Settings',
+        ];
+
+        return view('admin.settings.system', compact(
+            'settings',
+            'groupLabels',
+            'checkoutSettingValues',
+            'checkoutFieldSchema',
+            'fieldTypeOptions',
+            'integrationSettings',
+            'smsEnabled',
+            'courierSettings',
+            'sentToCourierCountSteadfast',
+            'pendingSendCountSteadfast',
+            'sentToCourierCountPathao',
+            'pendingSendCountPathao',
+            'pathaoStores',
+            'pathaoConnectionSuccess',
+            'pathaoConnectionMessage',
+            'gateways',
+            'currencySymbol',
+            'methods',
+            'statuses',
+            'cancellationReasons',
+            'smsTemplates'
+        ));
+    }
+
+    private function initializePathao(): void
+    {
+        $clientId = Setting::getValue('courier', 'pathao_client_id');
+        $clientSecret = Setting::getValue('courier', 'pathao_client_secret');
+        $secretToken = Setting::getValue('courier', 'pathao_secret_token');
+        $webhookSecret = Setting::getValue('courier', 'pathao_webhook_integration_secret');
+        $sandbox = filter_var(Setting::getValue('courier', 'pathao_sandbox', '0'), FILTER_VALIDATE_BOOLEAN);
+
+        config([
+            'pathao.pathao_client_id' => $clientId,
+            'pathao.pathao_client_secret' => $clientSecret,
+            'pathao.pathao_secret_token' => $secretToken,
+            'pathao.webhook_integration_secret' => $webhookSecret,
+            'pathao.sandbox' => $sandbox,
+            'pathao.pathao_db_table_name' => 'pathao-courier',
+        ]);
     }
 
     /**
@@ -436,125 +646,12 @@ class SiteSettingController extends Controller
             return $this->redirectToDedicatedIntegrationSettings();
         }
 
-        if ($group === 'general') {
-            $this->ensureGeneralOrderSettingsExist();
+        $systemGroups = ['general', 'checkout', 'invoice'];
+        if (in_array($group, $systemGroups)) {
+            return redirect()->route('admin.settings.system.index', ['group' => $group]);
         }
 
-        if ($group === 'checkout') {
-            $this->ensureCheckoutSettingsExist();
-        }
-
-        if ($group === 'navigation') {
-            $this->ensureNavigationSettingsExist();
-        }
-
-        if ($group === 'appearance') {
-            $this->ensureAppearanceSettingsExist();
-        }
-
-        if ($group === 'invoice') {
-            $this->ensureInvoiceSettingsExist();
-        }
-
-        $settings = Setting::where('group', $group)->orderBy('sort_order')->get();
-        
-        if ($settings->isEmpty()) {
-            return redirect()->route('admin.settings.site.index')
-                ->with('error', 'Setting group not found.');
-        }
-
-        $groupLabels = [
-            'hero' => 'Hero Section',
-            'general' => 'General Settings',
-            'social' => 'Social Media',
-            'seo' => 'SEO Settings',
-            'footer' => 'Footer Settings',
-            'banner' => 'Promo Banner',
-            'checkout' => 'Checkout Settings',
-            'navigation' => 'Navigation Menu',
-            'appearance' => 'Appearance & Colors',
-            'invoice' => 'Invoice Settings',
-        ];
-
-        if ($group === 'checkout') {
-            /** @var CheckoutAddressConfigService $checkoutConfigService */
-            $checkoutConfigService = app(CheckoutAddressConfigService::class);
-            $checkoutRaw = $checkoutConfigService->getRaw();
-
-            $settingValues = [
-                'checkout_form_enabled' => (bool) ($checkoutRaw['checkout_form_enabled'] ?? true),
-                'enable_guest_checkout' => (bool) ($checkoutRaw['enable_guest_checkout'] ?? true),
-                'tax_enabled' => (bool) ($checkoutRaw['tax_enabled'] ?? false),
-                'tax_percentage' => (float) ($checkoutRaw['tax_percentage'] ?? 0),
-            ];
-
-            return view('admin.settings.site.edit-checkout', [
-                'settings' => $settings,
-                'group' => $group,
-                'groupLabel' => $groupLabels[$group] ?? ucfirst($group),
-                'settingValues' => $settingValues,
-                'checkoutFieldSchema' => $checkoutRaw['checkout_fields_schema'] ?? $checkoutConfigService->getDefaultFieldSchema(),
-                'fieldTypeOptions' => $checkoutConfigService->getFieldTypeOptions(),
-            ]);
-        }
-
-        if ($group === 'hero') {
-            $bannersSetting = $settings->firstWhere('key', 'banners');
-            if (!$bannersSetting) {
-                // Read current individual settings to create the initial banner slide
-                $title = $settings->firstWhere('key', 'title')?->value ?? 'Welcome to Our Store';
-                $subtitle = $settings->firstWhere('key', 'subtitle')?->value ?? '';
-                $description = $settings->firstWhere('key', 'description')?->value ?? '';
-                $image = $settings->firstWhere('key', 'image')?->value ?? '';
-                $buttonText = $settings->firstWhere('key', 'button_text')?->value ?? 'Shop Now';
-                $buttonLink = $settings->firstWhere('key', 'button_link')?->value ?? '/products';
-                $enabled = filter_var($settings->firstWhere('key', 'enabled')?->value ?? '1', FILTER_VALIDATE_BOOLEAN);
-
-                $initialBanner = [
-                    'title' => $title,
-                    'subtitle' => $subtitle,
-                    'description' => $description,
-                    'image' => $image,
-                    'button_text' => $buttonText,
-                    'button_link' => $buttonLink,
-                    'enabled' => $enabled
-                ];
-
-                Setting::create([
-                    'group' => 'hero',
-                    'key' => 'banners',
-                    'type' => 'json',
-                    'label' => 'Banners Configuration',
-                    'value' => json_encode([$initialBanner]),
-                    'is_public' => true,
-                    'sort_order' => 8
-                ]);
-
-                // Reload settings for group
-                $settings = Setting::where('group', $group)->get();
-            }
-
-            return view('admin.settings.site.edit-hero', [
-                'settings' => $settings,
-                'group' => $group,
-                'groupLabel' => $groupLabels[$group] ?? ucfirst($group),
-                'banners' => json_decode($settings->firstWhere('key', 'banners')?->value ?? '[]', true)
-            ]);
-        }
-
-        $data = [
-            'settings' => $settings,
-            'group' => $group,
-            'groupLabel' => $groupLabels[$group] ?? ucfirst($group),
-        ];
-
-        if ($group === 'navigation') {
-            $categories = \App\Models\Category::with('children')->whereNull('parent_id')->active()->ordered()->get();
-            $data['allCategories'] = $this->flattenCategories($categories);
-            $data['allPages'] = \App\Models\Page::active()->get();
-        }
-
-        return view('admin.settings.site.edit-group', $data);
+        return redirect()->route('admin.settings.site.index', ['group' => $group]);
     }
 
     private function flattenCategories($categories, $level = 0)
@@ -578,6 +675,12 @@ class SiteSettingController extends Controller
         if ($this->isRestrictedGroup($group)) {
             return $this->redirectToDedicatedIntegrationSettings();
         }
+
+        $this->ensureGeneralOrderSettingsExist();
+        $this->ensureCheckoutSettingsExist();
+        $this->ensureNavigationSettingsExist();
+        $this->ensureAppearanceSettingsExist();
+        $this->ensureInvoiceSettingsExist();
 
         if ($group === 'hero' && $request->has('settings.banners')) {
             $bannersJson = $request->input('settings.banners', '[]');
@@ -610,7 +713,7 @@ class SiteSettingController extends Controller
                 'settings.site_title' => 'nullable|string|max:255',
                 'settings.site_description' => 'nullable|string|max:1000',
                 'settings.product_grid_columns_desktop' => 'nullable|integer|in:3,4,5,6',
-            'settings.product_grid_columns_mobile' => 'nullable|integer|in:1,2',
+                'settings.product_grid_columns_mobile' => 'nullable|integer|in:1,2',
                 'settings.order_number_prefix' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9_-]+$/'],
                 'settings.order_number_generation_mode' => ['nullable', 'string', 'in:timestamp_random,date_sequence,global_sequence,custom_format'],
                 'settings.order_number_custom_format' => ['nullable', 'string', 'max:100'],
@@ -618,16 +721,6 @@ class SiteSettingController extends Controller
                 'settings.logo_height_desktop' => 'nullable|integer|min:10|max:300',
                 'settings.logo_height_mobile' => 'nullable|integer|min:10|max:200',
             ]);
-
-            $this->ensureGeneralOrderSettingsExist();
-        }
-
-        if ($group === 'checkout') {
-            $this->ensureCheckoutSettingsExist();
-        }
-
-        if ($group === 'invoice') {
-            $this->ensureInvoiceSettingsExist();
         }
 
         $settings = Setting::where('group', $group)->get();
@@ -788,7 +881,10 @@ class SiteSettingController extends Controller
             ]);
         }
 
-        return redirect()->route('admin.settings.site.edit-group', $group)
+        $systemGroups = ['general', 'checkout', 'invoice'];
+        $route = in_array($group, $systemGroups) ? 'admin.settings.system.index' : 'admin.settings.site.index';
+
+        return redirect()->route($route, ['group' => $group])
             ->with('success', 'Settings updated successfully.');
     }
 
@@ -870,7 +966,10 @@ class SiteSettingController extends Controller
 
         Setting::clearCache($group, $request->key);
 
-        return redirect()->route('admin.settings.site.edit-group', $group)
+        $systemGroups = ['general', 'checkout', 'invoice'];
+        $route = in_array($group, $systemGroups) ? 'admin.settings.system.index' : 'admin.settings.site.index';
+
+        return redirect()->route($route, ['group' => $group])
             ->with('success', 'Setting created successfully.');
     }
 
@@ -893,7 +992,10 @@ class SiteSettingController extends Controller
         $setting->delete();
         Setting::clearCache($group);
 
-        return redirect()->route('admin.settings.site.edit-group', $group)
+        $systemGroups = ['general', 'checkout', 'invoice'];
+        $route = in_array($group, $systemGroups) ? 'admin.settings.system.index' : 'admin.settings.site.index';
+
+        return redirect()->route($route, ['group' => $group])
             ->with('success', 'Setting deleted successfully.');
     }
 

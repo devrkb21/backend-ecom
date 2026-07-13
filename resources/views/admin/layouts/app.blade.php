@@ -429,8 +429,9 @@
                 $isCustomersActive = request()->routeIs('admin.customers.*')
                     || request()->routeIs('admin.customer-groups.*');
 
-                $isSettingsActive = (request()->routeIs('admin.settings.*') && !request()->routeIs('admin.settings.site.*'));
-                $isContentActive = request()->routeIs('admin.pages.*') || request()->routeIs('admin.media.*') || request()->routeIs('admin.settings.site.*') || request()->routeIs('admin.contact-messages.*');
+                $isStorefrontSetting = request()->routeIs('admin.settings.site.*');
+                $isSettingsActive = request()->routeIs('admin.settings.*') && !$isStorefrontSetting;
+                $isContentActive = request()->routeIs('admin.pages.*') || request()->routeIs('admin.media.*') || $isStorefrontSetting || request()->routeIs('admin.contact-messages.*');
             @endphp
 
             <li class="nav-item">
@@ -703,48 +704,10 @@
                 </li>
             @endif
 
-            <li class="nav-item menu-group {{ $isSettingsActive ? 'is-open' : '' }}" data-menu-group="settings" data-active="{{ $isSettingsActive ? '1' : '0' }}">
-                <button type="button" class="nav-link nav-group-toggle {{ $isSettingsActive ? 'active' : '' }}" data-group-toggle aria-expanded="{{ $isSettingsActive ? 'true' : 'false' }}">
-                    <span class="menu-label"><i class="bi bi-gear"></i> Settings</span>
-                    <i class="bi bi-chevron-down menu-chevron"></i>
-                </button>
-                <ul class="nav flex-column submenu">
-                    <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.integrations*') ? 'active' : '' }}" href="{{ route('admin.settings.integrations') }}">
-                            <i class="bi bi-plug"></i> Integrations
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.couriers*') ? 'active' : '' }}" href="{{ route('admin.settings.couriers') }}">
-                            <i class="bi bi-truck-flatbed"></i> Couriers
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.payment-gateways*') ? 'active' : '' }}" href="{{ route('admin.settings.payment-gateways') }}">
-                            <i class="bi bi-credit-card-2-front"></i> Payment Gateways
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.shipping-methods*') ? 'active' : '' }}" href="{{ route('admin.settings.shipping-methods') }}">
-                            <i class="bi bi-truck"></i> Shipping Methods
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.order-statuses*') ? 'active' : '' }}" href="{{ route('admin.settings.order-statuses') }}">
-                            <i class="bi bi-tags"></i> Order Statuses
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.cancellation-reasons*') ? 'active' : '' }}" href="{{ route('admin.settings.cancellation-reasons') }}">
-                            <i class="bi bi-x-octagon"></i> Cancellation Reasons
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link submenu-link {{ request()->routeIs('admin.settings.sms-templates*') ? 'active' : '' }}" href="{{ route('admin.settings.sms-templates') }}">
-                            <i class="bi bi-chat-dots"></i> SMS Templates
-                        </a>
-                    </li>
-                </ul>
+            <li class="nav-item">
+                <a class="nav-link {{ $isSettingsActive ? 'active' : '' }}" href="{{ route('admin.settings.system.index') }}">
+                    <i class="bi bi-gear"></i> Settings
+                </a>
             </li>
 
             <li class="nav-item mb-4"></li>

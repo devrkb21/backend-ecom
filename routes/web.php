@@ -179,7 +179,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Settings
         Route::prefix('settings')->name('settings.')->group(function () {
-            // Site Settings (CMS)
+            // Site Settings (CMS) - Storefront Only
             Route::get('site', [SiteSettingController::class, 'index'])->name('site.index');
             Route::get('site/create', [SiteSettingController::class, 'create'])->name('site.create');
             Route::post('site', [SiteSettingController::class, 'store'])->name('site.store');
@@ -188,15 +188,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('site/{group}/{key}/delete-image', [SiteSettingController::class, 'deleteImage'])->name('site.delete-image');
             Route::delete('site/{setting}', [SiteSettingController::class, 'destroy'])->name('site.destroy');
 
+            // System Settings (Unified General, Checkout, Payment, Shipping, API etc.)
+            Route::get('system', [SiteSettingController::class, 'systemIndex'])->name('system.index');
+
             // Payment Gateways
-            Route::get('payment-gateways', [PaymentGatewayController::class, 'index'])->name('payment-gateways');
+            Route::redirect('payment-gateways', '/admin/settings/system?group=payment-gateways')->name('payment-gateways');
             Route::get('payment-gateways/{gateway}/edit', [PaymentGatewayController::class, 'edit'])->name('payment-gateways.edit');
             Route::put('payment-gateways/{gateway}', [PaymentGatewayController::class, 'update'])->name('payment-gateways.update');
             Route::patch('payment-gateways/{gateway}/toggle', [PaymentGatewayController::class, 'toggle'])->name('payment-gateways.toggle');
             Route::post('payment-gateways/order', [PaymentGatewayController::class, 'updateOrder'])->name('payment-gateways.order');
 
             // Shipping Methods
-            Route::get('shipping-methods', [ShippingMethodController::class, 'index'])->name('shipping-methods');
+            Route::redirect('shipping-methods', '/admin/settings/system?group=shipping-methods')->name('shipping-methods');
             Route::get('shipping-methods/create', [ShippingMethodController::class, 'create'])->name('shipping-methods.create');
             Route::post('shipping-methods', [ShippingMethodController::class, 'store'])->name('shipping-methods.store');
             Route::get('shipping-methods/{method}/edit', [ShippingMethodController::class, 'edit'])->name('shipping-methods.edit');
@@ -206,39 +209,37 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('shipping-methods/order', [ShippingMethodController::class, 'updateOrder'])->name('shipping-methods.order');
 
             // Integrations
-            Route::get('integrations', [IntegrationSettingController::class, 'index'])->name('integrations');
+            Route::redirect('integrations', '/admin/settings/system?group=integrations')->name('integrations');
             Route::put('integrations', [IntegrationSettingController::class, 'update'])->name('integrations.update');
             Route::get('integrations/sms-balance', [IntegrationSettingController::class, 'smsBalance'])->name('integrations.sms-balance');
 
             // Couriers
-            Route::get('couriers', [\App\Http\Controllers\Admin\CourierController::class, 'index'])->name('couriers');
-            
-            // SteadFast Courier
-            Route::get('couriers/steadfast', [\App\Http\Controllers\Admin\SteadfastCourierController::class, 'dashboard'])->name('couriers.steadfast');
+            Route::redirect('couriers', '/admin/settings/system?group=couriers')->name('couriers');
+            Route::redirect('couriers/steadfast', '/admin/settings/system?group=couriers&sub=steadfast')->name('couriers.steadfast');
             Route::put('couriers/steadfast', [\App\Http\Controllers\Admin\SteadfastCourierController::class, 'update'])->name('couriers.steadfast.update');
             Route::post('couriers/steadfast/balance', [\App\Http\Controllers\Admin\SteadfastCourierController::class, 'checkBalance'])->name('couriers.steadfast.balance');
 
             // Pathao Courier
-            Route::get('couriers/pathao', [\App\Http\Controllers\Admin\PathaoCourierController::class, 'dashboard'])->name('couriers.pathao');
+            Route::redirect('couriers/pathao', '/admin/settings/system?group=couriers&sub=pathao')->name('couriers.pathao');
             Route::put('couriers/pathao', [\App\Http\Controllers\Admin\PathaoCourierController::class, 'update'])->name('couriers.pathao.update');
             Route::post('couriers/pathao/sync', [\App\Http\Controllers\Admin\PathaoCourierController::class, 'syncLocations'])->name('couriers.pathao.sync');
             Route::post('couriers/pathao/store', [\App\Http\Controllers\Admin\PathaoCourierController::class, 'createStore'])->name('couriers.pathao.store');
             Route::post('couriers/pathao/test-connection', [\App\Http\Controllers\Admin\PathaoCourierController::class, 'testConnection'])->name('couriers.pathao.test-connection');
 
             // Order Statuses
-            Route::get('order-statuses', [OrderStatusController::class, 'index'])->name('order-statuses');
+            Route::redirect('order-statuses', '/admin/settings/system?group=order-statuses')->name('order-statuses');
             Route::post('order-statuses', [OrderStatusController::class, 'store'])->name('order-statuses.store');
             Route::put('order-statuses/{orderStatus}', [OrderStatusController::class, 'update'])->name('order-statuses.update');
             Route::delete('order-statuses/{orderStatus}', [OrderStatusController::class, 'destroy'])->name('order-statuses.destroy');
 
             // Cancellation Reasons
-            Route::get('cancellation-reasons', [CancellationReasonController::class, 'index'])->name('cancellation-reasons');
+            Route::redirect('cancellation-reasons', '/admin/settings/system?group=cancellation-reasons')->name('cancellation-reasons');
             Route::post('cancellation-reasons', [CancellationReasonController::class, 'store'])->name('cancellation-reasons.store');
             Route::put('cancellation-reasons/{id}', [CancellationReasonController::class, 'update'])->name('cancellation-reasons.update');
             Route::delete('cancellation-reasons/{id}', [CancellationReasonController::class, 'destroy'])->name('cancellation-reasons.destroy');
 
             // SMS Templates
-            Route::get('sms-templates', [SmsTemplateController::class, 'index'])->name('sms-templates');
+            Route::redirect('sms-templates', '/admin/settings/system?group=sms-templates')->name('sms-templates');
             Route::put('sms-templates', [SmsTemplateController::class, 'update'])->name('sms-templates.update');
         });
 
