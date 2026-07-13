@@ -135,6 +135,9 @@
     <div class="card-header d-flex justify-content-between align-items-center">
         <h6 class="mb-0 fw-semibold"><i class="bi bi-receipt me-2"></i>Order Management (<span id="ordersResultCount">{{ $orders->total() }}</span>)</h6>
         <div class="d-flex align-items-center gap-2">
+            <button type="button" onclick="exportOrders()" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-download me-1"></i> Export Excel/CSV
+            </button>
             <a href="{{ route('admin.orders.create') }}" class="btn btn-primary btn-sm">
                 <i class="bi bi-plus-lg me-1"></i> Create Order
             </a>
@@ -840,6 +843,24 @@
 
 @push('scripts')
 <script>
+function exportOrders() {
+    const form = document.querySelector('form[data-realtime-filter]');
+    const params = new URLSearchParams();
+    if (form) {
+        const formData = new FormData(form);
+        for (const pair of formData.entries()) {
+            if (pair[1] !== '') {
+                params.append(pair[0], pair[1]);
+            }
+        }
+    }
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('view') && !params.has('view')) {
+        params.append('view', urlParams.get('view'));
+    }
+    window.location.href = "{{ route('admin.orders.export') }}?" + params.toString();
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     // --- Steadfast Modal Logic ---
     const steadfastModalEl = document.getElementById('steadfastModal');

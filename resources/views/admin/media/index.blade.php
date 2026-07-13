@@ -7,9 +7,17 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h6 class="mb-0 fw-semibold"><i class="bi bi-images me-2"></i>Media Library</h6>
-        <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('media-upload-input').click()">
-            <i class="bi bi-cloud-upload me-1"></i> Upload Files
-        </button>
+        <div class="d-flex align-items-center gap-2">
+            <form action="{{ route('admin.media.bulk-convert-webp') }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to convert all existing library images to WebP? This will replace old files and update all database links.')" data-no-admin-ajax="1">
+                @csrf
+                <button type="submit" class="btn btn-warning btn-sm">
+                    <i class="bi bi-magic me-1"></i> Convert All to WebP
+                </button>
+            </form>
+            <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('media-upload-input').click()">
+                <i class="bi bi-cloud-upload me-1"></i> Upload Files
+            </button>
+        </div>
     </div>
     <div class="card-body">
         {{-- Upload Form --}}
@@ -50,6 +58,9 @@
                                 <small class="text-muted">{{ $item->formatted_size }}</small>
                             </div>
                             <div class="card-footer p-2 d-flex gap-1">
+                                <a href="{{ $item->url }}" target="_blank" class="btn btn-outline-secondary btn-sm" title="Open in new tab">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
                                 <button type="button" class="btn btn-outline-primary btn-sm flex-grow-1" onclick="showMediaDetails({{ $item->id }})">
                                     <i class="bi bi-eye"></i>
                                 </button>
@@ -213,6 +224,157 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+
+    // WebP Bulk conversion queue
+    const bulkConvertForm = document.querySelector('form[action$="bulk-convert-webp"]');
+    if (bulkConvertForm) {
+        bulkConvertForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (!confirm('Are you sure you want to convert all existing library images to WebP? This will replace old files and update all database links.')) {
+                return;
+            }
+
+            const modal = new bootstrap.Modal(document.getElementById('webpConvertModal'));
+            modal.show();
+
+            const progressBar = document.getElementById('webp-progress-bar');
+            const progressPercent = document.getElementById('webp-progress-percent');
+            const currentFileText = document.getElementById('webp-current-file');
+            const progressCounts = document.getElementById('webp-progress-counts');
+            const processingView = document.getElementById('webp-processing-view');
+            const successView = document.getElementById('webp-success-view');
+            const successMessage = document.getElementById('webp-success-message');
+            
+            const csrfToken = bulkConvertForm.querySelector('input[name="_token"]').value;
+
+            // Step 1: Fetch list of image IDs to convert
+            fetch(bulkConvertForm.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success || !data.items || data.items.length === 0) {
+                    currentFileText.textContent = "No images need conversion.";
+                    progressCounts.textContent = "Everything is already WebP!";
+                    progressBar.style.width = "100%";
+                    progressPercent.textContent = "100%";
+                    setTimeout(() => {
+                        processingView.classList.add('d-none');
+                        successView.classList.remove('d-none');
+                        successMessage.textContent = "No conversion was needed.";
+                    }, 1000);
+                    return;
+                }
+
+                const total = data.items.length;
+                let processed = 0;
+                let succeeded = 0;
+                let failed = 0;
+
+                const processQueue = () => {
+                    if (processed >= total) {
+                        // Complete
+                        progressBar.style.width = "100%";
+                        progressPercent.textContent = "100%";
+                        setTimeout(() => {
+                            processingView.classList.add('d-none');
+                            successView.classList.remove('d-none');
+                            successMessage.textContent = `Successfully converted ${succeeded} image(s) to WebP. ${failed} failed.`;
+                        }, 500);
+                        return;
+                    }
+
+                    const currentItem = data.items[processed];
+                    currentFileText.textContent = `Converting: ${currentItem.name}`;
+                    progressCounts.textContent = `Processing image ${processed + 1} of ${total}`;
+
+                    // Update progress bar
+                    const percent = Math.round((processed / total) * 100);
+                    progressBar.style.width = `${percent}%`;
+                    progressPercent.textContent = `${percent}%`;
+
+                    // Call single item conversion
+                    fetch(`/admin/media/${currentItem.id}/convert-webp`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(res => {
+                        if (!res.ok) throw new Error();
+                        return res.json();
+                    })
+                    .then(resData => {
+                        if (resData.success) {
+                            succeeded++;
+                        } else {
+                            failed++;
+                        }
+                    })
+                    .catch(() => {
+                        failed++;
+                    })
+                    .finally(() => {
+                        processed++;
+                        // Recurse to process next item
+                        processQueue();
+                    });
+                };
+
+                // Start queue
+                processQueue();
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Failed to initialize bulk WebP conversion.');
+                modal.hide();
+            });
+        });
+    }
 });
 </script>
+
+{{-- WebP Bulk Conversion Progress Modal --}}
+<div class="modal fade" id="webpConvertModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="webpConvertModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-warning text-dark border-0 py-3">
+                <h5 class="modal-title fw-bold" id="webpConvertModalLabel">
+                    <i class="bi bi-magic me-2"></i>Converting Images to WebP
+                </h5>
+            </div>
+            <div class="modal-body text-center p-4">
+                <div id="webp-processing-view">
+                    <div class="spinner-grow text-warning mb-3" style="width: 3rem; height: 3rem;" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h6 class="fw-semibold mb-1" id="webp-current-file">Initializing conversion queue...</h6>
+                    <p class="text-muted small mb-4" id="webp-progress-counts">Please wait...</p>
+                    
+                    <div class="progress mb-2" style="height: 12px; border-radius: 6px; background-color: #f0f0f0;">
+                        <div id="webp-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <span class="text-dark fw-bold small" id="webp-progress-percent">0%</span>
+                </div>
+                
+                <div id="webp-success-view" class="d-none">
+                    <div class="mb-3 text-success">
+                        <i class="bi bi-check-circle-fill" style="font-size: 3.5rem;"></i>
+                    </div>
+                    <h5 class="fw-bold text-success mb-1">Conversion Complete!</h5>
+                    <p class="text-muted" id="webp-success-message">Successfully converted all images.</p>
+                    <button type="button" class="btn btn-success px-4" onclick="window.location.reload()">
+                        Done
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @endpush

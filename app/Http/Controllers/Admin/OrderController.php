@@ -219,6 +219,168 @@ class OrderController extends Controller
         return view('admin.orders.print', compact('order', 'invoiceSettings', 'steadfastEnabled', 'pathaoEnabled', 'primaryColor'));
     }
 
+    public function export(Request $request)
+    {
+        $statuses = OrderStatus::query()
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        $statusKeys = $statuses->pluck('key')->all();
+
+        if (empty($statusKeys)) {
+            $statusKeys = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+        }
+
+        $allowedViews = array_merge(['all', 'trash'], $statusKeys);
+        $view = (string) $request->input('view', 'all');
+
+        if (!in_array($view, $allowedViews, true)) {
+            $view = 'all';
+        }
+
+        if ($request->filled('status')) {
+            $requestedStatus = (string) $request->input('status');
+            if (in_array($requestedStatus, $statusKeys, true)) {
+                $view = $requestedStatus;
+            }
+        }
+
+        $query = Order::with(['user', 'payment', 'statusConfig', 'shippingDivision', 'shippingDistrict', 'items.product', 'items.variant'])
+            ->orderByDesc('created_at');
+
+        if ($view === 'trash') {
+            $query->onlyTrashed();
+        } elseif ($view !== 'all') {
+            $query->where('status', $view);
+        }
+
+        $search = trim((string) $request->input('search', ''));
+
+        if ($search !== '') {
+            $query->where(function ($searchQuery) use ($search) {
+                $searchQuery->where('order_number', 'like', "%{$search}%")
+                    ->orWhere('shipping_name', 'like', "%{$search}%")
+                    ->orWhere('shipping_email', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($userQuery) use ($search) {
+                        $userQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+
+                if (is_numeric($search)) {
+                    $searchQuery->orWhere('id', (int) $search);
+                }
+            });
+        }
+
+        if ($request->filled('payment_method')) {
+            $query->where('payment_method', $request->input('payment_method'));
+        }
+
+        if ($request->filled('payment_status')) {
+            $query->where('payment_status', $request->input('payment_status'));
+        }
+
+        if ($request->filled('order_source')) {
+            $query->where('order_source', $request->input('order_source'));
+        }
+
+        $dateType = $request->input('date_type') === 'delivered_at' ? 'delivered_at' : 'created_at';
+
+        if ($request->filled('date_from')) {
+            $query->whereDate($dateType, '>=', $request->input('date_from'));
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate($dateType, '<=', $request->input('date_to'));
+        }
+
+        if ($request->input('date') === 'today') {
+            $query->whereDate($dateType, \Carbon\Carbon::today());
+        }
+
+        if ($request->filled('product_id')) {
+            $query->whereHas('items', function ($q) use ($request) {
+                $q->where('product_id', $request->input('product_id'));
+            });
+        }
+
+        if ($request->filled('shipping_method')) {
+            $query->where('shipping_method', $request->input('shipping_method'));
+        }
+
+        if ($request->filled('shipping_district_id')) {
+            $query->where('shipping_district_id', $request->input('shipping_district_id'));
+        }
+
+        $filename = "orders-export-" . date('Y-m-d-His') . ".csv";
+
+        $headers = [
+            "Content-type"        => "text/csv; charset=UTF-8",
+            "Content-Disposition" => "attachment; filename=$filename",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $columns = [
+            'Order ID', 'Order Number', 'Date Placed', 'Customer Name', 'Customer Phone', 'Customer Email',
+            'Shipping Address', 'District', 'Division', 'Payment Method', 'Payment Status',
+            'Carrier/Courier', 'Tracking Number', 'Subtotal', 'Discount', 'Shipping Cost', 'Tax', 'Total',
+            'Order Status', 'Order Notes', 'Items Details'
+        ];
+
+        $callback = function() use($query, $columns) {
+            $file = fopen('php://output', 'w');
+            
+            // Add UTF-8 BOM to support non-ASCII characters like Bengali perfectly in Microsoft Excel
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            fputcsv($file, $columns);
+
+            $query->chunk(100, function($orders) use($file) {
+                foreach ($orders as $order) {
+                    $itemsDetails = [];
+                    foreach ($order->items as $item) {
+                        $variantStr = ($item->variant && $item->variant->attributeValues->count() > 0) 
+                            ? " (" . $item->variant->attributeValues->pluck('value')->implode('/') . ")" 
+                            : "";
+                        $itemsDetails[] = ($item->product->name ?? $item->product_name) . $variantStr . " x " . $item->quantity;
+                    }
+                    $itemsString = implode(" | ", $itemsDetails);
+
+                    fputcsv($file, [
+                        $order->id,
+                        $order->order_number,
+                        $order->created_at ? $order->created_at->format('Y-m-d H:i:s') : '',
+                        $order->shipping_name ?? ($order->user->name ?? ''),
+                        $order->shipping_phone ?? ($order->user->phone ?? ''),
+                        $order->shipping_email ?? ($order->user->email ?? ''),
+                        $order->shipping_address,
+                        $order->shippingDistrict?->name ?? '',
+                        $order->shippingDivision?->name ?? '',
+                        $order->payment_method,
+                        $order->payment_status,
+                        $order->carrier,
+                        $order->tracking_number,
+                        $order->subtotal,
+                        $order->discount_amount,
+                        $order->shipping,
+                        $order->tax,
+                        $order->total,
+                        $order->status,
+                        $order->notes,
+                        $itemsString
+                    ]);
+                }
+            });
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
     public function create()
     {
         $shippingMethods = ShippingMethod::where('is_active', true)->orderBy('sort_order')->get();
@@ -1077,6 +1239,49 @@ class OrderController extends Controller
         }
 
         return back()->with('info', 'Order is not in trash.');
+    }
+
+    public function refund(Request $request, Order $order)
+    {
+        $request->validate([
+            'amount' => 'nullable|numeric|min:0.01|max:' . $order->total,
+            'reason' => 'nullable|string|max:255',
+        ]);
+
+        if ($order->payment_method !== 'bkash') {
+            return back()->with('error', 'Only bKash payments can be refunded through this option.');
+        }
+
+        if ($order->payment_status !== 'paid') {
+            return back()->with('error', 'Only paid orders can be refunded.');
+        }
+
+        $paymentId = $order->bkash_payment_id;
+        $transactionId = $order->transaction_id;
+
+        if (!$paymentId || !$transactionId) {
+            return back()->with('error', 'Missing bKash payment or transaction ID for this order.');
+        }
+
+        $amount = $request->amount ?? (float) $order->total;
+        $reason = $request->reason ?? 'Admin initiated refund';
+
+        try {
+            $bkashService = app(\App\Services\Payment\BkashPaymentService::class);
+            $result = $bkashService->refund($paymentId, $transactionId, $amount, $reason);
+
+            if ($result['success']) {
+                $order->update([
+                    'payment_status' => $amount >= (float) $order->total ? 'refunded' : 'partially_refunded',
+                ]);
+
+                return back()->with('success', 'Refund processed successfully. Refund Trx ID: ' . ($result['refund_transaction_id'] ?? 'N/A'));
+            }
+
+            return back()->with('error', 'Refund failed: ' . ($result['message'] ?? 'Unknown error'));
+        } catch (\Exception $e) {
+            return back()->with('error', 'Refund error: ' . $e->getMessage());
+        }
     }
 
 }

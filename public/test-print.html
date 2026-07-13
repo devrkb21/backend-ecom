@@ -1,0 +1,3153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="5sAMeJsQQjJS1YVRP5OabS7jn7NHXQd5A4i5wJJi">
+    <title>Print Order #INR-0001 - Test Demo</title>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
+    <!-- Advanced Color Picker (Pickr) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/nano.min.css"/>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <style>
+        :root {
+            --sidebar-width: 250px;
+        }
+        body {
+            min-height: 100vh;
+            background-color: #f8f9fa;
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: #212529;
+            padding-top: 1rem;
+            z-index: 1000;
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: transform 0.25s ease;
+        }
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .sidebar::-webkit-scrollbar-track {
+            background: #212529;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #495057;
+            border-radius: 3px;
+        }
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: #6c757d;
+        }
+        .sidebar .nav-link {
+            color: #adb5bd;
+            padding: 0.65rem 1.25rem;
+            border-left: 3px solid transparent;
+            font-size: 0.9rem;
+        }
+        .sidebar .nav-link:hover {
+            color: #fff;
+            background: rgba(255,255,255,0.05);
+        }
+        .sidebar .nav-link.active {
+            color: #fff;
+            background: rgba(255,255,255,0.1);
+            border-left-color: #0d6efd;
+        }
+        .sidebar .nav-link i {
+            width: 20px;
+            margin-right: 8px;
+        }
+        .sidebar .nav-group-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: transparent;
+            border: 0;
+            text-align: left;
+            cursor: pointer;
+        }
+        .sidebar .menu-label {
+            display: inline-flex;
+            align-items: center;
+        }
+        .sidebar .menu-chevron {
+            width: auto;
+            margin-right: 0;
+            font-size: 0.75rem;
+            transition: transform 0.2s ease;
+        }
+        .sidebar .menu-group.is-open > .nav-group-toggle .menu-chevron {
+            transform: rotate(180deg);
+        }
+        .sidebar .submenu {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: none;
+            overflow: hidden;
+        }
+        .sidebar .submenu .nav-link {
+            padding: 0.5rem 1.25rem 0.5rem 2.9rem;
+            font-size: 0.85rem;
+            border-left-width: 2px;
+        }
+        .sidebar .submenu .nav-link i {
+            width: 16px;
+            margin-right: 6px;
+            font-size: 0.8rem;
+        }
+        .sidebar-brand {
+            color: #fff;
+            font-size: 1.15rem;
+            font-weight: 600;
+            padding: 0 1.25rem 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 0.75rem;
+        }
+        .sidebar-controls {
+            padding: 0 1rem 0.5rem;
+        }
+        .sidebar-control-btn {
+            border-color: rgba(255, 255, 255, 0.25);
+            color: #dee2e6;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .sidebar-control-btn:hover {
+            border-color: rgba(255, 255, 255, 0.45);
+            color: #fff;
+            background: rgba(255,255,255,0.08);
+        }
+        .sidebar-section {
+            color: #6c757d;
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            padding: 1rem 1.25rem 0.5rem;
+            text-transform: uppercase;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            margin-top: 0.5rem;
+        }
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            transition: margin-left 0.25s ease;
+        }
+        .top-navbar {
+            background: #fff;
+            border-bottom: 1px solid #dee2e6;
+            padding: 0.5rem 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.35);
+            z-index: 999;
+        }
+        @media (min-width: 769px) {
+            body.sidebar-collapsed .sidebar {
+                transform: translateX(-100%);
+            }
+            body.sidebar-collapsed .main-content {
+                margin-left: 0;
+            }
+        }
+        .content-wrapper {
+            padding: 1rem;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+            border-radius: 0.5rem;
+        }
+        .card-header {
+            background-color: #fff;
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+            padding: 0.75rem 1rem;
+        }
+        .card-body {
+            padding: 1rem;
+        }
+        .card-footer {
+            background-color: #fff;
+            border-top: 1px solid rgba(0,0,0,0.08);
+        }
+        .table th {
+            font-weight: 600;
+            border-top: none;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: #6c757d;
+            padding: 0.5rem 0.75rem;
+        }
+        .table td {
+            vertical-align: middle;
+            padding: 0.5rem 0.75rem;
+        }
+        /* Reduce generic spacing overrides */
+        .mb-4, .my-4 { margin-bottom: 1rem !important; }
+        .mt-4, .my-4 { margin-top: 1rem !important; }
+        .py-4 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+        .px-4 { padding-left: 1rem !important; padding-right: 1rem !important; }
+        .gap-4 { gap: 1rem !important; }
+        .content-wrapper .table-responsive,
+        .content-wrapper .admin-table-scroll {
+            width: 100%;
+            overflow-x: auto;
+            scrollbar-width: thin;
+        }
+        .content-wrapper .table-responsive > .table,
+        .content-wrapper .admin-table-scroll > .table {
+            min-width: 100%;
+            width: max-content;
+            table-layout: auto;
+        }
+        .content-wrapper .admin-table-scroll > .table.admin-table-compact > :not(caption) > * > * {
+            padding: 0.45rem 0.35rem;
+            white-space: nowrap;
+        }
+        .content-wrapper .admin-table-scroll > .table.admin-table-compact td > .form-control,
+        .content-wrapper .admin-table-scroll > .table.admin-table-compact td > .form-select {
+            width: auto;
+            min-width: 78px;
+            max-width: 160px;
+            display: inline-block;
+        }
+        .content-wrapper .admin-table-scroll > .table.admin-table-compact td > textarea.form-control {
+            min-width: 180px;
+            max-width: 320px;
+            width: 100%;
+        }
+        .content-wrapper .admin-table-scroll > .table.admin-table-compact td .input-group {
+            width: auto;
+            min-width: 110px;
+            max-width: 170px;
+        }
+        .content-wrapper .admin-table-scroll > .table.admin-table-compact td .input-group .form-control {
+            min-width: 72px;
+            max-width: 120px;
+        }
+        .badge-status-pending { background-color: #ffc107; color: #000; }
+        .badge-status-processing { background-color: #17a2b8; }
+        .badge-status-shipped { background-color: #6f42c1; }
+        .badge-status-delivered { background-color: #28a745; }
+        .badge-status-cancelled { background-color: #dc3545; }
+
+        /* Global Search */
+        #globalSearchInput:focus {
+            background-color: #fff !important;
+            box-shadow: none;
+            border-color: #ced4da;
+        }
+        .global-search-result-item {
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid #f8f9fa;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+            transition: background-color: 0.2s;
+        }
+        .global-search-result-item:hover,
+        .global-search-result-item.active {
+            background-color: #f8f9fa;
+        }
+        .global-search-result-item:last-child {
+            border-bottom: none;
+        }
+        .global-search-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #e9ecef;
+            border-radius: 6px;
+            color: #495057;
+        }
+        .global-search-text h6 {
+            margin: 0;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .global-search-text small {
+            font-size: 0.75rem;
+            color: #6c757d;
+        }
+
+        .badge-status-completed { background-color: #28a745; }
+        .badge-status-failed { background-color: #dc3545; }
+        .badge-status-refunded { background-color: #6c757d; }
+        #adminAjaxProgress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            z-index: 1200;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.18s ease;
+        }
+        #adminAjaxProgress.is-active {
+            opacity: 1;
+        }
+        #adminAjaxProgress .admin-ajax-progress-bar {
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, #0d6efd, #20c997);
+            box-shadow: 0 0 10px rgba(13, 110, 253, 0.35);
+            transition: width 0.22s ease-out;
+        }
+        .stat-card .card-body {
+            padding: 1.25rem;
+        }
+        .stat-card h3, .stat-card h4 {
+            font-weight: 600;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            .sidebar-backdrop.show {
+                display: block;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+        }
+        }
+        
+        /* Pickr Customization */
+        .pickr {
+            display: flex !important;
+            align-items: center;
+        }
+        .pickr .pcr-button {
+            width: 2.5rem !important;
+            height: 2.375rem !important;
+            border: 1px solid #dee2e6 !important;
+            border-radius: 0.375rem 0 0 0.375rem !important;
+        }
+        .pickr .pcr-button::after, .pickr .pcr-button::before {
+            border-radius: 0.25rem !important;
+        }
+        .input-group > .pickr + .form-control {
+            border-left: none !important;
+        }
+    </style>
+    </head>
+<body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-brand d-flex align-items-center justify-content-center px-3" style="min-height: 60px;">
+            <a href="https://api.czbd.dev/admin" class="text-decoration-none text-white d-flex align-items-center justify-content-center w-100">
+                                                    <i class="bi bi-shop me-2"></i> <span>Test Demo</span>
+                            </a>
+        </div>
+        <div class="sidebar-controls d-flex flex-column gap-2">
+            <a href="https://czbd.tech" target="_blank" class="btn btn-outline-light btn-sm w-100 sidebar-control-btn" aria-label="View frontend website">
+                <i class="bi bi-box-arrow-up-right me-1"></i>
+                <span>View Frontend</span>
+            </a>
+            <button type="button" class="btn btn-outline-light btn-sm w-100 sidebar-control-btn" id="sidebarBulkToggle" aria-label="Toggle all sidebar groups">
+                <i class="bi bi-arrows-expand me-1" data-bulk-icon></i>
+                <span data-bulk-label>Expand All</span>
+            </button>
+        </div>
+        <ul class="nav flex-column">
+            
+            <li class="nav-item">
+                <a class="nav-link " href="https://api.czbd.dev/admin">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+            </li>
+
+            <li class="nav-item menu-group " data-menu-group="catalog" data-active="0">
+                <button type="button" class="nav-link nav-group-toggle " data-group-toggle aria-expanded="false">
+                    <span class="menu-label"><i class="bi bi-box-seam"></i> Catalog</span>
+                    <i class="bi bi-chevron-down menu-chevron"></i>
+                </button>
+                <ul class="nav flex-column submenu">
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/products">
+                            <i class="bi bi-box"></i> Products
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/products/create">
+                            <i class="bi bi-plus-square"></i> Add Product
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/categories">
+                            <i class="bi bi-folder"></i> Categories
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/attributes">
+                            <i class="bi bi-diagram-3"></i> Attributes
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="nav-item menu-group " data-menu-group="orders" data-active="0">
+                <button type="button" class="nav-link nav-group-toggle " data-group-toggle aria-expanded="false">
+                    <span class="menu-label"><i class="bi bi-receipt"></i> Orders</span>
+                    <i class="bi bi-chevron-down menu-chevron"></i>
+                </button>
+                <ul class="nav flex-column submenu">
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/orders">
+                            <i class="bi bi-receipt-cutoff"></i> Order Management
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/orders/create">
+                            <i class="bi bi-plus-circle"></i> Create Order
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/payments">
+                            <i class="bi bi-credit-card"></i> Payments
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/payments/saved-methods">
+                            <i class="bi bi-wallet2"></i> Saved Payment methods
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/returns">
+                            <i class="bi bi-arrow-return-left"></i> Returns & Refunds
+                                                    </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/abandoned-carts">
+                            <i class="bi bi-cart-x"></i> Abandoned Carts
+                                                            <span class="badge bg-danger ms-1">4</span>
+                                                    </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/fraud-blocks">
+                            <i class="bi bi-shield-x"></i> Fraud Blocker
+                                                                                        <span class="badge bg-danger ms-1">6</span>
+                                                    </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="nav-item menu-group " data-menu-group="marketing" data-active="0">
+                <button type="button" class="nav-link nav-group-toggle " data-group-toggle aria-expanded="false">
+                    <span class="menu-label"><i class="bi bi-megaphone"></i> Marketing</span>
+                    <i class="bi bi-chevron-down menu-chevron"></i>
+                </button>
+                <ul class="nav flex-column submenu">
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/coupons">
+                            <i class="bi bi-ticket-perforated"></i> Coupons
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/flash-sales">
+                            <i class="bi bi-lightning-charge"></i> Flash Sales
+                                                    </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/loyalty">
+                            <i class="bi bi-award"></i> Loyalty Program
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/reviews">
+                            <i class="bi bi-star"></i> Reviews
+                                                    </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/landing-pages">
+                            <i class="bi bi-window-sidebar"></i> Landing Pages
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="nav-item menu-group " data-menu-group="sales-manager" data-active="0">
+                <button type="button" class="nav-link nav-group-toggle " data-group-toggle aria-expanded="false">
+                    <span class="menu-label"><i class="bi bi-briefcase"></i> Sales Manager</span>
+                    <i class="bi bi-chevron-down menu-chevron"></i>
+                </button>
+                <ul class="nav flex-column submenu">
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/orders?status=pending">
+                            <i class="bi bi-cart-check"></i> New Ordered
+                                                            <span class="badge bg-danger ms-1">20</span>
+                                                    </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/returns">
+                            <i class="bi bi-arrow-return-left"></i> Return & Refunds
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="nav-item menu-group " data-menu-group="content" data-active="0">
+                <button type="button" class="nav-link nav-group-toggle " data-group-toggle aria-expanded="false">
+                    <span class="menu-label"><i class="bi bi-file-earmark-richtext"></i> Content & SEO</span>
+                    <i class="bi bi-chevron-down menu-chevron"></i>
+                </button>
+                <ul class="nav flex-column submenu">
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/pages">
+                            <i class="bi bi-file-earmark-text"></i> Pages
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/media">
+                            <i class="bi bi-images"></i> Media Manager
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/settings/site">
+                            <i class="bi bi-palette"></i> Storefront & SEO
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/contact-messages">
+                            <i class="bi bi-envelope"></i> Contact Messages
+                                                                                </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="nav-item menu-group " data-menu-group="analytics" data-active="0">
+                <button type="button" class="nav-link nav-group-toggle " data-group-toggle aria-expanded="false">
+                    <span class="menu-label"><i class="bi bi-bar-chart-line"></i> Analytics</span>
+                    <i class="bi bi-chevron-down menu-chevron"></i>
+                </button>
+                <ul class="nav flex-column submenu">
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/bi">
+                            <i class="bi bi-speedometer"></i> Analytics Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/bi/sales-reports">
+                            <i class="bi bi-currency-dollar"></i> Sales & Revenue
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/bi/inventory-alerts">
+                            <i class="bi bi-exclamation-triangle"></i> Inventory Alerts
+                                                            <span class="badge bg-warning ms-1">5</span>
+                                                    </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/bi/customer-analytics">
+                            <i class="bi bi-person-badge"></i> Customer Insights
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/bi/product-performance">
+                            <i class="bi bi-trophy"></i> Product Performance
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="nav-item menu-group " data-menu-group="customers" data-active="0">
+                <button type="button" class="nav-link nav-group-toggle " data-group-toggle aria-expanded="false">
+                    <span class="menu-label"><i class="bi bi-people"></i> Customers</span>
+                    <i class="bi bi-chevron-down menu-chevron"></i>
+                </button>
+                <ul class="nav flex-column submenu">
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/customers">
+                            <i class="bi bi-person-lines-fill"></i> All Customers
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/customer-groups">
+                            <i class="bi bi-award"></i> Loyalty Groups
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+                            <li class="nav-item menu-group " data-menu-group="users" data-active="0">
+                    <button type="button" class="nav-link nav-group-toggle " data-group-toggle aria-expanded="false">
+                        <span class="menu-label"><i class="bi bi-people"></i> Users</span>
+                        <i class="bi bi-chevron-down menu-chevron"></i>
+                    </button>
+                    <ul class="nav flex-column submenu">
+                                                    <li class="nav-item">
+                                <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/users">
+                                    <i class="bi bi-people"></i> User List
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/users/create">
+                                    <i class="bi bi-person-plus"></i> Add User
+                                </a>
+                            </li>
+                                                                            <li class="nav-item">
+                                <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/roles">
+                                    <i class="bi bi-person-gear"></i> Role
+                                </a>
+                            </li>
+                                            </ul>
+                </li>
+            
+            <li class="nav-item menu-group " data-menu-group="settings" data-active="0">
+                <button type="button" class="nav-link nav-group-toggle " data-group-toggle aria-expanded="false">
+                    <span class="menu-label"><i class="bi bi-gear"></i> Settings</span>
+                    <i class="bi bi-chevron-down menu-chevron"></i>
+                </button>
+                <ul class="nav flex-column submenu">
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/settings/integrations">
+                            <i class="bi bi-plug"></i> Integrations
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/settings/couriers">
+                            <i class="bi bi-truck-flatbed"></i> Couriers
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/settings/payment-gateways">
+                            <i class="bi bi-credit-card-2-front"></i> Payment Gateways
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/settings/shipping-methods">
+                            <i class="bi bi-truck"></i> Shipping Methods
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/settings/order-statuses">
+                            <i class="bi bi-tags"></i> Order Statuses
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/settings/cancellation-reasons">
+                            <i class="bi bi-x-octagon"></i> Cancellation Reasons
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link " href="https://api.czbd.dev/admin/settings/sms-templates">
+                            <i class="bi bi-chat-dots"></i> SMS Templates
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="nav-item mb-4"></li>
+        </ul>
+    </nav>
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Navbar -->
+        <nav class="top-navbar d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <button type="button" class="btn btn-outline-secondary btn-sm d-md-none me-2" id="sidebarToggle" aria-label="Toggle sidebar">
+                    <i class="bi bi-list"></i>
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm d-none d-md-inline-flex me-2" id="sidebarCollapseToggle" aria-label="Collapse sidebar" aria-expanded="true">
+                    <i class="bi bi-layout-sidebar me-1" data-sidebar-collapse-icon></i>
+                    <span data-sidebar-collapse-label>Collapse</span>
+                </button>
+                <h5 class="mb-0 text-nowrap">Print Label/Invoice</h5>
+            </div>
+            
+            <div class="d-none d-md-flex align-items-center flex-grow-1 mx-4 position-relative">
+                <div class="input-group input-group-sm w-100 mx-auto" style="max-width: 500px;">
+                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" id="globalSearchInput" class="form-control border-start-0 bg-light" placeholder="Global search (press Ctrl+K)" autocomplete="off">
+                </div>
+                <div id="globalSearchResults" class="dropdown-menu w-100 mt-1 shadow-sm border-0 position-absolute start-50 translate-middle-x" style="top: 100%; max-width: 500px; display: none; max-height: 400px; overflow-y: auto;">
+                    <!-- Results will be injected here -->
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center">
+                <span id="realtimeClock" class="me-3 text-muted small fw-semibold d-none d-lg-inline" style="font-variant-numeric: tabular-nums;"></span>
+                <span class="me-3 text-nowrap">Admin User</span>
+                <form action="https://api.czbd.dev/admin/logout" method="POST" class="d-inline">
+                    <input type="hidden" name="_token" value="5sAMeJsQQjJS1YVRP5OabS7jn7NHXQd5A4i5wJJi" autocomplete="off">                    <button type="submit" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </button>
+                </form>
+            </div>
+        </nav>
+
+        <!-- Content -->
+        <div class="content-wrapper">
+            
+<!-- CSS for screen rendering and print page sizing -->
+<style>
+    /* Styling for the print page controls */
+    .print-controls-bar {
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 12px 24px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    .print-preview-area {
+        background: #f1f5f9;
+        min-height: calc(100vh - 200px);
+        border-radius: 8px;
+    }
+
+    /* Thermal 2x3 in sizing */
+    .label-2x3 {
+        width: 2in;
+        height: 3in;
+        padding: 0.08in;
+        box-sizing: border-box;
+        font-family: 'Inter', sans-serif;
+        color: #000;
+        background: #fff;
+        font-size: 6.5pt;
+        line-height: 1.1;
+        border: 1px dashed #94a3b8;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    /* Thermal 3x3 in sizing */
+    .label-3x3 {
+        width: 3in;
+        height: 3in;
+        padding: 8px;
+        box-sizing: border-box;
+        font-family: 'Inter', sans-serif;
+        color: #000;
+        background: #fff;
+        font-size: 7.8pt;
+        line-height: 1.15;
+        border: 1px dashed #94a3b8;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    /* A4 landscape styling */
+    .label-a4 {
+        width: 100%;
+        max-width: 800px;
+        padding: 24px;
+        box-sizing: border-box;
+        font-family: 'Inter', sans-serif;
+        color: #000;
+        background: #fff;
+        border: 2px solid #000;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    /* Under development overlay for Invoice placeholder */
+    .under-dev-overlay {
+        text-align: center;
+        padding: 50px 20px;
+        background: #fff;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        max-width: 500px;
+        width: 100%;
+    }
+
+    /* Custom COD Highlights */
+    .cod-box-thermal {
+        border: 1.5px solid #000;
+        padding: 3px;
+        text-align: center;
+        background: #f8fafc;
+        font-weight: bold;
+        border-radius: 4px;
+    }
+
+    .cod-box-thermal .cod-title {
+        font-size: 5.5pt;
+        display: block;
+        font-weight: normal;
+        letter-spacing: 0.5px;
+    }
+
+    .cod-box-thermal .cod-amount {
+        font-size: 9.5pt;
+        display: block;
+        font-weight: 800;
+    }
+
+    /* Hide elements in print mode */
+    @media print {
+        /* Force A4 portrait for all print sizes to prevent stretching on A4 paper */
+        @page {
+            size: A4 portrait;
+            margin: 10mm;
+        }
+
+        /* Hide layout navigation sidebar, top navbar, control bar, header, and footer */
+        header, footer, nav, .sidebar, .top-navbar, #sidebar, #sidebarToggle, #sidebarCollapseToggle, .print-controls-bar, .card-header, .page-title-box, .btn, .breadcrumb-item, .zoom-controls-floating {
+            display: none !important;
+        }
+        
+        /* Reset wrapper page-level layout adjustments and strictly constrain HTML/body size */
+        html, body, .main-content, .page-content, .container-fluid, .content-wrapper, #layout-wrapper {
+            background: #fff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            margin-left: 0 !important;
+            margin-top: 0 !important;
+            margin-right: 0 !important;
+            margin-bottom: 0 !important;
+            padding-top: 0 !important;
+            min-height: 100% !important;
+            max-height: 100% !important;
+            width: 100% !important;
+            height: 100% !important;
+            overflow: visible !important;
+        }
+
+        /* Ensure parent wrappers do not restrict print flow or introduce margins */
+        .page-content, .content-wrapper, .main-content {
+            box-shadow: none !important;
+            border: none !important;
+        }
+        
+        .print-preview-area {
+            background: none !important;
+            padding: 0 !important;
+            min-height: auto !important;
+            display: block !important;
+            border-radius: 0 !important;
+        }
+        
+        .zoom-wrapper {
+            padding: 0 !important;
+            overflow: visible !important;
+        }
+        
+        #label-mode-container {
+            transform: none !important; /* Never apply zoom factor during physical printing */
+            margin-bottom: 0 !important;
+            display: block !important;
+            width: 100% !important;
+        }
+
+        .preview-card {
+            display: none !important; /* Hide all size containers by default */
+            border: none !important;
+            box-shadow: none !important;
+            background: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        /* Active sizing triggers */
+        body.print-active-2x3 #label-container-2x3 {
+            display: block !important;
+        }
+        body.print-active-2x3 .label-2x3 {
+            border: 1px solid #000 !important;
+            width: 2in !important;
+            height: 3in !important;
+            margin: 0 auto !important; /* Centered in the page */
+        }
+
+        body.print-active-3x3 #label-container-3x3 {
+            display: block !important;
+        }
+        body.print-active-3x3 .label-3x3 {
+            border: 1px solid #000 !important;
+            width: 3in !important;
+            height: 3in !important;
+            margin: 0 auto !important; /* Centered in the page */
+        }
+
+        body.print-active-a4 #label-container-a4 {
+            display: block !important;
+            width: 100% !important;
+        }
+        body.print-active-a4 .label-a4 {
+            border: 2px solid #000 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: 260mm !important; /* Forces full height on A4 Portrait sheet */
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+            padding: 30px !important;
+        }
+
+        /* Scale up typography for A4 print to occupy full page beautifully */
+        body.print-active-a4 .label-a4 h6 {
+            font-size: 13pt !important;
+        }
+        body.print-active-a4 .label-a4 .small {
+            font-size: 10pt !important;
+        }
+        body.print-active-a4 .label-a4 div, body.print-active-a4 .label-a4 span {
+            font-size: 10.5pt !important;
+        }
+        body.print-active-a4 .label-a4 .fs-3 {
+            font-size: 28pt !important;
+        }
+        body.print-active-a4 .label-a4 .badge {
+            font-size: 9pt !important;
+        }
+
+        /* Print-specific invoice rules */
+        body.print-active-invoice #invoice-mode-container {
+            display: block !important;
+            width: 100% !important;
+        }
+        body.print-active-invoice .invoice-a4 {
+            border: none !important;
+            box-shadow: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: 276mm !important;
+            min-height: 276mm !important;
+            max-height: 276mm !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            box-sizing: border-box !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+        }
+        body.print-active-invoice .invoice-footer-bar {
+            margin: 0 !important;
+            width: 100% !important;
+            padding: 10px 20px !important;
+        }
+        body.print-active-invoice #label-mode-container {
+            display: none !important;
+        }
+    }
+
+    /* ========================================
+       Invoice A4 Screen Styles (outside @media print)
+       ======================================== */
+
+    /* Invoice A4 styling for screen preview */
+    .invoice-a4 {
+        width: 210mm;
+        min-height: 297mm;
+        padding: 20mm;
+        box-sizing: border-box;
+        font-family: 'Inter', sans-serif;
+        color: #000;
+        background: #fff;
+        border: 1px solid #cbd5e1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    /* Product name clamp for table row */
+    .product-name-clamp {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: normal;
+        word-break: break-word;
+        max-height: 2.8em;
+        line-height: 1.4;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    /* Center-align invoice table items */
+    .invoice-table th, .invoice-table td {
+        text-align: center !important;
+        vertical-align: middle !important;
+    }
+
+    /* Courier badges styling for thermal labels */
+    .courier-badge-thermal {
+        border-radius: 4px;
+        padding: 2.5px 5px;
+        font-weight: 700;
+        text-align: center;
+        margin-top: 4px;
+        font-size: 6pt;
+        display: block;
+        background: transparent !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .courier-badge-pathao {
+        color: #ef4444 !important;
+        border: 1.5px solid #ef4444 !important;
+    }
+    .courier-badge-steadfast {
+        color: #22c55e !important;
+        border: 1.5px solid #22c55e !important;
+    }
+
+    /* Base styling for the invoice footer bar on screen */
+    .invoice-footer-bar {
+        color: #fff;
+        padding: 10px 20px;
+        font-size: 8.5pt;
+        margin: 0 -20mm -20mm -20mm;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+</style>
+
+<div class="container-fluid py-3 no-print">
+    <!-- Top control panel -->
+    <div class="print-controls-bar d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-2">
+            <a href="https://api.czbd.dev/admin/orders/15" class="btn btn-outline-secondary btn-sm px-3">
+                <i class="bi bi-arrow-left me-1"></i> Back
+            </a>
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-primary" id="btn-toggle-invoice" onclick="toggleMode('invoice')">Invoice</button>
+                <button type="button" class="btn btn-primary" id="btn-toggle-label" onclick="toggleMode('label')">Print Label</button>
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            <div class="btn-group btn-group-sm label-size-selector" role="group">
+                <button type="button" class="btn btn-outline-primary" id="btn-size-3x3" onclick="selectSize('3x3')">3 x 3 in</button>
+                <button type="button" class="btn btn-primary" id="btn-size-2x3" onclick="selectSize('2x3')">2 x 3 in</button>
+                <button type="button" class="btn btn-outline-primary" id="btn-size-a4" onclick="selectSize('a4')">A4 Page</button>
+            </div>
+
+            <button type="button" class="btn btn-success btn-sm px-4 fw-bold" id="btn-trigger-print" onclick="window.print()">
+                <i class="bi bi-printer-fill me-1"></i> Print Label
+            </button>
+        </div>
+    </div>
+
+    <!-- Interactive preview area with Zoom capabilities -->
+    <div class="print-preview-area position-relative d-flex flex-column" id="previewArea">
+        <!-- Floating zoom controls in the top right -->
+        <div class="zoom-controls-floating d-flex gap-2 no-print p-3 position-absolute" style="top: 0; right: 0; z-index: 10;">
+            <button type="button" class="btn btn-sm btn-light border shadow-sm px-2.5 py-1" onclick="zoom(0.1)" title="Zoom In">
+                <i class="bi bi-zoom-in me-1"></i> Zoom In
+            </button>
+            <button type="button" class="btn btn-sm btn-light border shadow-sm px-2.5 py-1" onclick="zoom(-0.1)" title="Zoom Out">
+                <i class="bi bi-zoom-out me-1"></i> Zoom Out
+            </button>
+            <button type="button" class="btn btn-sm btn-light border shadow-sm px-2.5 py-1" onclick="resetZoom()" title="Reset Zoom">
+                <i class="bi bi-arrow-counterclockwise"></i>
+            </button>
+        </div>
+
+
+        <!-- 2. Label Mode Container with Scroll and Scaled Zoom Wrapper -->
+        <div class="zoom-wrapper w-100 flex-grow-1 d-flex justify-content-center align-items-start py-5" style="overflow: auto;">
+            <div id="label-mode-container" class="d-flex justify-content-center" style="transform-origin: top center; transition: transform 0.1s ease;">
+                <!-- 2x3 Thermal Label -->
+                <div id="label-container-2x3" class="preview-card print-size-2x3">
+                    <div class="label-2x3">
+                        <!-- Header -->
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-1" style="height: 25px; margin-bottom: 4px;">
+                                                            <img src="https://api.czbd.dev/media/2026/04/inner-Logo.png" alt="Logo" style="max-height: 22px; max-width: 40%; object-fit: contain;">
+                                <div class="text-end" style="max-width: 55%; line-height: 1.1;">
+                                    <div class="fw-bold text-truncate" style="font-size: 6.2pt; color: #1e293b;">Inner Collection</div>
+                                    <div class="text-muted text-truncate" style="font-size: 5pt; font-weight: 500;">+8801938198197</div>
+                                </div>
+                                                    </div>
+
+                        <!-- Barcode element -->
+                        <div class="text-center" style="margin-bottom: 4px;">
+                            <svg id="barcode-thermal-2x3" style="display: block; margin: 0 auto;"></svg>
+                        </div>
+
+                        <!-- QR & Info -->
+                        <div class="row g-0 align-items-center border-bottom pb-1 mb-2">
+                            <div class="col-4 text-center d-flex align-items-center justify-content-center">
+                                <canvas id="qr-thermal-2x3" style="display: block;"></canvas>
+                            </div>
+                            <div class="col-8 ps-2 text-start" style="font-size: 6.2pt; line-height: 1.25;">
+                                <div class="row g-0">
+                                    <div class="col-5 text-muted">ORDER ID:</div>
+                                    <div class="col-7 fw-bold text-end text-truncate">INR-0001</div>
+                                </div>
+                                <div class="row g-0">
+                                    <div class="col-5 text-muted">DELIVERY:</div>
+                                    <div class="col-7 text-end text-truncate">Home (COD)</div>
+                                </div>
+                                <div class="row g-0">
+                                    <div class="col-5 text-muted">WEIGHT:</div>
+                                    <div class="col-7 text-end">0.5 KG</div>
+                                </div>
+                                                            </div>
+                        </div>
+
+                        <!-- Recipient Block -->
+                        <div class="text-start flex-grow-1" style="font-size: 5.5pt; line-height: 1.2; overflow: hidden; margin-bottom: 6px; padding-top: 2px;">
+                            <div class="text-truncate"><strong>NAME:</strong> <span class="fw-semibold">Rakib</span></div>
+                            <div class="text-truncate"><strong>PHONE:</strong> <span class="fw-semibold">01613926617</span></div>
+                            <div style="margin-top: 1px;"><strong>ADDRESS:</strong> Khulna</div>
+                        </div>
+
+                        <!-- COD Box -->
+                        <div class="cod-box-thermal" style="margin-bottom: 4px;">
+                            <span class="cod-title" style="font-size: 5pt; line-height: 1;">CASH ON DELIVERY</span>
+                            <span class="cod-amount" style="font-size: 8.5pt; line-height: 1.1; margin-top: 1px;">৳ 1,169</span>
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="d-flex justify-content-between align-items-center border-top pt-1 text-muted" style="font-size: 4.8pt; line-height: 1; height: 12px;">
+                            <span>13/07/26 04:26am</span>
+                            <a href="https://coderzonebd.com/" target="_blank" class="text-decoration-none text-muted fw-bold">Generated by Coder Zone BD ecom</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3x3 Thermal Label -->
+                <div id="label-container-3x3" class="preview-card print-size-3x3 d-none">
+                    <div class="label-3x3">
+                        <!-- Header -->
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-1" style="height: 30px; margin-bottom: 4px;">
+                                                            <img src="https://api.czbd.dev/media/2026/04/inner-Logo.png" alt="Logo" style="max-height: 26px; max-width: 45%; object-fit: contain;">
+                                <div class="text-end" style="max-width: 50%; line-height: 1.15;">
+                                    <div class="fw-bold text-truncate" style="font-size: 7.5pt; color: #1e293b;">Inner Collection</div>
+                                    <div class="text-muted text-truncate" style="font-size: 6.2pt; font-weight: 500;">+8801938198197</div>
+                                </div>
+                                                    </div>
+
+                        <!-- Barcode element -->
+                        <div class="text-center" style="margin-bottom: 4px;">
+                            <svg id="barcode-thermal-3x3" style="display: block; margin: 0 auto;"></svg>
+                        </div>
+
+                        <!-- QR & Info -->
+                        <div class="row g-0 align-items-center border-bottom pb-1 mb-1">
+                            <div class="col-4 text-center d-flex align-items-center justify-content-center">
+                                <canvas id="qr-thermal-3x3" style="display: block;"></canvas>
+                            </div>
+                            <div class="col-8 ps-2 text-start" style="font-size: 7.5pt; line-height: 1.3;">
+                                <div class="row g-0">
+                                    <div class="col-5 text-muted">ORDER ID:</div>
+                                    <div class="col-7 fw-bold text-end text-truncate">INR-0001</div>
+                                </div>
+                                <div class="row g-0">
+                                    <div class="col-5 text-muted">DELIVERY:</div>
+                                    <div class="col-7 text-end text-truncate">Home (COD)</div>
+                                </div>
+                                <div class="row g-0">
+                                    <div class="col-5 text-muted">WEIGHT:</div>
+                                    <div class="col-7 text-end">0.5 KG</div>
+                                </div>
+                                                            </div>
+                        </div>
+
+                        <!-- Recipient Block -->
+                        <div class="text-start flex-grow-1" style="font-size: 5.5pt; line-height: 1.2; overflow: hidden; margin-bottom: 4px; padding-top: 2px;">
+                            <div class="text-truncate"><strong>NAME:</strong> <span class="fw-semibold">Rakib</span></div>
+                            <div class="text-truncate"><strong>PHONE:</strong> <span class="fw-semibold">01613926617</span></div>
+                            <div style="margin-top: 2px;"><strong>ADDRESS:</strong> Khulna</div>
+                        </div>
+
+                        <!-- COD Box -->
+                        <div class="cod-box-thermal" style="margin-bottom: 4px;">
+                            <span class="cod-title" style="font-size: 6pt; line-height: 1;">CASH ON DELIVERY</span>
+                            <span class="cod-amount" style="font-size: 10pt; line-height: 1.1; margin-top: 1px;">৳ 1,169</span>
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="d-flex justify-content-between align-items-center border-top pt-1 text-muted" style="font-size: 5.5pt; line-height: 1; height: 14px;">
+                            <span>13/07/26 04:26am</span>
+                            <a href="https://coderzonebd.com/" target="_blank" class="text-decoration-none text-muted fw-bold">Generated by Coder Zone BD ecom</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- A4 Page Label -->
+                <div id="label-container-a4" class="preview-card print-size-a4 d-none">
+                    <div class="label-a4">
+                        <!-- Shipped From Header -->
+                        <div class="row g-0 align-items-center border-bottom border-dark pb-3 mb-3">
+                            <div class="col-9 text-start">
+                                <h6 class="fw-bold mb-1" style="font-size: 11pt; color: #1e293b; line-height: 1.3;">Shipped From:<br>Inner Collection</h6>
+                                <div class="small text-muted" style="font-size: 8.5pt;">Allahwala Bhaban, Dolipara, Uttara,Dhaka-1230.</div>
+                                <div class="small text-muted" style="font-size: 8.5pt;">Contact: +8801938198197, hello@innercollection.com.bd</div>
+                            </div>
+                            <div class="col-3 text-end">
+                                                                    <img src="https://api.czbd.dev/media/2026/04/inner-Logo.png" alt="Logo" style="max-height: 45px; max-width: 100%; object-fit: contain;">
+                                                            </div>
+                        </div>
+
+                        <!-- Shipped To & QR Section -->
+                        <div class="row g-0 border-bottom border-dark pb-3 mb-3 align-items-center">
+                            <div class="col-8 text-start">
+                                <div class="badge bg-dark text-white mb-2 px-2 py-1" style="font-size: 8pt;">Regular</div>
+                                <h6 class="fw-bold mb-1" style="font-size: 11pt; line-height: 1.3;">Shipped To:<br>Rakib</h6>
+                                <div class="fw-semibold small" style="font-size: 9.5pt;">Phone: 01613926617</div>
+                                <div class="text-muted small" style="font-size: 8.5pt;">Secondary Phone: N/A</div>
+                                <div class="mt-2 text-dark" style="font-size: 9.5pt; line-height: 1.4;"><strong class="text-muted">Address:</strong> Khulna, , </div>
+                            </div>
+                            <div class="col-4 text-end">
+                                <canvas id="qr-a4"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Details Grid -->
+                        <div class="row g-0 align-items-stretch">
+                            <!-- Left column -->
+                            <div class="col-6 border-end border-dark pe-3 text-start d-flex flex-column justify-content-between">
+                                <div class="mb-3">
+                                    <div class="row g-0 small py-1.5 border-bottom border-light">
+                                        <div class="col-5 text-muted">Weight:</div>
+                                        <div class="col-7 fw-bold">0.50 Kg</div>
+                                    </div>
+                                                                        <div class="row g-0 small py-1.5 border-bottom border-light">
+                                        <div class="col-5 text-muted">Order ID:</div>
+                                        <div class="col-7 fw-bold">INR-0001</div>
+                                    </div>
+                                </div>
+                                <div class="mt-auto py-3 px-3 border border-dark rounded bg-light">
+                                    <div class="small text-muted fw-bold" style="font-size: 8.5pt;">Collectable Amount:</div>
+                                    <div class="fs-3 fw-bold" style="color: #1e293b;">BDT 1,169.00</div>
+                                </div>
+                            </div>
+
+                            <!-- Right column -->
+                            <div class="col-6 ps-3 text-start d-flex flex-column justify-content-between">
+                                <div class="text-center mb-2">
+                                    <svg id="barcode-a4"></svg>
+                                </div>
+                                <div class="small" style="font-size: 8.5pt; line-height: 1.4;">
+                                    <div class="row g-0 py-1 border-bottom border-light">
+                                        <div class="col-5 text-muted">Order Date:</div>
+                                        <div class="col-7 fw-bold">2026-05-03 06:51:28 PM</div>
+                                    </div>
+                                    <div class="row g-0 py-1 border-bottom border-light">
+                                        <div class="col-5 text-muted">Target Hub:</div>
+                                        <div class="col-7 fw-bold">N/A</div>
+                                    </div>
+                                    <div class="row g-0 py-1 border-bottom border-light">
+                                        <div class="col-5 text-muted">Sort:</div>
+                                        <div class="col-7 fw-bold">OSD</div>
+                                    </div>
+                                    <div class="row g-0 py-1 border-bottom border-light">
+                                        <div class="col-5 text-muted">Route:</div>
+                                        <div class="col-7 fw-bold">N/A</div>
+                                    </div>
+                                    <div class="row g-0 py-1">
+                                        <div class="col-5 text-muted">Zone:</div>
+                                        <div class="col-7 fw-bold">N/A</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="d-flex justify-content-between align-items-center border-top border-dark mt-3 pt-2 text-muted small" style="font-size: 8pt;">
+                            <span>Printed: 2026-07-13 04:26:29 AM</span>
+                            <a href="https://coderzonebd.com/" target="_blank" class="text-decoration-none text-muted fw-bold">Generated by Coder Zone BD ecom</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 1. Invoice Mode Container (Inside zoom-wrapper for zoom support) -->
+            <div id="invoice-mode-container" class="d-none" style="transform-origin: top center; transition: transform 0.1s ease;">
+                <div class="invoice-a4">
+                    <!-- Invoice Content Top Section -->
+                    <div>
+                        <!-- 1. Header (Logo left, Shop info right) -->
+                        <div class="d-flex justify-content-between align-items-start" style="padding-bottom: 20px; margin-bottom: 25px; border-bottom: 2px solid #000;">
+                            <!-- Logo (left) -->
+                            <div>
+                                                                    <img src="https://api.czbd.dev/media/2026/04/inner-Logo.png" alt="Logo" style="max-height: 60px; object-fit: contain;">
+                                                            </div>
+                            
+                            <!-- Shop details (right) -->
+                            <div class="text-end" style="font-size: 10pt; line-height: 1.5; color: #333;">
+                                <div class="fw-bold" style="font-size: 16pt; color: #000; margin-bottom: 4px;">Inner Collection</div>
+                                                                    <div>Allahwala Bhaban, Dolipara, Uttara,Dhaka-1230.</div>
+                                                                                                    <div>+8801938198197</div>
+                                                                                                    <div>hello@innercollection.com.bd</div>
+                                                                                                    <div>www.innercollection.com.bd</div>
+                                                            </div>
+                        </div>
+
+                        <!-- 2. Customer and Invoice Details Grid -->
+                        <div class="d-flex justify-content-between" style="margin-bottom: 30px;">
+                            <!-- Customer Details (left) -->
+                            <div style="max-width: 55%;">
+                                <div style="font-size: 10pt; color: #555; margin-bottom: 8px;">Invoice to:</div>
+                                <div class="fw-bold" style="font-size: 14pt; color: #000; margin-bottom: 5px;">Rakib</div>
+                                <div style="font-size: 10pt; line-height: 1.5; color: #333;">
+                                    Khulna
+                                                                                                        </div>
+                                <div style="font-size: 10pt; line-height: 1.5; color: #333; margin-top: 4px;">
+                                    <strong>Phone:</strong> 01613926617
+                                </div>
+                            </div>
+                            
+                            <!-- Invoice Info (right) -->
+                            <div class="text-end">
+                                <div style="font-size: 36pt; font-weight: 300; letter-spacing: 2px; line-height: 1; color: #000; margin-bottom: 12px;">INVOICE</div>
+                                <div style="font-size: 11pt; line-height: 1.6; color: #333;">
+                                    <div><span style="letter-spacing: 1px;">Order No#</span> <strong style="font-size: 12pt; color: #000; margin-left: 8px;">INR-0001</strong></div>
+                                    <div>
+                                        <span style="letter-spacing: 1px;">Date</span> 
+                                        <strong style="color: #000; margin-left: 8px;">
+                                            03 / 05 / 2026  06:51:28 PM
+                                        </strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Items Table -->
+                        <table class="table invoice-table" style="margin-bottom: 20px;">
+                            <thead>
+                                <tr style="border-top: 2px solid #000; border-bottom: 2px solid #000;">
+                                    <th class="text-center" style="width: 48%; font-weight: 700; text-transform: uppercase; font-size: 10pt; padding: 10px 8px; color: #000; border: none;">Item</th>
+                                    <th class="text-center" style="width: 16%; font-weight: 700; text-transform: uppercase; font-size: 10pt; padding: 10px 8px; color: #000; border: none;">Quantity</th>
+                                    <th class="text-center" style="width: 18%; font-weight: 700; text-transform: uppercase; font-size: 10pt; padding: 10px 8px; color: #000; border: none;">Unit Price</th>
+                                    <th class="text-center" style="width: 18%; font-weight: 700; text-transform: uppercase; font-size: 10pt; padding: 10px 8px; color: #000; border: none;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                                                    <tr style="border-bottom: 1px solid #e2e8f0;">
+                                        <td class="text-center align-middle" style="padding: 14px 8px; border: none;">
+                                            <div class="product-name-clamp" style="font-size: 10pt; color: #000;">
+                                                JULIET Women T-Shirt Non Padded Bra 3Pcs Combo
+                                                                                                    <span style="color: #555;">(36)</span>
+                                                                                            </div>
+                                        </td>
+                                        <td class="text-center align-middle" style="font-size: 10pt; padding: 14px 8px; border: none; color: #000;">
+                                            1
+                                        </td>
+                                        <td class="text-center align-middle" style="font-size: 10pt; padding: 14px 8px; border: none; color: #000;">
+                                            ৳ 1,099
+                                        </td>
+                                        <td class="text-center align-middle fw-semibold" style="font-size: 10pt; padding: 14px 8px; border: none; color: #000;">
+                                            ৳ 1,099
+                                        </td>
+                                    </tr>
+                                                            </tbody>
+                        </table>
+
+                        <!-- 4. Bottom details section (Payment left, Totals right) -->
+                        <div class="d-flex justify-content-between align-items-start" style="padding-top: 8px;">
+                            <!-- Payment Method Details (left) -->
+                            <div style="max-width: 50%;">
+                                <div class="fw-bold text-uppercase" style="font-size: 10.5pt; letter-spacing: 0.5px; color: #000; margin-bottom: 10px;">Payment Method</div>
+                                
+                                                                    <!-- Cash on Delivery Rounded Border Box (temp2 style) -->
+                                    <div style="display: inline-block; padding: 8px 18px; border: 2px solid #000; border-radius: 8px; font-weight: 700; font-size: 12pt; font-style: italic; color: #000; background: #fff;">
+                                        Cash on Delivery
+                                    </div>
+                                                            </div>
+                            
+                            <!-- Calculations Table (right) -->
+                            <div style="min-width: 240px;">
+                                <table class="table table-borderless" style="font-size: 10.5pt; margin: 0;">
+                                    <tr>
+                                        <td class="text-end" style="padding: 5px 12px 5px 0; border: none; color: #555; font-weight: 600;">Subtotal</td>
+                                        <td class="text-end" style="padding: 5px 0; border: none; color: #000; font-weight: 600;">৳ 1,099</td>
+                                    </tr>
+                                    
+                                                                        
+                                                                        
+                                    <tr>
+                                        <td class="text-end" style="padding: 5px 12px 5px 0; border: none; color: #555; font-weight: 600;">Shipping Charge</td>
+                                        <td class="text-end" style="padding: 5px 0; border: none; color: #000; font-weight: 600;">৳ 70</td>
+                                    </tr>
+                                    
+                                    <tr style="border-top: 1.5px solid #ccc;">
+                                        <td class="text-end" style="padding: 12px 12px 5px 0; border: none; color: #000; font-size: 14pt; font-weight: 800;">Total</td>
+                                        <td class="text-end" style="padding: 12px 0 5px 0; border: none; color: #000; font-size: 15pt; font-weight: 800;">৳ 1,169</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 5. Invoice QR Code & Courier Badge (Centered) -->
+                        <div class="d-flex flex-column align-items-center justify-content-center" style="margin-top: 50px; margin-bottom: 20px; text-align: center; width: 100%;">
+                            <!-- QR Code canvas -->
+                            <canvas id="qr-invoice" style="display: block; margin: 0 auto;"></canvas>
+                            
+                            <!-- Courier Badge (if carrier is set) -->
+                                                    </div>
+                    </div>
+
+                    <!-- Invoice Footer (bottom section, pushed to bottom by flex) -->
+                    <div style="margin-top: auto; padding-top: 40px;">
+                        <!-- Authorized sign line & Thank you note -->
+                        <div class="d-flex justify-content-between align-items-end" style="margin-bottom: 30px;">
+                            <div style="font-size: 12pt; font-style: italic; font-weight: 600; color: #000;">
+                                Thank you for your business!
+                            </div>
+                            
+                            <div class="text-center" style="width: 200px;">
+                                <div style="border-bottom: 2px solid #000; width: 100%; margin-bottom: 6px;"></div>
+                                <div style="font-size: 9.5pt; font-weight: 700; text-transform: uppercase; color: #000; letter-spacing: 0.5px;">Authorized Signed</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Bottom Colored Bar -->
+                                                <div class="invoice-footer-bar" style="background-color: #db2777 !important;">
+                            <div>
+                                Printed: <span class="printed-time-span">2026-07-13 04:26:29 AM</span>
+                            </div>
+                            <div>
+                                Generated by <a href="https://coderzonebd.com/" target="_blank" style="color: #fff; text-decoration: none; font-weight: 700;">Coder Zone BD ecom</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+        </div>
+    </div>
+
+    <script>
+        function updateRealtimeClock() {
+            const clockEl = document.getElementById('realtimeClock');
+            if (clockEl) {
+                const now = new Date();
+                const options = { 
+                    year: 'numeric', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    hour12: true
+                };
+                clockEl.textContent = now.toLocaleString('en-US', options);
+            }
+        }
+        setInterval(updateRealtimeClock, 1000);
+        updateRealtimeClock();
+    </script>
+
+    <div id="adminAjaxProgress" aria-hidden="true">
+        <div class="admin-ajax-progress-bar"></div>
+    </div>
+
+    <div id="adminToastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;"></div>
+
+    <script>
+        window.__adminFlashToasts = window.__adminFlashToasts || [];
+
+        
+        
+        
+            </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
+    <script>
+        // Global Color Picker Initializer
+        window.pickrInstances = window.pickrInstances || {};
+        window.initGlobalColorPickers = function(root = document) {
+            root.querySelectorAll('.color-picker-init:not([data-pickr-initialized])').forEach(function(el) {
+                const targetInputId = el.getAttribute('data-target');
+                const targetInput = document.getElementById(targetInputId) || el.parentElement.querySelector('.hex-input');
+                let defaultColor = '#000000';
+                if (targetInput) {
+                    if (targetInput.value) {
+                        defaultColor = targetInput.value;
+                    } else if (targetInput.placeholder) {
+                        const parsed = targetInput.placeholder.match(/#(?:[0-9a-fA-F]{3}){1,2}/);
+                        if (parsed) defaultColor = parsed[0];
+                    }
+                }
+
+                const pickr = Pickr.create({
+                    el: el,
+                    theme: 'nano',
+                    default: defaultColor,
+                    swatches: [
+                        '#db2777', '#be185d', '#0d6efd', '#6610f2', 
+                        '#6f42c1', '#d63384', '#dc3545', '#fd7e14', 
+                        '#ffc107', '#198754', '#20c997', '#0dcaf0'
+                    ],
+                    components: {
+                        preview: true,
+                        opacity: true,
+                        hue: true,
+                        interaction: {
+                            hex: true,
+                            rgba: true,
+                            hsla: true,
+                            hsva: true,
+                            cmyk: true,
+                            input: true,
+                            clear: true,
+                            save: true
+                        }
+                    }
+                });
+
+                el.setAttribute('data-pickr-initialized', 'true');
+                if (targetInputId) {
+                    window.pickrInstances[targetInputId] = pickr;
+                }
+
+                pickr.on('save', (color, instance) => {
+                    const hex = color ? color.toHEXA().toString() : '';
+                    if (targetInput && targetInput.value !== hex) {
+                        targetInput.value = hex;
+                        targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    instance.hide();
+                }).on('change', (color) => {
+                    const hex = color ? color.toHEXA().toString() : '';
+                    if (targetInput && targetInput.value !== hex) {
+                        targetInput.value = hex;
+                        targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }).on('clear', (instance) => {
+                    if (targetInput && targetInput.value !== '') {
+                        targetInput.value = '';
+                        targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+
+                if (targetInput) {
+                    targetInput.addEventListener('change', function() {
+                        try {
+                            const currentHex = pickr.getColor() ? pickr.getColor().toHEXA().toString() : '';
+                            if (this.value !== currentHex) {
+                                pickr.setColor(this.value || null);
+                            }
+                        } catch (e) {}
+                    });
+                }
+            });
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            window.initGlobalColorPickers();
+        });
+    </script>
+    <script>
+        (function () {
+            function markCompactAdminTable(table) {
+                if (!table) {
+                    return;
+                }
+
+                const headerColumnCount = table.querySelectorAll('thead th').length;
+                const firstRowColumnCount = table.querySelectorAll('tr:first-child > th, tr:first-child > td').length;
+                const effectiveColumnCount = headerColumnCount || firstRowColumnCount;
+                const hasInlineControls = Boolean(table.querySelector('td .form-control, td .form-select, td .input-group'));
+
+                if (effectiveColumnCount >= 7 || hasInlineControls) {
+                    table.classList.add('admin-table-compact');
+                    return;
+                }
+
+                table.classList.remove('admin-table-compact');
+            }
+
+            function ensureAdminTableScroll(root) {
+                const scope = root && typeof root.querySelectorAll === 'function' ? root : document;
+
+                scope.querySelectorAll('.content-wrapper .table-responsive').forEach(function (wrapper) {
+                    wrapper.classList.add('admin-table-scroll');
+
+                    const table = wrapper.querySelector(':scope > table.table');
+                    if (table) {
+                        markCompactAdminTable(table);
+                    }
+                });
+
+                scope.querySelectorAll('.content-wrapper table.table').forEach(function (table) {
+                    const parent = table.parentElement;
+                    if (!parent) {
+                        return;
+                    }
+
+                    if (parent.classList.contains('table-responsive')) {
+                        parent.classList.add('admin-table-scroll');
+                        markCompactAdminTable(table);
+                        return;
+                    }
+
+                    if (table.closest('[data-no-table-scroll="1"]')) {
+                        return;
+                    }
+
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'table-responsive admin-table-scroll';
+                    parent.insertBefore(wrapper, table);
+                    wrapper.appendChild(table);
+                    markCompactAdminTable(table);
+                });
+            }
+
+            window.ensureAdminTableScroll = ensureAdminTableScroll;
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function () {
+                    ensureAdminTableScroll(document);
+                });
+            } else {
+                ensureAdminTableScroll(document);
+            }
+
+            const iconMap = {
+                success: 'bi-check-circle',
+                danger: 'bi-exclamation-circle',
+                warning: 'bi-exclamation-triangle',
+                info: 'bi-info-circle',
+                primary: 'bi-bell',
+            };
+
+            const bgMap = {
+                success: 'text-bg-success',
+                danger: 'text-bg-danger',
+                warning: 'text-bg-warning',
+                info: 'text-bg-info',
+                primary: 'text-bg-primary',
+            };
+
+            window.showAdminToast = function (message, type = 'info', options = {}) {
+                if (!message) {
+                    return;
+                }
+
+                const container = document.getElementById('adminToastContainer');
+                if (!container || typeof bootstrap === 'undefined') {
+                    return;
+                }
+
+                const resolvedType = bgMap[type] ? type : 'info';
+                const iconClass = iconMap[resolvedType] || iconMap.info;
+                const colorClass = bgMap[resolvedType] || bgMap.info;
+                const delay = Number(options.delay || 4500);
+
+                const toastEl = document.createElement('div');
+                toastEl.className = 'toast align-items-center border-0 ' + colorClass;
+                toastEl.setAttribute('role', 'status');
+                toastEl.setAttribute('aria-live', 'polite');
+                toastEl.setAttribute('aria-atomic', 'true');
+
+                toastEl.innerHTML = [
+                    '<div class="d-flex">',
+                    '  <div class="toast-body d-flex align-items-center gap-2">',
+                    '    <i class="bi ' + iconClass + '"></i>',
+                    '    <span></span>',
+                    '  </div>',
+                    '  <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>',
+                    '</div>'
+                ].join('');
+
+                const textNode = toastEl.querySelector('.toast-body span');
+                if (textNode) {
+                    textNode.textContent = String(message);
+                }
+
+                container.appendChild(toastEl);
+
+                const toast = new bootstrap.Toast(toastEl, {
+                    autohide: options.autohide !== false,
+                    delay: Number.isNaN(delay) ? 4500 : delay,
+                });
+
+                toastEl.addEventListener('hidden.bs.toast', function () {
+                    toastEl.remove();
+                });
+
+                toast.show();
+            };
+
+            document.addEventListener('DOMContentLoaded', function () {
+                if (!Array.isArray(window.__adminFlashToasts)) {
+                    return;
+                }
+
+                window.__adminFlashToasts.forEach(function (item) {
+                    if (!item || !item.message) {
+                        return;
+                    }
+
+                    window.showAdminToast(item.message, item.type || 'info');
+                });
+
+                window.__adminFlashToasts = [];
+            });
+        })();
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const sidebar = document.querySelector('.sidebar');
+            const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebarCollapseToggle = document.getElementById('sidebarCollapseToggle');
+            const sidebarBulkToggle = document.getElementById('sidebarBulkToggle');
+            const menuGroups = Array.from(document.querySelectorAll('[data-menu-group]'));
+            const storageKey = 'admin.sidebar.menuState.v1';
+            const sidebarCollapsedKey = 'admin.sidebar.collapsed.v1';
+
+            const readMenuState = () => {
+                try {
+                    const rawState = localStorage.getItem(storageKey);
+                    return rawState ? JSON.parse(rawState) : {};
+                } catch (e) {
+                    return {};
+                }
+            };
+
+            const persistMenuState = (state) => {
+                try {
+                    localStorage.setItem(storageKey, JSON.stringify(state));
+                } catch (e) {
+                    // Ignore localStorage failures (private mode or blocked storage)
+                }
+            };
+
+            const readSidebarCollapsedState = () => {
+                try {
+                    return localStorage.getItem(sidebarCollapsedKey) === '1';
+                } catch (e) {
+                    return false;
+                }
+            };
+
+            const persistSidebarCollapsedState = (isCollapsed) => {
+                try {
+                    localStorage.setItem(sidebarCollapsedKey, isCollapsed ? '1' : '0');
+                } catch (e) {
+                    // Ignore localStorage failures (private mode or blocked storage)
+                }
+            };
+
+            const menuState = readMenuState();
+
+            const updateSidebarCollapseToggle = (isCollapsed) => {
+                if (!sidebarCollapseToggle) {
+                    return;
+                }
+
+                const icon = sidebarCollapseToggle.querySelector('[data-sidebar-collapse-icon]');
+                const label = sidebarCollapseToggle.querySelector('[data-sidebar-collapse-label]');
+
+                sidebarCollapseToggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+                sidebarCollapseToggle.setAttribute('aria-label', isCollapsed ? 'Expand sidebar' : 'Collapse sidebar');
+
+                if (icon) {
+                    icon.classList.remove('bi-layout-sidebar', 'bi-layout-sidebar-inset');
+                    icon.classList.add(isCollapsed ? 'bi-layout-sidebar-inset' : 'bi-layout-sidebar');
+                }
+
+                if (label) {
+                    label.textContent = isCollapsed ? 'Expand' : 'Collapse';
+                }
+            };
+
+            const setSidebarCollapsed = (isCollapsed, shouldPersist = true) => {
+                if (window.innerWidth <= 768) {
+                    updateSidebarCollapseToggle(isCollapsed);
+                    return;
+                }
+
+                document.body.classList.toggle('sidebar-collapsed', isCollapsed);
+                updateSidebarCollapseToggle(isCollapsed);
+
+                if (shouldPersist) {
+                    persistSidebarCollapsedState(isCollapsed);
+                }
+
+                if (isCollapsed) {
+                    sidebar?.classList.remove('show');
+                    sidebarBackdrop?.classList.remove('show');
+                }
+            };
+
+            const setGroupOpen = (groupItem, isOpen, shouldPersist = true, animate = true) => {
+                const $groupItem = $(groupItem);
+                const $submenu = $groupItem.find('.submenu');
+                
+                if ($submenu.length > 0) {
+                    if (!animate) {
+                        if (isOpen) {
+                            $groupItem.addClass('is-open');
+                            $submenu.show();
+                        } else {
+                            $groupItem.removeClass('is-open');
+                            $submenu.hide();
+                        }
+                    } else {
+                        if (isOpen) {
+                            $groupItem.addClass('is-open');
+                            $submenu.stop(true, true).slideDown(450);
+                        } else {
+                            $groupItem.removeClass('is-open');
+                            $submenu.stop(true, true).slideUp(450);
+                        }
+                    }
+                } else {
+                    $groupItem.toggleClass('is-open', isOpen);
+                }
+
+                const toggleButton = groupItem.querySelector('[data-group-toggle]');
+                if (toggleButton) {
+                    toggleButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                }
+
+                if (shouldPersist) {
+                    menuState[groupItem.dataset.menuGroup] = isOpen ? 1 : 0;
+                    persistMenuState(menuState);
+                }
+            };
+
+            const areAllGroupsOpen = () => {
+                return menuGroups.length > 0 && menuGroups.every((groupItem) => groupItem.classList.contains('is-open'));
+            };
+
+            const updateBulkToggleButton = () => {
+                if (!sidebarBulkToggle) {
+                    return;
+                }
+
+                const icon = sidebarBulkToggle.querySelector('[data-bulk-icon]');
+                const label = sidebarBulkToggle.querySelector('[data-bulk-label]');
+                const allOpen = areAllGroupsOpen();
+
+                if (icon) {
+                    icon.classList.remove('bi-arrows-expand', 'bi-arrows-collapse');
+                    icon.classList.add(allOpen ? 'bi-arrows-collapse' : 'bi-arrows-expand');
+                }
+
+                if (label) {
+                    label.textContent = allOpen ? 'Collapse All' : 'Expand All';
+                }
+            };
+
+            menuGroups.forEach((groupItem) => {
+                const groupName = groupItem.dataset.menuGroup;
+                const isActive = groupItem.dataset.active === '1';
+                const hasSavedState = Object.prototype.hasOwnProperty.call(menuState, groupName);
+                const savedState = hasSavedState ? menuState[groupName] : null;
+                const shouldOpen = hasSavedState ? (savedState === 1 || savedState === '1') : isActive;
+
+                setGroupOpen(groupItem, shouldOpen, false, false);
+
+                const toggleButton = groupItem.querySelector('[data-group-toggle]');
+                if (toggleButton) {
+                    toggleButton.addEventListener('click', function () {
+                        const currentlyOpen = groupItem.classList.contains('is-open');
+                        
+                        // Auto-collapse other open menus if we are opening this one
+                        if (!currentlyOpen) {
+                            menuGroups.forEach((otherGroup) => {
+                                if (otherGroup !== groupItem && otherGroup.classList.contains('is-open')) {
+                                    setGroupOpen(otherGroup, false, true, true);
+                                }
+                            });
+                        }
+
+                        setGroupOpen(groupItem, !currentlyOpen, true, true);
+                        updateBulkToggleButton();
+                    });
+                }
+            });
+
+            updateBulkToggleButton();
+
+            setSidebarCollapsed(readSidebarCollapsedState(), false);
+
+            sidebarCollapseToggle?.addEventListener('click', function () {
+                const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+                setSidebarCollapsed(!isCollapsed, true);
+            });
+
+            sidebarBulkToggle?.addEventListener('click', function () {
+                const shouldExpandAll = !areAllGroupsOpen();
+
+                menuGroups.forEach((groupItem) => {
+                    setGroupOpen(groupItem, shouldExpandAll, true, true);
+                });
+
+                updateBulkToggleButton();
+            });
+
+            const closeMobileSidebar = () => {
+                if (!sidebar || window.innerWidth > 768) {
+                    return;
+                }
+                sidebar.classList.remove('show');
+                sidebarBackdrop?.classList.remove('show');
+            };
+
+            document.querySelectorAll('.submenu-link').forEach((submenuLink) => {
+                submenuLink.addEventListener('click', closeMobileSidebar);
+            });
+
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function () {
+                    const shouldShow = !sidebar.classList.contains('show');
+                    sidebar.classList.toggle('show', shouldShow);
+                    sidebarBackdrop?.classList.toggle('show', shouldShow);
+                });
+            }
+
+            sidebarBackdrop?.addEventListener('click', function () {
+                sidebar?.classList.remove('show');
+                sidebarBackdrop.classList.remove('show');
+            });
+
+            window.addEventListener('resize', function () {
+                if (window.innerWidth > 768) {
+                    sidebar?.classList.remove('show');
+                    sidebarBackdrop?.classList.remove('show');
+                    setSidebarCollapsed(readSidebarCollapsedState(), false);
+                } else {
+                    document.body.classList.remove('sidebar-collapsed');
+                }
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggleNodes = document.querySelectorAll('[data-ui-toggle], [data-toggle-control], [data-integration-toggle]');
+
+            const resolveToggleKey = (toggle) => {
+                return toggle.dataset.uiToggle
+                    || toggle.dataset.toggleControl
+                    || toggle.dataset.integrationToggle
+                    || null;
+            };
+
+            const findSection = (key) => {
+                return document.querySelector(
+                    `[data-ui-toggle-form="${key}"], [data-toggle-section="${key}"], [data-integration-form="${key}"]`
+                );
+            };
+
+            const findDisabledNote = (key) => {
+                return document.querySelector(
+                    `[data-ui-toggle-note="${key}"], [data-toggle-disabled-note="${key}"], [data-integration-disabled-note="${key}"]`
+                );
+            };
+
+            const syncToggleSection = (toggle) => {
+                const key = resolveToggleKey(toggle);
+                if (!key) {
+                    return;
+                }
+
+                const section = findSection(key);
+                const note = findDisabledNote(key);
+
+                if (!section && !note) {
+                    return;
+                }
+
+                const isEnabled = toggle.checked;
+
+                section?.classList.toggle('d-none', !isEnabled);
+                note?.classList.toggle('d-none', isEnabled);
+
+                const controls = section?.querySelectorAll('input, select, textarea, button') ?? [];
+                controls.forEach((control) => {
+                    if ('disabled' in control) {
+                        control.disabled = !isEnabled;
+                    }
+                });
+            };
+
+            toggleNodes.forEach((toggle) => {
+                syncToggleSection(toggle);
+                toggle.addEventListener('change', () => syncToggleSection(toggle));
+            });
+        });
+    </script>
+    <script>
+        (function () {
+            const excludedFormIds = new Set([
+                'productEditForm',
+                'autoGenerateVariantForm',
+                'addVariantForm',
+                'editVariantForm',
+                'generateVariantsForm',
+                'bulkEditModalForm',
+                'variantMatrixForm',
+                'bulkDeleteVariantsForm',
+                'deleteVariantForm',
+            ]);
+
+            const ajaxProgressRoot = document.getElementById('adminAjaxProgress');
+            const ajaxProgressBar = ajaxProgressRoot
+                ? ajaxProgressRoot.querySelector('.admin-ajax-progress-bar')
+                : null;
+            let ajaxInFlightCount = 0;
+            let ajaxProgressTick = null;
+            let ajaxProgressHideTimer = null;
+            let ajaxProgressValue = 0;
+
+            function startAjaxProgress() {
+                ajaxInFlightCount += 1;
+
+                if (!ajaxProgressRoot || !ajaxProgressBar || ajaxInFlightCount > 1) {
+                    return;
+                }
+
+                if (ajaxProgressHideTimer) {
+                    clearTimeout(ajaxProgressHideTimer);
+                    ajaxProgressHideTimer = null;
+                }
+
+                if (ajaxProgressTick) {
+                    clearInterval(ajaxProgressTick);
+                    ajaxProgressTick = null;
+                }
+
+                ajaxProgressValue = 12;
+                ajaxProgressRoot.classList.add('is-active');
+                ajaxProgressBar.style.width = ajaxProgressValue + '%';
+
+                ajaxProgressTick = window.setInterval(function () {
+                    if (ajaxProgressValue >= 90) {
+                        return;
+                    }
+
+                    const remaining = 90 - ajaxProgressValue;
+                    ajaxProgressValue = Math.min(90, ajaxProgressValue + Math.max(1.5, remaining * 0.14));
+                    ajaxProgressBar.style.width = ajaxProgressValue.toFixed(2) + '%';
+                }, 180);
+            }
+
+            function finishAjaxProgress() {
+                if (ajaxInFlightCount > 0) {
+                    ajaxInFlightCount -= 1;
+                } else {
+                    ajaxInFlightCount = 0;
+                }
+
+                if (!ajaxProgressRoot || !ajaxProgressBar || ajaxInFlightCount > 0) {
+                    return;
+                }
+
+                if (ajaxProgressTick) {
+                    clearInterval(ajaxProgressTick);
+                    ajaxProgressTick = null;
+                }
+
+                ajaxProgressValue = 100;
+                ajaxProgressBar.style.width = '100%';
+
+                ajaxProgressHideTimer = window.setTimeout(function () {
+                    ajaxProgressRoot.classList.remove('is-active');
+                    ajaxProgressBar.style.width = '0%';
+                    ajaxProgressValue = 0;
+                }, 180);
+            }
+
+            function showToast(message, type) {
+                if (!message) {
+                    return;
+                }
+
+                if (typeof window.showAdminToast === 'function') {
+                    window.showAdminToast(message, type || 'info');
+                    return;
+                }
+
+                window.alert(message);
+            }
+
+            function firstErrorMessage(errors, fallback) {
+                if (!errors || typeof errors !== 'object') {
+                    return fallback || 'Validation failed.';
+                }
+
+                const firstKey = Object.keys(errors)[0];
+                if (!firstKey) {
+                    return fallback || 'Validation failed.';
+                }
+
+                const value = errors[firstKey];
+                if (Array.isArray(value) && value.length > 0) {
+                    return String(value[0]);
+                }
+
+                if (typeof value === 'string' && value.trim() !== '') {
+                    return value;
+                }
+
+                return fallback || 'Validation failed.';
+            }
+
+            function clearAjaxValidationErrors(form) {
+                if (!form) {
+                    return;
+                }
+
+                form.querySelectorAll('.ajax-invalid-feedback').forEach(function (node) {
+                    node.remove();
+                });
+
+                Array.from(form.elements || []).forEach(function (element) {
+                    if (!element || !('classList' in element)) {
+                        return;
+                    }
+
+                    element.classList.remove('is-invalid');
+                    element.removeAttribute('aria-invalid');
+                });
+            }
+
+            function dotToBracket(path) {
+                if (!path || path.indexOf('.') === -1) {
+                    return path;
+                }
+
+                const segments = path.split('.');
+                let output = segments[0];
+
+                for (let i = 1; i < segments.length; i += 1) {
+                    output += '[' + segments[i] + ']';
+                }
+
+                return output;
+            }
+
+            function findFormControlsByKey(form, key) {
+                if (!form || !key) {
+                    return [];
+                }
+
+                const normalized = dotToBracket(key);
+                const candidates = [key, normalized];
+
+                return Array.from(form.elements || []).filter(function (element) {
+                    return element && typeof element.name === 'string' && candidates.includes(element.name);
+                });
+            }
+
+            function insertFieldErrorMessage(targetControl, message) {
+                if (!targetControl || !message) {
+                    return;
+                }
+
+                const feedback = document.createElement('div');
+                feedback.className = 'invalid-feedback d-block ajax-invalid-feedback';
+                feedback.textContent = String(message);
+
+                const inputGroup = targetControl.closest('.input-group');
+                if (inputGroup && inputGroup.parentElement) {
+                    inputGroup.insertAdjacentElement('afterend', feedback);
+                    return;
+                }
+
+                targetControl.insertAdjacentElement('afterend', feedback);
+            }
+
+            function renderAjaxValidationErrors(form, errors) {
+                if (!form || !errors || typeof errors !== 'object') {
+                    return;
+                }
+
+                clearAjaxValidationErrors(form);
+
+                Object.keys(errors).forEach(function (key) {
+                    const controls = findFormControlsByKey(form, key);
+                    if (controls.length === 0) {
+                        return;
+                    }
+
+                    const rawMessages = errors[key];
+                    const message = Array.isArray(rawMessages)
+                        ? (rawMessages[0] || '')
+                        : (rawMessages || '');
+
+                    controls.forEach(function (control) {
+                        if (!control || !('classList' in control)) {
+                            return;
+                        }
+
+                        control.classList.add('is-invalid');
+                        control.setAttribute('aria-invalid', 'true');
+                    });
+
+                    insertFieldErrorMessage(controls[controls.length - 1], message);
+                });
+            }
+
+            window.clearAjaxValidationErrors = clearAjaxValidationErrors;
+            window.renderAjaxValidationErrors = renderAjaxValidationErrors;
+
+            function resolveLoadingLabel(label) {
+                const normalized = String(label || '').replace(/\s+/g, ' ').trim();
+                if (!normalized) {
+                    return 'Processing...';
+                }
+
+                if (normalized.endsWith('...')) {
+                    return normalized;
+                }
+
+                return normalized + '...';
+            }
+
+            function setSubmittingState(form, isSubmitting, submitter) {
+                const submitControls = Array.from(form.querySelectorAll('button[type="submit"], input[type="submit"]'));
+                const explicitSubmitter = submitter && submitControls.includes(submitter)
+                    ? submitter
+                    : null;
+                const activeSubmitter = explicitSubmitter || submitControls.find(function (control) {
+                    return !control.disabled;
+                }) || submitControls[0] || null;
+
+                submitControls.forEach(function (control) {
+                    if (isSubmitting) {
+                        control.dataset.ajaxWasDisabled = control.disabled ? '1' : '0';
+
+                        if (activeSubmitter && control === activeSubmitter) {
+                            if (control.tagName === 'BUTTON') {
+                                if (typeof control.dataset.ajaxOriginalHtml === 'undefined') {
+                                    control.dataset.ajaxOriginalHtml = control.innerHTML;
+                                }
+
+                                const loadingLabel = control.getAttribute('data-loading-text')
+                                    || resolveLoadingLabel(control.textContent);
+                                control.textContent = loadingLabel;
+                            } else if (control.tagName === 'INPUT') {
+                                if (typeof control.dataset.ajaxOriginalValue === 'undefined') {
+                                    control.dataset.ajaxOriginalValue = control.value;
+                                }
+
+                                const loadingLabel = control.getAttribute('data-loading-text')
+                                    || resolveLoadingLabel(control.value);
+                                control.value = loadingLabel;
+                            }
+                        }
+
+                        control.disabled = true;
+                        return;
+                    }
+
+                    if (typeof control.dataset.ajaxOriginalHtml !== 'undefined') {
+                        control.innerHTML = control.dataset.ajaxOriginalHtml;
+                        delete control.dataset.ajaxOriginalHtml;
+                    }
+
+                    if (typeof control.dataset.ajaxOriginalValue !== 'undefined') {
+                        control.value = control.dataset.ajaxOriginalValue;
+                        delete control.dataset.ajaxOriginalValue;
+                    }
+
+                    if (control.dataset.ajaxWasDisabled !== '1') {
+                        control.disabled = false;
+                    }
+
+                    delete control.dataset.ajaxWasDisabled;
+                });
+            }
+
+            async function parseResponse(response) {
+                const contentDisposition = (response.headers.get('content-disposition') || '').toLowerCase();
+                const contentType = (response.headers.get('content-type') || '').toLowerCase();
+
+                if (contentDisposition.includes('attachment')) {
+                    return {
+                        kind: 'attachment',
+                    };
+                }
+
+                if (contentType.includes('application/json')) {
+                    try {
+                        const payload = await response.json();
+                        return {
+                            kind: 'json',
+                            payload: payload || {},
+                        };
+                    } catch (error) {
+                        return {
+                            kind: 'json',
+                            payload: {},
+                        };
+                    }
+                }
+
+                const html = await response.text();
+                return {
+                    kind: 'html',
+                    html: html || '',
+                };
+            }
+
+            function replaceDocument(html, nextUrl, historyMode) {
+                if (!html) {
+                    return;
+                }
+
+                if (nextUrl) {
+                    const currentUrl = window.location.href;
+                    if (historyMode === 'replace') {
+                        window.history.replaceState({}, '', nextUrl);
+                    } else if (currentUrl !== nextUrl) {
+                        window.history.pushState({}, '', nextUrl);
+                    }
+                }
+
+                // Reset the AJAX binding guard so it re-binds on the new document
+                window.__adminGlobalAjaxBound = false;
+
+                document.open();
+                document.write(html);
+                document.close();
+            }
+
+            function shouldSkipLink(anchor, event) {
+                if (!anchor) {
+                    return true;
+                }
+
+                if (event.defaultPrevented || event.button !== 0) {
+                    return true;
+                }
+
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                    return true;
+                }
+
+                if (anchor.dataset.noAdminAjax === '1' || anchor.dataset.noAjax === '1') {
+                    return true;
+                }
+
+                if (anchor.hasAttribute('download') || anchor.getAttribute('target') === '_blank') {
+                    return true;
+                }
+
+                if (anchor.hasAttribute('data-bs-toggle') || anchor.hasAttribute('data-bs-target')) {
+                    return true;
+                }
+
+                const rawHref = anchor.getAttribute('href') || '';
+                if (rawHref === '' || rawHref === '#' || rawHref.startsWith('javascript:') || rawHref.startsWith('mailto:') || rawHref.startsWith('tel:')) {
+                    return true;
+                }
+
+                let url;
+                try {
+                    url = new URL(anchor.href, window.location.origin);
+                } catch (error) {
+                    return true;
+                }
+
+                if (url.origin !== window.location.origin) {
+                    return true;
+                }
+
+                return false;
+            }
+
+            async function visitUrl(url, historyMode) {
+                startAjaxProgress();
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'text/html,application/xhtml+xml',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                    });
+
+                    const parsed = await parseResponse(response);
+
+                    if (parsed.kind === 'attachment') {
+                        window.location.href = response.url || url;
+                        return;
+                    }
+
+                    if (parsed.kind === 'html') {
+                        replaceDocument(parsed.html, response.url || url, historyMode || 'push');
+                        return;
+                    }
+
+                    const payload = parsed.payload || {};
+                    if (!response.ok || payload.success === false) {
+                        const message = payload.message || firstErrorMessage(payload.errors, 'Unable to load page.');
+                        showToast(message, 'danger');
+                        return;
+                    }
+
+                    if (payload.redirect_url || payload.redirect_to || payload.url) {
+                        await visitUrl(payload.redirect_url || payload.redirect_to || payload.url, historyMode || 'push');
+                        return;
+                    }
+
+                    if (payload.message) {
+                        showToast(payload.message, 'info');
+                    }
+                } finally {
+                    finishAjaxProgress();
+                }
+            }
+
+            async function handleGlobalFormSubmit(event) {
+                if (event.defaultPrevented) {
+                    return;
+                }
+
+                const form = event.target;
+                if (!(form instanceof HTMLFormElement)) {
+                    return;
+                }
+
+                if (form.dataset.noAdminAjax === '1' || form.dataset.noAjax === '1' || form.dataset.ajax === 'false') {
+                    return;
+                }
+
+                if (form.closest('[data-no-admin-ajax-scope="1"]')) {
+                    return;
+                }
+
+                if (excludedFormIds.has(form.id)) {
+                    return;
+                }
+
+                if ((form.getAttribute('target') || '').toLowerCase() === '_blank') {
+                    return;
+                }
+
+                const method = (form.getAttribute('method') || 'GET').toUpperCase();
+                const action = form.getAttribute('action') || window.location.href;
+                const submitter = event.submitter instanceof HTMLElement ? event.submitter : null;
+
+                event.preventDefault();
+                clearAjaxValidationErrors(form);
+                setSubmittingState(form, true, submitter);
+
+                let startedProgress = false;
+
+                try {
+                    if (method === 'GET') {
+                        const query = new URLSearchParams(new FormData(form)).toString();
+                        const targetUrl = query ? (action + (action.includes('?') ? '&' : '?') + query) : action;
+                        await visitUrl(targetUrl, 'push');
+                        return;
+                    }
+
+                    const formData = new FormData(form);
+                    startAjaxProgress();
+                    startedProgress = true;
+
+                    const response = await fetch(action, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json, text/html;q=0.9',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                        body: formData,
+                    });
+
+                    const parsed = await parseResponse(response);
+
+                    if (parsed.kind === 'html') {
+                        const mode = response.url && response.url !== window.location.href ? 'push' : 'replace';
+                        replaceDocument(parsed.html, response.url || action, mode);
+                        return;
+                    }
+
+                    const payload = parsed.payload || {};
+
+                    if (response.status === 422 || payload.errors) {
+                        renderAjaxValidationErrors(form, payload.errors || {});
+                        showToast(payload.message || firstErrorMessage(payload.errors, 'Please fix the highlighted fields.'), 'danger');
+                        return;
+                    }
+
+                    if (!response.ok || payload.success === false) {
+                        showToast(payload.message || firstErrorMessage(payload.errors, 'Request failed.'), 'danger');
+                        return;
+                    }
+
+                    const redirectUrl = payload.redirect_url || payload.redirect_to || payload.url || null;
+                    if (redirectUrl) {
+                        await visitUrl(redirectUrl, 'push');
+                        return;
+                    }
+
+                    if (payload.message) {
+                        showToast(payload.message, 'success');
+                    }
+
+                    document.dispatchEvent(new CustomEvent('admin:ajax-success', {
+                        detail: {
+                            formId: form.id || null,
+                            action: action,
+                            payload: payload,
+                        },
+                    }));
+                } catch (error) {
+                    showToast('Network error. Please try again.', 'danger');
+                } finally {
+                    if (startedProgress) {
+                        finishAjaxProgress();
+                    }
+
+                    setSubmittingState(form, false, submitter);
+                }
+            }
+
+            function bindGlobalAjax() {
+                if (window.__adminGlobalAjaxBound) {
+                    return;
+                }
+
+                window.__adminGlobalAjaxBound = true;
+
+                document.addEventListener('submit', handleGlobalFormSubmit);
+
+                window.addEventListener('popstate', function(event) {
+                    window.location.reload();
+                });
+
+                document.addEventListener('click', function (event) {
+                    const anchor = event.target.closest('a[href]');
+                    if (shouldSkipLink(anchor, event)) {
+                        return;
+                    }
+
+                    event.preventDefault();
+
+                    visitUrl(anchor.href, 'push').catch(function () {
+                        showToast('Unable to open that page right now.', 'danger');
+                    });
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', bindGlobalAjax);
+            } else {
+                bindGlobalAjax();
+            }
+        })();
+
+        // Global Search — uses event delegation so it works after document.write() page swaps
+        (function() {
+            var globalSearchTimeout;
+            var globalSelectedIndex = -1;
+            var SEARCH_URL = 'https://api.czbd.dev/admin/global-search';
+
+            function getInput() { return document.getElementById('globalSearchInput'); }
+            function getResults() { return document.getElementById('globalSearchResults'); }
+
+            function updateGlobalSelection(items) {
+                items.forEach(function(item, index) {
+                    if (index === globalSelectedIndex) {
+                        item.classList.add('active');
+                        item.scrollIntoView({ block: 'nearest' });
+                    } else {
+                        item.classList.remove('active');
+                    }
+                });
+            }
+
+            function doSearch(query) {
+                var resultsEl = getResults();
+                if (!resultsEl) return;
+
+                fetch(SEARCH_URL + '?q=' + encodeURIComponent(query))
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        var resultsEl = getResults();
+                        if (!resultsEl) return;
+
+                        if (data.results && data.results.length > 0) {
+                            resultsEl.innerHTML = data.results.map(function(item, index) {
+                                return '<a href="' + item.url + '" class="text-decoration-none text-dark d-block">' +
+                                    '<div class="global-search-result-item" data-index="' + index + '">' +
+                                        '<div class="global-search-icon">' +
+                                            '<i class="bi ' + (item.icon || 'bi-search') + '"></i>' +
+                                        '</div>' +
+                                        '<div class="global-search-text">' +
+                                            '<h6>' + item.title + '</h6>' +
+                                            '<small>' + item.subtitle + ' &bull; ' + item.type + '</small>' +
+                                        '</div>' +
+                                    '</div>' +
+                                '</a>';
+                            }).join('');
+                            resultsEl.style.display = 'block';
+                        } else {
+                            resultsEl.innerHTML = '<div class="p-3 text-center text-muted"><small>No results found for "' + query + '"</small></div>';
+                            resultsEl.style.display = 'block';
+                        }
+                    })
+                    .catch(function(err) {
+                        console.error('Global search error:', err);
+                    });
+            }
+
+            // Ctrl+K shortcut — delegated on document
+            document.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    var input = getInput();
+                    if (input) input.focus();
+                }
+            });
+
+            // Input event — delegated
+            document.addEventListener('input', function(e) {
+                if (e.target.id !== 'globalSearchInput') return;
+
+                clearTimeout(globalSearchTimeout);
+                globalSelectedIndex = -1;
+                var query = e.target.value.trim();
+                var resultsEl = getResults();
+
+                if (query.length < 2) {
+                    if (resultsEl) resultsEl.style.display = 'none';
+                    return;
+                }
+
+                globalSearchTimeout = setTimeout(function() {
+                    doSearch(query);
+                }, 300);
+            });
+
+            // Keyboard navigation — delegated
+            document.addEventListener('keydown', function(e) {
+                if (e.target.id !== 'globalSearchInput') return;
+
+                var resultsEl = getResults();
+                if (!resultsEl) return;
+
+                var items = resultsEl.querySelectorAll('.global-search-result-item');
+                if (items.length === 0 || resultsEl.style.display === 'none') return;
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    globalSelectedIndex = (globalSelectedIndex + 1) % items.length;
+                    updateGlobalSelection(items);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    globalSelectedIndex = globalSelectedIndex <= 0 ? items.length - 1 : globalSelectedIndex - 1;
+                    updateGlobalSelection(items);
+                } else if (e.key === 'Enter' && globalSelectedIndex >= 0) {
+                    e.preventDefault();
+                    items[globalSelectedIndex].parentElement.click();
+                } else if (e.key === 'Escape') {
+                    resultsEl.style.display = 'none';
+                }
+            });
+
+            // Close when clicking outside — delegated
+            document.addEventListener('click', function(e) {
+                var input = getInput();
+                var resultsEl = getResults();
+                if (!input || !resultsEl) return;
+
+                if (!input.contains(e.target) && !resultsEl.contains(e.target)) {
+                    resultsEl.style.display = 'none';
+                }
+            });
+
+            // Re-open on focus — delegated
+            document.addEventListener('focusin', function(e) {
+                if (e.target.id !== 'globalSearchInput') return;
+                var resultsEl = getResults();
+                if (resultsEl && e.target.value.trim().length >= 2 && resultsEl.innerHTML.trim() !== '') {
+                    resultsEl.style.display = 'block';
+                }
+            });
+        })();
+    </script>
+
+    
+    <script>
+    (function() {
+        function initRealtimeFilters() {
+            document.querySelectorAll('form[data-realtime-filter]').forEach(function(form) {
+                if (form.dataset._rtfBound) return;
+                form.dataset._rtfBound = '1';
+
+                var targetSelector = form.dataset.realtimeTarget || null;
+                var debounceMs = parseInt(form.dataset.realtimeDebounce || '400', 10);
+                var debounceTimer = null;
+                var fetchController = null;
+
+                // Prevent the global AJAX system from handling this form
+                form.dataset.noAdminAjax = '1';
+
+                // Prevent normal form submission
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    clearTimeout(debounceTimer);
+                    doFilter();
+                });
+
+                function buildUrl() {
+                    var formData = new FormData(form);
+                    var params = new URLSearchParams();
+                    for (var pair of formData.entries()) {
+                        if (pair[1] !== '') params.append(pair[0], pair[1]);
+                    }
+                    var action = form.getAttribute('action') || window.location.pathname;
+                    var qs = params.toString();
+                    return qs ? action + '?' + qs : action;
+                }
+
+                function doFilter() {
+                    if (fetchController) fetchController.abort();
+                    fetchController = new AbortController();
+
+                    var url = buildUrl();
+
+                    // Show a subtle loading indicator
+                    form.style.opacity = '0.6';
+                    form.style.pointerEvents = 'none';
+
+                    fetch(url, {
+                        method: 'GET',
+                        headers: { 'Accept': 'text/html', 'X-RTF': '1' },
+                        credentials: 'same-origin',
+                        signal: fetchController.signal
+                    })
+                    .then(function(response) { return response.text(); })
+                    .then(function(html) {
+                        var parser = new DOMParser();
+                        var doc = parser.parseFromString(html, 'text/html');
+
+                        // Swap target containers
+                        if (targetSelector) {
+                            var targets = targetSelector.split(',');
+                            targets.forEach(function(sel) {
+                                sel = sel.trim();
+                                var newEl = doc.querySelector(sel);
+                                var curEl = document.querySelector(sel);
+                                if (newEl && curEl) {
+                                    curEl.innerHTML = newEl.innerHTML;
+                                }
+                            });
+                        } else {
+                            // Default: swap the next .card after the form's card
+                            var formCard = form.closest('.card');
+                            if (formCard) {
+                                var nextCard = formCard.nextElementSibling;
+                                while (nextCard && !nextCard.classList.contains('card')) {
+                                    nextCard = nextCard.nextElementSibling;
+                                }
+                                if (nextCard) {
+                                    var newNextCard = null;
+                                    var newFormCard = doc.querySelector('form[data-realtime-filter]');
+                                    if (newFormCard) {
+                                        var nfc = newFormCard.closest('.card');
+                                        if (nfc) {
+                                            var nnc = nfc.nextElementSibling;
+                                            while (nnc && !nnc.classList.contains('card')) {
+                                                nnc = nnc.nextElementSibling;
+                                            }
+                                            newNextCard = nnc;
+                                        }
+                                    }
+                                    if (newNextCard) {
+                                        nextCard.innerHTML = newNextCard.innerHTML;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Update URL without reload
+                        window.history.replaceState({}, '', url);
+                    })
+                    .catch(function(err) {
+                        if (err.name !== 'AbortError') console.error('RTF error:', err);
+                    })
+                    .finally(function() {
+                        form.style.opacity = '';
+                        form.style.pointerEvents = '';
+                    });
+                }
+
+                // Debounced text inputs
+                form.querySelectorAll('input[type="text"], input[type="search"]').forEach(function(input) {
+                    input.addEventListener('input', function() {
+                        clearTimeout(debounceTimer);
+                        debounceTimer = setTimeout(doFilter, debounceMs);
+                    });
+                    input.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            clearTimeout(debounceTimer);
+                            doFilter();
+                        }
+                    });
+                });
+
+                // Instant filter on select/checkbox/radio change
+                form.querySelectorAll('select, input[type="checkbox"], input[type="radio"]').forEach(function(el) {
+                    el.addEventListener('change', function() {
+                        clearTimeout(debounceTimer);
+                        doFilter();
+                    });
+                });
+
+                // Date inputs
+                form.querySelectorAll('input[type="date"], input[type="datetime-local"]').forEach(function(el) {
+                    el.addEventListener('change', function() {
+                        clearTimeout(debounceTimer);
+                        doFilter();
+                    });
+                });
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initRealtimeFilters);
+        } else {
+            initRealtimeFilters();
+        }
+
+        // Re-init after AJAX page swaps
+        var origOpen = document.open;
+        document.addEventListener('DOMContentLoaded', initRealtimeFilters);
+        new MutationObserver(function() {
+            initRealtimeFilters();
+        }).observe(document.documentElement, { childList: true, subtree: true });
+    })();
+    </script>
+
+    <!-- Barcode and QR Code generation libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+
+<script>
+    // State management variables
+    let currentMode = localStorage.getItem('print_pref_mode') || 'label'; // 'label' or 'invoice'
+    let currentSize = localStorage.getItem('print_pref_size') || '2x3'; // '2x3', '3x3', or 'a4'
+    let currentScale = parseFloat(localStorage.getItem('print_pref_scale') || '1.0'); // Zoom scale factor
+    const orderNumber = 'INR-0001';
+    const barcodeValue = 'INR-0001';
+    const barcodeText = 'INR-0001';
+
+    // Structured text data for label QR Codes
+    const qrValueText = `Order ID: ${orderNumber}
+Name: Rakib
+Phone: 01613926617
+Address: Khulna, , 
+Amount to Collect: 1,169 BDT
+Created: 03/05/2026`;
+
+    // Detailed text data for Invoice QR Code
+    const qrInvoiceValueText = "Order ID: INR-0001\nDate: 03\/05\/2026 06:51:28 PM\nCustomer: Rakib\nPhone: 01613926617\nAddress: Khulna\n\nITEMS:\n1. JULIET Women T-Shirt Non Padded Bra 3Pcs Combo (36) x 1 @ 1,099 BDT = 1,099 BDT\n\nSubtotal: 1,099 BDT\nShipping: 70 BDT\nTotal: 1,169 BDT\nPayment: Cash on Delivery";
+
+    document.addEventListener('DOMContentLoaded', function () {
+        initializeCodes();
+        updatePrintedTime();
+
+        // Apply initial states
+        if (currentMode === 'invoice') {
+            toggleMode('invoice');
+        } else {
+            toggleMode('label');
+            selectSize(currentSize);
+        }
+        applyZoom();
+
+        // Prevent default browser zoom on Ctrl + Wheel and call custom zoom
+        const previewArea = document.getElementById('previewArea');
+        if (previewArea) {
+            previewArea.addEventListener('wheel', function (e) {
+                if (e.ctrlKey) {
+                    e.preventDefault();
+                    if (e.deltaY < 0) {
+                        zoom(0.05); // Scroll Up -> Zoom In
+                    } else {
+                        zoom(-0.05); // Scroll Down -> Zoom Out
+                    }
+                }
+            }, { passive: false });
+        }
+    });
+
+    window.addEventListener('beforeprint', function() {
+        updatePrintedTime();
+    });
+
+    function updatePrintedTime() {
+        const now = new Date();
+        const options = { 
+            timeZone: 'Asia/Dhaka', 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit', 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit', 
+            hour12: true 
+        };
+        const formatter = new Intl.DateTimeFormat('en-US', options);
+        const parts = formatter.formatToParts(now);
+        
+        let year, month, day, hour, minute, second, dayPeriod;
+        for (const part of parts) {
+            if (part.type === 'year') year = part.value;
+            if (part.type === 'month') month = part.value;
+            if (part.type === 'day') day = part.value;
+            if (part.type === 'hour') hour = part.value;
+            if (part.type === 'minute') minute = part.value;
+            if (part.type === 'second') second = part.value;
+            if (part.type === 'dayPeriod') dayPeriod = part.value;
+        }
+        
+        const formatted = `${year}-${month}-${day} ${hour}:${minute}:${second} ${dayPeriod}`;
+        document.querySelectorAll('.printed-time-span').forEach(el => {
+            el.textContent = formatted;
+        });
+    }
+
+    function initializeCodes() {
+        // Determine dynamic barcode width based on character length to prevent container overflow
+        const isLongBarcode = barcodeValue.length > 10;
+        const width2x3 = isLongBarcode ? 0.8 : 1.2;
+        const width3x3 = isLongBarcode ? 1.0 : 1.5;
+        const widthA4 = isLongBarcode ? 1.3 : 2.0;
+
+        // 1. Generate Barcodes using JsBarcode
+        try {
+            // Thermal 2x3 Barcode
+            JsBarcode("#barcode-thermal-2x3", barcodeValue, {
+                format: "CODE128",
+                width: width2x3,
+                height: 20,
+                displayValue: true,
+                text: barcodeText,
+                fontSize: 7,
+                margin: 0
+            });
+
+            // Thermal 3x3 Barcode
+            JsBarcode("#barcode-thermal-3x3", barcodeValue, {
+                format: "CODE128",
+                width: width3x3,
+                height: 25,
+                displayValue: true,
+                text: barcodeText,
+                fontSize: 8,
+                margin: 0
+            });
+
+            // A4 Barcode
+            JsBarcode("#barcode-a4", barcodeValue, {
+                format: "CODE128",
+                width: widthA4,
+                height: 48,
+                displayValue: true,
+                text: barcodeText,
+                fontSize: 10,
+                margin: 2
+            });
+        } catch (e) {
+            console.error("Barcode generation failed: ", e);
+        }
+
+        // 2. Generate QR Codes using QRious (using 'L' level to decrease density for better thermal scannability)
+        try {
+            // Thermal 2x3 QR
+            new QRious({
+                element: document.getElementById('qr-thermal-2x3'),
+                value: qrValueText,
+                size: 60,
+                level: 'L'
+            });
+
+            // Thermal 3x3 QR
+            new QRious({
+                element: document.getElementById('qr-thermal-3x3'),
+                value: qrValueText,
+                size: 80,
+                level: 'L'
+            });
+
+            // A4 QR
+            new QRious({
+                element: document.getElementById('qr-a4'),
+                value: qrValueText,
+                size: 120,
+                level: 'L'
+            });
+
+            // Invoice QR
+            const qrInvoiceEl = document.getElementById('qr-invoice');
+            if (qrInvoiceEl) {
+                new QRious({
+                    element: qrInvoiceEl,
+                    value: qrInvoiceValueText,
+                    size: 180,
+                    level: 'L'
+                });
+            }
+        } catch (e) {
+            console.error("QR Code generation failed: ", e);
+        }
+    }
+
+    // Zoom functionalities
+    function zoom(delta) {
+        currentScale = Math.min(Math.max(currentScale + delta, 0.5), 2.5);
+        localStorage.setItem('print_pref_scale', currentScale);
+        applyZoom();
+    }
+
+    function resetZoom() {
+        currentScale = 1.0;
+        localStorage.setItem('print_pref_scale', currentScale);
+        applyZoom();
+    }
+
+    function applyZoom() {
+        const container = currentMode === 'label' ? document.getElementById('label-mode-container') : document.getElementById('invoice-mode-container');
+        if (container) {
+            container.style.transform = `scale(${currentScale})`;
+            // Adjust margin to handle flex containment scroll overlap
+            if (currentScale > 1.0) {
+                const offsetFactor = currentMode === 'label' ? 320 : 900;
+                container.style.marginBottom = `${(currentScale - 1) * offsetFactor}px`;
+            } else {
+                container.style.marginBottom = '0px';
+            }
+        }
+    }
+
+    // Toggle between Invoice and Print Label modes
+    function toggleMode(mode) {
+        currentMode = mode;
+        localStorage.setItem('print_pref_mode', mode);
+
+        const btnInvoice = document.getElementById('btn-toggle-invoice');
+        const btnLabel = document.getElementById('btn-toggle-label');
+        const invoiceWrap = document.getElementById('invoice-mode-container');
+        const labelWrap = document.getElementById('label-mode-container');
+        const sizeSelector = document.querySelector('.label-size-selector');
+        const btnPrint = document.getElementById('btn-trigger-print');
+        const zoomControls = document.querySelector('.zoom-controls-floating');
+
+        // Reset dynamic body print classes
+        document.body.classList.remove('print-active-2x3', 'print-active-3x3', 'print-active-a4', 'print-active-invoice');
+
+        if (mode === 'invoice') {
+            btnInvoice.className = 'btn btn-primary';
+            btnLabel.className = 'btn btn-outline-primary';
+            invoiceWrap.classList.remove('d-none');
+            labelWrap.classList.add('d-none');
+            sizeSelector.classList.add('d-none');
+            zoomControls.classList.remove('d-none');
+            btnPrint.disabled = false;
+            btnPrint.innerHTML = '<i class="bi bi-printer-fill me-1"></i> Print Invoice';
+
+            document.body.classList.add('print-active-invoice');
+
+            let styleTag = document.getElementById('dynamic-print-page-style');
+            if (!styleTag) {
+                styleTag = document.createElement('style');
+                styleTag.id = 'dynamic-print-page-style';
+                document.head.appendChild(styleTag);
+            }
+            styleTag.innerHTML = `@media print { @page { size: A4 portrait; margin: 10mm; } }`;
+        } else {
+            btnInvoice.className = 'btn btn-outline-primary';
+            btnLabel.className = 'btn btn-primary';
+            invoiceWrap.classList.add('d-none');
+            labelWrap.classList.remove('d-none');
+            sizeSelector.classList.remove('d-none');
+            zoomControls.classList.remove('d-none');
+            btnPrint.disabled = false;
+            btnPrint.innerHTML = '<i class="bi bi-printer-fill me-1"></i> Print Label';
+
+            // Reset label size classes
+            selectSize(currentSize);
+        }
+
+        // Call applyZoom to preserve the user's zoom factor instead of resetting it
+        applyZoom();
+    }
+
+    // Change sizes dynamically
+    function selectSize(size) {
+        currentSize = size;
+        localStorage.setItem('print_pref_size', size);
+
+        const btn2x3 = document.getElementById('btn-size-2x3');
+        const btn3x3 = document.getElementById('btn-size-3x3');
+        const btnA4 = document.getElementById('btn-size-a4');
+
+        const label2x3 = document.getElementById('label-container-2x3');
+        const label3x3 = document.getElementById('label-container-3x3');
+        const labelA4 = document.getElementById('label-container-a4');
+
+        // Reset button states
+        btn2x3.className = 'btn btn-outline-primary';
+        btn3x3.className = 'btn btn-outline-primary';
+        btnA4.className = 'btn btn-outline-primary';
+
+        // Hide all templates
+        label2x3.classList.add('d-none');
+        label3x3.classList.add('d-none');
+        labelA4.classList.add('d-none');
+
+        // Reset dynamic body print classes
+        document.body.classList.remove('print-active-2x3', 'print-active-3x3', 'print-active-a4');
+        document.body.classList.add('print-active-' + size);
+
+        // Dynamically update the print page size CSS
+        let styleTag = document.getElementById('dynamic-print-page-style');
+        if (!styleTag) {
+            styleTag = document.createElement('style');
+            styleTag.id = 'dynamic-print-page-style';
+            document.head.appendChild(styleTag);
+        }
+
+        // Apply dynamic sizing to style tag
+        if (size === '2x3') {
+            btn2x3.className = 'btn btn-primary';
+            label2x3.classList.remove('d-none');
+            styleTag.innerHTML = `@media print { @page { size: A4 portrait; margin: 8mm; } }`;
+        } else if (size === '3x3') {
+            btn3x3.className = 'btn btn-primary';
+            label3x3.classList.remove('d-none');
+            styleTag.innerHTML = `@media print { @page { size: A4 portrait; margin: 8mm; } }`;
+        } else if (size === 'a4') {
+            btnA4.className = 'btn btn-primary';
+            labelA4.classList.remove('d-none');
+            styleTag.innerHTML = `@media print { @page { size: A4 portrait; margin: 8mm; } }`;
+        }
+
+        // Call applyZoom to preserve the user's zoom factor instead of resetting it
+        applyZoom();
+    }
+</script>
+</body>
+</html>

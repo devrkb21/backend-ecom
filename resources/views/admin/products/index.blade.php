@@ -74,9 +74,14 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h6 class="mb-0 fw-semibold"><i class="bi bi-box-seam me-2"></i>All Products ({{ $products->total() }})</h6>
-        <a href="{{ route('admin.products.create') }}" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus"></i> Add Product
-        </a>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" onclick="exportProducts()" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-download me-1"></i> Export Excel/CSV
+            </button>
+            <a href="{{ route('admin.products.create') }}" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus"></i> Add Product
+            </a>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -200,3 +205,21 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+function exportProducts() {
+    const form = document.querySelector('form[data-realtime-filter]');
+    const params = new URLSearchParams();
+    if (form) {
+        const formData = new FormData(form);
+        for (const pair of formData.entries()) {
+            if (pair[1] !== '') {
+                params.append(pair[0], pair[1]);
+            }
+        }
+    }
+    window.location.href = "{{ route('admin.products.export') }}?" + params.toString();
+}
+</script>
+@endpush

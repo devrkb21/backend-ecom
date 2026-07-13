@@ -663,6 +663,44 @@
                         <span class="badge bg-{{ $statusColors[$order->payment_status] ?? 'secondary' }}">{{ ucfirst($order->payment_status ?? 'Unknown') }}</span>
                     </div>
                 @endif
+                @if($order->payment_method === 'bkash')
+                    @php
+                        $checkoutFields = $order->checkout_fields_payload ?? [];
+                        $bkashWallet = $checkoutFields['bkash_customer_wallet'] ?? null;
+                        $bkashTrx = $checkoutFields['bkash_transaction_id'] ?? $order->transaction_id;
+                        $bkashPaymentId = $checkoutFields['bkash_payment_id'] ?? $order->bkash_payment_id;
+                        $bkashTime = $checkoutFields['bkash_payment_time'] ?? null;
+                    @endphp
+                    @if($bkashWallet || $bkashTrx || $bkashPaymentId || $bkashTime)
+                        <div class="bg-light p-3 rounded mb-3">
+                            <div class="fw-bold mb-2 small text-uppercase text-muted">bKash Details</div>
+                            @if($bkashWallet)
+                                <div class="d-flex justify-content-between mb-1 small">
+                                    <span class="text-muted">Wallet Number:</span>
+                                    <span class="fw-semibold text-dark">{{ $bkashWallet }}</span>
+                                </div>
+                            @endif
+                            @if($bkashTrx)
+                                <div class="d-flex justify-content-between mb-1 small">
+                                    <span class="text-muted">Transaction ID:</span>
+                                    <span class="fw-semibold text-dark">{{ $bkashTrx }}</span>
+                                </div>
+                            @endif
+                            @if($bkashPaymentId)
+                                <div class="d-flex justify-content-between mb-1 small">
+                                    <span class="text-muted">Payment ID:</span>
+                                    <span class="fw-semibold text-dark text-break">{{ $bkashPaymentId }}</span>
+                                </div>
+                            @endif
+                            @if($bkashTime)
+                                <div class="d-flex justify-content-between mb-1 small">
+                                    <span class="text-muted">Payment Time:</span>
+                                    <span class="fw-semibold text-dark">{{ $bkashTime }}</span>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+                @endif
                 <form action="{{ route('admin.orders.update-payment-status', $order) }}" method="POST" class="border-top pt-3">
                     @csrf
                     @method('PATCH')
@@ -677,6 +715,13 @@
                         <button type="submit" class="btn btn-outline-primary">Update</button>
                     </div>
                 </form>
+                @if($order->payment_method === 'bkash' && $order->payment_status === 'paid')
+                    <div class="border-top pt-3 mt-3">
+                        <button type="button" class="btn btn-danger btn-sm w-100" data-bs-toggle="modal" data-bs-target="#bkashRefundModal">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i> bKash Refund
+                        </button>
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -834,6 +879,46 @@
     // Remove "Other" if it exists so we can always append it at the end
     $cancellationReasons = array_filter($cancellationReasons, fn($r) => strtolower($r) !== 'other');
 @endphp
+
+{{-- bKash Refund Modal --}}
+@if($order->payment_method === 'bkash' && $order->payment_status === 'paid')
+<div class="modal fade" id="bkashRefundModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form action="{{ route('admin.orders.refund', $order) }}" method="POST">
+                @csrf
+                <div class="modal-header bg-danger bg-opacity-10 border-0">
+                    <h5 class="modal-title text-danger"><i class="bi bi-arrow-counterclockwise me-2"></i>bKash Refund</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning small">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Are you sure you want to refund this payment? This action will refund the amount directly via bKash.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Order Total</label>
+                        <input type="text" class="form-control bg-light" value="৳{{ number_format($order->total, 2) }}" readonly disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label for="refundAmount" class="form-label fw-semibold">Refund Amount (৳)</label>
+                        <input type="number" step="0.01" class="form-control" id="refundAmount" name="amount" value="{{ $order->total }}" min="0.01" max="{{ $order->total }}" required>
+                        <div class="form-text small">Enter full or partial amount to refund. Maximum: ৳{{ number_format($order->total, 2) }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="refundReason" class="form-label fw-semibold">Reason for Refund</label>
+                        <textarea class="form-control" id="refundReason" name="reason" rows="3" placeholder="e.g. Out of stock, Customer request..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-danger">Confirm Refund</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
 
 {{-- Cancel Order Modal --}}
 <div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-hidden="true">

@@ -4,6 +4,16 @@
 @section('page-title', 'Fraud Blocker')
 
 @section('content')
+<style>
+    /* Accordion chevron rotation transitions */
+    .card-header.cursor-pointer[aria-expanded="true"] .bi-chevron-down {
+        transform: rotate(180deg);
+    }
+    .card-header.cursor-pointer .bi-chevron-down {
+        transition: transform 0.2s ease-in-out;
+    }
+</style>
+
 <div class="row g-4 mb-4">
     <div class="col-md-3">
         <div class="card border-0 shadow-sm">
@@ -101,7 +111,7 @@
 
 {{-- Default Custom Messages --}}
 <div class="card mb-4 border-0 shadow-sm">
-    <div class="card-header bg-light border-0 cursor-pointer" data-bs-toggle="collapse" data-bs-target="#defaultMessagesCollapse">
+    <div class="card-header bg-light border-0 cursor-pointer collapsed" data-bs-toggle="collapse" data-bs-target="#defaultMessagesCollapse" aria-expanded="false">
         <h5 class="card-title mb-0 d-flex justify-content-between align-items-center">
             <span><i class="bi bi-chat-left-text me-2"></i>Default Custom Messages</span>
             <i class="bi bi-chevron-down text-muted"></i>

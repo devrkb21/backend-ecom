@@ -85,6 +85,121 @@ class ProductController extends Controller
         return view('admin.products.index', compact('products', 'categories'));
     }
 
+    public function export(Request $request)
+    {
+        $query = Product::with([
+            'category',
+            'categories',
+            'variants' => function ($variantQuery) {
+                $variantQuery->where('is_active', true);
+            },
+        ]);
+
+        // Search
+        if ($search = $request->input('search')) {
+            $search = trim($search);
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('sku', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        // Category filter
+        if ($categoryId = $request->input('category')) {
+            $query->where(function ($q) use ($categoryId) {
+                $q->where('category_id', $categoryId)
+                  ->orWhereHas('categories', function ($q2) use ($categoryId) {
+                      $q2->where('categories.id', $categoryId);
+                  });
+            });
+        }
+
+        // Status filter
+        if ($request->has('is_active') && $request->input('is_active') !== '' && $request->input('is_active') !== null) {
+            $query->where('is_active', $request->boolean('is_active'));
+        }
+
+        // Flags filter
+        if ($request->boolean('is_featured')) {
+            $query->where('is_featured', true);
+        }
+        if ($request->boolean('is_new')) {
+            $query->where('is_new', true);
+        }
+        if ($request->boolean('is_bestseller')) {
+            $query->where('is_bestseller', true);
+        }
+
+        // Stock filter
+        if ($request->input('stock') === 'low') {
+            $query->where('stock_quantity', '>', 0)->where('stock_quantity', '<=', 10);
+        } elseif ($request->input('stock') === 'out') {
+            $query->where('stock_quantity', '<=', 0);
+        }
+
+        $filename = "products-export-" . date('Y-m-d-His') . ".csv";
+
+        $headers = [
+            "Content-type"        => "text/csv; charset=UTF-8",
+            "Content-Disposition" => "attachment; filename=$filename",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $columns = [
+            'ID', 'Name', 'SKU', 'Slug', 'Primary Category', 'Regular Price', 'Sale Price', 'Buy Price',
+            'Stock Quantity', 'Status', 'Featured', 'New Product', 'Bestseller', 'Sales Count',
+            'Description', 'Short Description', 'Created At', 'Variants Details'
+        ];
+
+        $callback = function() use($query, $columns) {
+            $file = fopen('php://output', 'w');
+            
+            // Add UTF-8 BOM to support non-ASCII characters like Bengali perfectly in Microsoft Excel
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            fputcsv($file, $columns);
+
+            $query->chunk(100, function($products) use($file) {
+                foreach ($products as $product) {
+                    $variantsDetails = [];
+                    foreach ($product->variants as $variant) {
+                        $variantName = $variant->name ?: ('ID: ' . $variant->id);
+                        $variantsDetails[] = $variantName . " (SKU: " . $variant->sku . ") Price: " . $variant->regular_price . " BDT / Stock: " . $variant->stock_quantity;
+                    }
+                    $variantsString = implode(" | ", $variantsDetails);
+
+                    fputcsv($file, [
+                        $product->id,
+                        $product->name,
+                        $product->sku,
+                        $product->slug,
+                        $product->category?->name ?? '',
+                        $product->regular_price,
+                        $product->sale_price,
+                        $product->buy_price,
+                        $product->stock_quantity,
+                        $product->is_active ? 'Active' : 'Inactive',
+                        $product->is_featured ? 'Yes' : 'No',
+                        $product->is_new ? 'Yes' : 'No',
+                        $product->is_bestseller ? 'Yes' : 'No',
+                        $product->sales_count,
+                        $product->description,
+                        $product->short_description,
+                        $product->created_at ? $product->created_at->format('Y-m-d H:i:s') : '',
+                        $variantsString
+                    ]);
+                }
+            });
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
     public function create()
     {
         $categories = Category::with('children')->whereNull('parent_id')->orderBy('name')->get();

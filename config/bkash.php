@@ -1,28 +1,30 @@
 <?php
 
+declare(strict_types=1);
+
+$rawEnvironment = strtolower((string) env('BKASH_ENV', env('BKASH_SANDBOX', true) ? 'sandbox' : 'production'));
+$environment = in_array($rawEnvironment, ['production', 'prod', 'pay', 'live'], true)
+    ? 'production'
+    : 'sandbox';
+
 return [
-    "sandbox"         => env("BKASH_SANDBOX", true),
+    'environment' => $environment,
 
-    "bkash_app_key"     => env("BKASH_APP_KEY", ""),
-    "bkash_app_secret" => env("BKASH_APP_SECRET", ""),
-    "bkash_username"      => env("BKASH_USERNAME", ""),
-    "bkash_password"     => env("BKASH_PASSWORD", ""),
+    'base_url' => $environment === 'production'
+        ? env('BKASH_PRODUCTION_BASE_URL', 'https://tokenized.pay.bka.sh/v2/tokenized-checkout')
+        : env('BKASH_SANDBOX_BASE_URL', 'https://tokenized.sandbox.bka.sh/v2/tokenized-checkout'),
 
-    "bkash_app_key_2"     => env("BKASH_APP_KEY_2", ""),
-    "bkash_app_secret_2" => env("BKASH_APP_SECRET_2", ""),
-    "bkash_username_2"      => env("BKASH_USERNAME_2", ""),
-    "bkash_password_2"     => env("BKASH_PASSWORD_2", ""),
+    'app_key' => env('BKASH_APP_KEY', ''),
+    'app_secret' => env('BKASH_APP_SECRET', ''),
+    'username' => env('BKASH_USERNAME', ''),
+    'password' => env('BKASH_PASSWORD', ''),
 
-    "bkash_app_key_3"     => env("BKASH_APP_KEY_3", ""),
-    "bkash_app_secret_3" => env("BKASH_APP_SECRET_3", ""),
-    "bkash_username_3"      => env("BKASH_USERNAME_3", ""),
-    "bkash_password_3"     => env("BKASH_PASSWORD_3", ""),
+    'timeout' => (int) env('BKASH_TIMEOUT', 30),
+    'cache' => (bool) env('BKASH_CACHE', true),
 
-    "bkash_app_key_4"     => env("BKASH_APP_KEY_4", ""),
-    "bkash_app_secret_4" => env("BKASH_APP_SECRET_4", ""),
-    "bkash_username_4"      => env("BKASH_USERNAME_4", ""),
-    "bkash_password_4"     => env("BKASH_PASSWORD_4", ""),
+    'enable_routes' => (bool) env('BKASH_ENABLE_ROUTES', false),
 
-    "callbackURL"     => env("BKASH_CALLBACK_URL", env("APP_URL", "http://127.0.0.1:8000") . "/api/v1/bkash/callback"),
-    'timezone'        => 'Asia/Dhaka',
+    'cache_keys' => [
+        'token' => env('BKASH_TOKEN_CACHE_KEY', 'bkash.token'),
+    ],
 ];

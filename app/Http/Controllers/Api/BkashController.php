@@ -125,9 +125,23 @@ class BkashController extends Controller
                 $result = $this->bkashService->executePayment($paymentId);
 
                 if ($result['success']) {
+                    $checkoutFields = $order->checkout_fields_payload ?? [];
+                    if (!empty($result['customer_msisdn'])) {
+                        $checkoutFields['bkash_customer_wallet'] = $result['customer_msisdn'];
+                    }
+                    if (!empty($result['transaction_id'])) {
+                        $checkoutFields['bkash_transaction_id'] = $result['transaction_id'];
+                    }
+                    if (!empty($result['payment_id'])) {
+                        $checkoutFields['bkash_payment_id'] = $result['payment_id'];
+                    }
+                    $checkoutFields['bkash_payment_time'] = now()->timezone('Asia/Dhaka')->format('Y-m-d H:i:s');
+
                     $order->update([
                         'payment_status' => 'paid',
                         'transaction_id' => $result['transaction_id'],
+                        'bkash_payment_id' => $result['payment_id'] ?? $order->bkash_payment_id,
+                        'checkout_fields_payload' => $checkoutFields,
                     ]);
 
                     // Update order status to processing

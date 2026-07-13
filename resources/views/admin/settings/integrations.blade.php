@@ -376,6 +376,116 @@
                 </div>
             </div>
 
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-semibold"><i class="bi bi-chat-dots me-2"></i>Live Chat Widget</h6>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="live_chat_enabled" name="live_chat_enabled" value="1" data-integration-toggle="live_chat_enabled" {{ $isChecked('live_chat_enabled') ? 'checked' : '' }}>
+                        <label class="form-check-label" for="live_chat_enabled">Enable</label>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="small text-muted mb-3 {{ $isChecked('live_chat_enabled') ? 'd-none' : '' }}" data-integration-disabled-note="live_chat_enabled">
+                        Disabled. Enable Live Chat Widget to configure chat providers and appearance.
+                    </div>
+
+                    <div data-integration-form="live_chat_enabled" class="{{ $isChecked('live_chat_enabled') ? '' : 'd-none' }}">
+                        {{-- WhatsApp Provider --}}
+                        <div class="border rounded p-3 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-semibold mb-0">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366" class="me-1" style="vertical-align: text-bottom;">
+                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                    </svg>
+                                    WhatsApp
+                                </label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="live_chat_whatsapp_enabled" name="live_chat_whatsapp_enabled" value="1" data-ui-toggle="live_chat_whatsapp_enabled" {{ $isChecked('live_chat_whatsapp_enabled') ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="live_chat_whatsapp_enabled">Enable</label>
+                                </div>
+                            </div>
+                            <div data-ui-toggle-form="live_chat_whatsapp_enabled" class="{{ $isChecked('live_chat_whatsapp_enabled') ? '' : 'd-none' }}">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="live_chat_whatsapp_number">Phone Number</label>
+                                        <input type="text" class="form-control @error('live_chat_whatsapp_number') is-invalid @enderror" id="live_chat_whatsapp_number" name="live_chat_whatsapp_number" value="{{ $valueOf('live_chat_whatsapp_number') }}" placeholder="+8801XXXXXXXXX">
+                                        <div class="form-text">Include country code (e.g. +880 for Bangladesh).</div>
+                                        @error('live_chat_whatsapp_number')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="live_chat_whatsapp_message">Pre-filled Message</label>
+                                        <input type="text" class="form-control @error('live_chat_whatsapp_message') is-invalid @enderror" id="live_chat_whatsapp_message" name="live_chat_whatsapp_message" value="{{ $valueOf('live_chat_whatsapp_message', 'Hello! I need help.') }}" placeholder="Hello! I need help.">
+                                        @error('live_chat_whatsapp_message')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Messenger Provider --}}
+                        <div class="border rounded p-3 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-semibold mb-0">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#0084FF" class="me-1" style="vertical-align: text-bottom;">
+                                        <path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.654V24l4.088-2.242c1.092.301 2.246.464 3.443.464 6.627 0 12-4.975 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8.2l3.131 3.259L19.752 8.2l-6.561 6.763z"/>
+                                    </svg>
+                                    Messenger
+                                </label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="live_chat_messenger_enabled" name="live_chat_messenger_enabled" value="1" data-ui-toggle="live_chat_messenger_enabled" {{ $isChecked('live_chat_messenger_enabled') ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="live_chat_messenger_enabled">Enable</label>
+                                </div>
+                            </div>
+                            <div data-ui-toggle-form="live_chat_messenger_enabled" class="{{ $isChecked('live_chat_messenger_enabled') ? '' : 'd-none' }}">
+                                <label class="form-label" for="live_chat_messenger_link">Page Link</label>
+                                <input type="text" class="form-control @error('live_chat_messenger_link') is-invalid @enderror" id="live_chat_messenger_link" name="live_chat_messenger_link" value="{{ $valueOf('live_chat_messenger_link') }}" placeholder="https://m.me/yourpage">
+                                <div class="form-text">Your Facebook Page Messenger link.</div>
+                                @error('live_chat_messenger_link')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
+                        {{-- Appearance Settings --}}
+                        <div class="border rounded p-3">
+                            <h6 class="fw-semibold mb-3"><i class="bi bi-palette me-1"></i> Appearance</h6>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="live_chat_button_position">Button Position</label>
+                                    <select class="form-select @error('live_chat_button_position') is-invalid @enderror" id="live_chat_button_position" name="live_chat_button_position">
+                                        <option value="bottom-right" {{ $valueOf('live_chat_button_position', 'bottom-right') === 'bottom-right' ? 'selected' : '' }}>Bottom Right</option>
+                                        <option value="bottom-left" {{ $valueOf('live_chat_button_position') === 'bottom-left' ? 'selected' : '' }}>Bottom Left</option>
+                                    </select>
+                                    @error('live_chat_button_position')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="live_chat_welcome_text">Welcome Text</label>
+                                    <input type="text" class="form-control @error('live_chat_welcome_text') is-invalid @enderror" id="live_chat_welcome_text" name="live_chat_welcome_text" value="{{ $valueOf('live_chat_welcome_text', 'Chat with us!') }}" placeholder="Chat with us!">
+                                    @error('live_chat_welcome_text')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="live_chat_button_color">Button Color</label>
+                                    <div class="input-group">
+                                        <input type="color" class="form-control form-control-color" id="live_chat_button_color_picker" value="{{ $valueOf('live_chat_button_color', '#7C3AED') }}" title="Choose button color">
+                                        <input type="text" class="form-control @error('live_chat_button_color') is-invalid @enderror" id="live_chat_button_color" name="live_chat_button_color" value="{{ $valueOf('live_chat_button_color', '#7C3AED') }}" placeholder="#7C3AED" maxlength="20">
+                                        @error('live_chat_button_color')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
 
 
             <div class="d-flex justify-content-end">
@@ -554,6 +664,36 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    // Live Chat Widget — color picker sync
+    const colorPicker = document.getElementById('live_chat_button_color_picker');
+    const colorText = document.getElementById('live_chat_button_color');
+
+    if (colorPicker && colorText) {
+        colorPicker.addEventListener('input', function () {
+            colorText.value = this.value;
+        });
+
+        colorText.addEventListener('input', function () {
+            if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) {
+                colorPicker.value = this.value;
+            }
+        });
+    }
+
+    // Live Chat Widget — sub-toggle handling (WhatsApp / Messenger inner toggles)
+    document.querySelectorAll('[data-ui-toggle]').forEach(function (toggle) {
+        const key = toggle.getAttribute('data-ui-toggle');
+        const section = document.querySelector('[data-ui-toggle-form="' + key + '"]');
+
+        if (!section) {
+            return;
+        }
+
+        toggle.addEventListener('change', function () {
+            section.classList.toggle('d-none', !this.checked);
+        });
+    });
 });
 </script>
 @endpush

@@ -4,8 +4,7 @@ namespace App\Services\Payment;
 
 use App\Models\Order;
 use App\Models\PaymentGateway;
-use Karim007\LaravelBkashTokenize\Facade\BkashPaymentTokenize;
-use Karim007\LaravelBkashTokenize\Facade\BkashRefundTokenize;
+use Devrkb21\Bkash\Facades\Bkash;
 
 class BkashPaymentService
 {
@@ -37,29 +36,42 @@ class BkashPaymentService
     protected function configureFromGateway(): void
     {
         // Get settings from database, fall back to .env
-        $appKey = $this->getModeSetting('app_key') ?: config('bkash.bkash_app_key');
-        $appSecret = $this->getModeSetting('app_secret') ?: config('bkash.bkash_app_secret');
-        $username = $this->getModeSetting('username') ?: config('bkash.bkash_username');
-        $password = $this->getModeSetting('password') ?: config('bkash.bkash_password');
+        $appKey = $this->getModeSetting('app_key') ?: config('bkash.app_key');
+        $appSecret = $this->getModeSetting('app_secret') ?: config('bkash.app_secret');
+        $username = $this->getModeSetting('username') ?: config('bkash.username');
+        $password = $this->getModeSetting('password') ?: config('bkash.password');
         $mode = $this->gateway->getSetting('mode', 'sandbox');
         $sandbox = $mode === 'sandbox' || $mode !== 'live';
 
-        // Set sandbox mode - the library uses this to determine the base URL
+        $environment = $sandbox ? 'sandbox' : 'production';
+        $baseUrl = $sandbox 
+            ? 'https://tokenized.sandbox.bka.sh/v2/tokenized-checkout'
+            : 'https://tokenized.pay.bka.sh/v2/tokenized-checkout';
+
+        // Set config values for devrkb21/bkash-pgw-laravel
         config([
-            'bkash.sandbox' => $sandbox,
-            'bkash.bkash_app_key' => $appKey,
-            'bkash.bkash_app_secret' => $appSecret,
-            'bkash.bkash_username' => $username,
-            'bkash.bkash_password' => $password,
-            'bkash.callbackURL' => url('/api/v1/bkash/callback'),
+            'bkash.environment' => $environment,
+            'bkash.base_url' => $baseUrl,
+            'bkash.app_key' => $appKey,
+            'bkash.app_secret' => $appSecret,
+            'bkash.username' => $username,
+            'bkash.password' => $password,
         ]);
+
+        // Clear resolved singletons in container to load fresh dynamic configurations
+        app()->forgetInstance(\Devrkb21\Bkash\Contracts\BkashClientContract::class);
+        app()->forgetInstance(\Devrkb21\Bkash\Contracts\AuthServiceContract::class);
+        app()->forgetInstance(\Devrkb21\Bkash\Contracts\PaymentServiceContract::class);
+        app()->forgetInstance(\Devrkb21\Bkash\Contracts\AgreementServiceContract::class);
+        app()->forgetInstance(\Devrkb21\Bkash\Contracts\RefundServiceContract::class);
+        app()->forgetInstance(\Devrkb21\Bkash\BkashManager::class);
+        app()->forgetInstance('bkash');
         
         // Debug log to verify config is set
-        \Log::debug('bKash config set', [
-            'sandbox' => config('bkash.sandbox'),
-            'app_key' => substr(config('bkash.bkash_app_key'), 0, 8) . '...',
-            'username' => config('bkash.bkash_username'),
-            'callback' => config('bkash.callbackURL'),
+        \Log::debug('bKash config set for devrkb21 package', [
+            'environment' => config('bkash.environment'),
+            'app_key' => substr((string) config('bkash.app_key'), 0, 8) . '...',
+            'username' => config('bkash.username'),
         ]);
     }
 
@@ -113,7 +125,27 @@ class BkashPaymentService
         ];
 
         try {
-            $response = BkashPaymentTokenize::cPayment(json_encode($requestData));
+            try {
+                // Note: devrkb21 package expects array representation, not json string.
+                $response = Bkash::payment()->createPayment($requestData);
+            } catch (\Exception $e) {
+                // If it fails due to merchantInvoiceNumber validation (duplicate), retry with time appended (HHMM)
+                if (str_contains($e->getMessage(), 'merchantInvoiceNumber')) {
+                    $suffix = now()->timezone('Asia/Dhaka')->format('Hi');
+                    $modifiedInvoiceNumber = $invoiceNumber . '-' . $suffix;
+                    $requestData['merchantInvoiceNumber'] = $modifiedInvoiceNumber;
+                    
+                    \Log::warning('bKash merchantInvoiceNumber duplicate detected. Retrying with suffix.', [
+                        'original' => $invoiceNumber,
+                        'modified' => $modifiedInvoiceNumber,
+                        'error' => $e->getMessage()
+                    ]);
+
+                    $response = Bkash::payment()->createPayment($requestData);
+                } else {
+                    throw $e;
+                }
+            }
             
             // Log response for debugging
             \Log::debug('bKash cPayment response', [
@@ -133,7 +165,7 @@ class BkashPaymentService
             if (isset($response['bkashURL'])) {
                 return [
                     'success' => true,
-                    'payment_id' => $response['paymentID'],
+                    'payment_id' => $response['paymentID'] ?? $response['paymentId'],
                     'bkash_url' => $response['bkashURL'],
                     'order_id' => $order->id,
                     'amount' => $order->total,
@@ -168,21 +200,32 @@ class BkashPaymentService
             throw new \Exception('bKash is not properly configured.');
         }
 
-        $response = BkashPaymentTokenize::executePayment($paymentId);
+        // Ensure config is fresh
+        $this->configureFromGateway();
 
-        if (!$response) {
-            // Try query payment if execute fails
-            $response = BkashPaymentTokenize::queryPayment($paymentId);
+        try {
+            $response = Bkash::payment()->executePayment($paymentId);
+        } catch (\Exception $e) {
+            \Log::warning('bKash executePayment failed, trying queryPayment fallback', [
+                'payment_id' => $paymentId,
+                'error' => $e->getMessage()
+            ]);
+            try {
+                $response = Bkash::payment()->queryPayment($paymentId);
+            } catch (\Exception $qe) {
+                $response = null;
+            }
         }
 
         if (isset($response['statusCode']) && $response['statusCode'] === '0000' && 
-            $response['transactionStatus'] === 'Completed') {
+            ($response['transactionStatus'] ?? '') === 'Completed') {
             return [
                 'success' => true,
-                'transaction_id' => $response['trxID'],
-                'payment_id' => $response['paymentID'],
-                'amount' => $response['amount'],
+                'transaction_id' => $response['trxID'] ?? $response['trxId'] ?? null,
+                'payment_id' => $response['paymentID'] ?? $response['paymentId'] ?? null,
+                'amount' => $response['amount'] ?? null,
                 'status' => 'completed',
+                'customer_msisdn' => $response['customerMsisdn'] ?? $response['customer_msisdn'] ?? null,
             ];
         }
 
@@ -202,14 +245,21 @@ class BkashPaymentService
             throw new \Exception('bKash is not properly configured.');
         }
 
-        $response = BkashPaymentTokenize::queryPayment($paymentId);
+        // Ensure config is fresh
+        $this->configureFromGateway();
+
+        try {
+            $response = Bkash::payment()->queryPayment($paymentId);
+        } catch (\Exception $e) {
+            $response = [];
+        }
 
         return [
-            'payment_id' => $response['paymentID'] ?? null,
-            'transaction_id' => $response['trxID'] ?? null,
-            'status' => $response['transactionStatus'] ?? 'unknown',
+            'payment_id' => $response['paymentID'] ?? $response['paymentId'] ?? null,
+            'transaction_id' => $response['trxID'] ?? $response['trxId'] ?? null,
+            'status' => $response['transactionStatus'] ?? $response['transaction_status'] ?? 'unknown',
             'amount' => $response['amount'] ?? null,
-            'verification_status' => $response['verificationStatus'] ?? null,
+            'verification_status' => $response['verificationStatus'] ?? $response['verification_status'] ?? null,
         ];
     }
 
@@ -222,7 +272,15 @@ class BkashPaymentService
             throw new \Exception('bKash is not properly configured.');
         }
 
-        return BkashPaymentTokenize::searchTransaction($transactionId);
+        // Ensure config is fresh
+        $this->configureFromGateway();
+
+        try {
+            return Bkash::refund()->searchTransaction($transactionId);
+        } catch (\Exception $e) {
+            \Log::error('bKash searchTransaction failed', ['trxId' => $transactionId, 'error' => $e->getMessage()]);
+            return [];
+        }
     }
 
     /**
@@ -234,16 +292,35 @@ class BkashPaymentService
             throw new \Exception('bKash is not properly configured.');
         }
 
+        // Ensure config is fresh
+        $this->configureFromGateway();
+
         $sku = 'refund-' . time();
-        $response = BkashRefundTokenize::refund($paymentId, $transactionId, $amount, $reason, $sku);
+        $payload = [
+            'paymentID' => $paymentId,
+            'trxID' => $transactionId,
+            'amount' => (string) round($amount, 2),
+            'reason' => $reason,
+            'sku' => $sku,
+        ];
+
+        try {
+            $response = Bkash::refund()->refundTransaction($payload);
+        } catch (\Exception $e) {
+            \Log::error('bKash refund failed', ['payload' => $payload, 'error' => $e->getMessage()]);
+            return [
+                'success' => false,
+                'message' => 'bKash refund error: ' . $e->getMessage(),
+            ];
+        }
 
         if (isset($response['statusCode']) && $response['statusCode'] === '0000') {
             return [
                 'success' => true,
-                'refund_transaction_id' => $response['refundTrxID'],
-                'original_transaction_id' => $response['originalTrxID'],
-                'amount' => $response['amount'],
-                'status' => $response['transactionStatus'],
+                'refund_transaction_id' => $response['refundTrxID'] ?? null,
+                'original_transaction_id' => $response['originalTrxID'] ?? null,
+                'amount' => $response['amount'] ?? null,
+                'status' => $response['transactionStatus'] ?? null,
             ];
         }
 
@@ -262,6 +339,14 @@ class BkashPaymentService
             throw new \Exception('bKash is not properly configured.');
         }
 
-        return BkashRefundTokenize::refundStatus($paymentId, $transactionId);
+        // Ensure config is fresh
+        $this->configureFromGateway();
+
+        try {
+            return Bkash::refund()->refundStatus($paymentId, $transactionId);
+        } catch (\Exception $e) {
+            \Log::error('bKash refundStatus failed', ['paymentId' => $paymentId, 'trxId' => $transactionId, 'error' => $e->getMessage()]);
+            return [];
+        }
     }
 }
