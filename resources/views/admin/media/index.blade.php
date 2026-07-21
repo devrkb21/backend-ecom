@@ -237,13 +237,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const modal = new bootstrap.Modal(document.getElementById('webpConvertModal'));
             modal.show();
 
-            const progressBar = document.getElementById('webp-progress-bar');
-            const progressPercent = document.getElementById('webp-progress-percent');
-            const currentFileText = document.getElementById('webp-current-file');
-            const progressCounts = document.getElementById('webp-progress-counts');
-            const processingView = document.getElementById('webp-processing-view');
-            const successView = document.getElementById('webp-success-view');
-            const successMessage = document.getElementById('webp-success-message');
+            const progressBar      = document.getElementById('webp-progress-bar');
+            const progressPercent  = document.getElementById('webp-progress-percent');
+            const currentFileText  = document.getElementById('webp-current-file');
+            const progressCounts   = document.getElementById('webp-progress-counts');
+            const processingView   = document.getElementById('webp-processing-view');
+            const successView      = document.getElementById('webp-success-view');
+            const successMessage   = document.getElementById('webp-success-message');
+            const itemLog          = document.getElementById('webp-item-log');
             
             const csrfToken = bulkConvertForm.querySelector('input[name="_token"]').value;
 
@@ -259,43 +260,49 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(res => res.json())
             .then(data => {
                 if (!data.success || !data.items || data.items.length === 0) {
-                    currentFileText.textContent = "No images need conversion.";
-                    progressCounts.textContent = "Everything is already WebP!";
-                    progressBar.style.width = "100%";
-                    progressPercent.textContent = "100%";
+                    currentFileText.textContent = 'No images need conversion.';
+                    progressCounts.textContent  = 'Everything is already WebP!';
+                    progressBar.style.width      = '100%';
+                    progressPercent.textContent  = '100%';
                     setTimeout(() => {
                         processingView.classList.add('d-none');
                         successView.classList.remove('d-none');
-                        successMessage.textContent = "No conversion was needed.";
-                    }, 1000);
+                        successMessage.textContent = 'No conversion was needed — all images are already WebP.';
+                    }, 800);
                     return;
                 }
 
                 const total = data.items.length;
                 let processed = 0;
                 let succeeded = 0;
-                let failed = 0;
+                let failed    = 0;
 
                 const processQueue = () => {
                     if (processed >= total) {
                         // Complete
-                        progressBar.style.width = "100%";
-                        progressPercent.textContent = "100%";
+                        progressBar.style.width    = '100%';
+                        progressPercent.textContent = '100%';
+                        progressCounts.textContent  = `Done: ${succeeded} converted, ${failed} failed.`;
                         setTimeout(() => {
                             processingView.classList.add('d-none');
                             successView.classList.remove('d-none');
-                            successMessage.textContent = `Successfully converted ${succeeded} image(s) to WebP. ${failed} failed.`;
+                            if (failed === 0) {
+                                successMessage.textContent = `Successfully converted ${succeeded} image(s) to WebP.`;
+                            } else {
+                                successMessage.innerHTML = `Converted <strong>${succeeded}</strong> image(s). ` +
+                                    `<span class="text-danger">${failed} failed</span> — check server logs for details.`;
+                            }
                         }, 500);
                         return;
                     }
 
                     const currentItem = data.items[processed];
                     currentFileText.textContent = `Converting: ${currentItem.name}`;
-                    progressCounts.textContent = `Processing image ${processed + 1} of ${total}`;
+                    progressCounts.textContent  = `Processing ${processed + 1} of ${total} — ${succeeded} done, ${failed} failed`;
 
                     // Update progress bar
                     const percent = Math.round((processed / total) * 100);
-                    progressBar.style.width = `${percent}%`;
+                    progressBar.style.width    = `${percent}%`;
                     progressPercent.textContent = `${percent}%`;
 
                     // Call single item conversion
@@ -306,23 +313,23 @@ document.addEventListener('DOMContentLoaded', function() {
                             'Accept': 'application/json'
                         }
                     })
-                    .then(res => {
-                        if (!res.ok) throw new Error();
-                        return res.json();
-                    })
-                    .then(resData => {
-                        if (resData.success) {
+                    .then(res => res.json().then(body => ({ ok: res.ok, body })))
+                    .then(({ ok, body }) => {
+                        if (ok && body.success) {
                             succeeded++;
+                            appendLog(itemLog, currentItem.name, true, body.message || 'Converted');
                         } else {
                             failed++;
+                            appendLog(itemLog, currentItem.name, false, body.message || 'Conversion failed');
                         }
                     })
-                    .catch(() => {
+                    .catch(err => {
                         failed++;
+                        appendLog(itemLog, currentItem.name, false, 'Network or server error');
+                        console.error('Conversion error for', currentItem.name, err);
                     })
                     .finally(() => {
                         processed++;
-                        // Recurse to process next item
                         processQueue();
                     });
                 };
@@ -337,33 +344,49 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+
+    function appendLog(container, name, success, message) {
+        const row = document.createElement('div');
+        row.className = `d-flex align-items-center gap-2 py-1 border-bottom small ${success ? 'text-success' : 'text-danger'}`;
+        row.innerHTML = `<i class="bi ${success ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}"></i>` +
+                        `<span class="text-truncate flex-grow-1" title="${name}">${name}</span>` +
+                        `<span class="text-muted">${message}</span>`;
+        container.prepend(row);
+    }
 });
 </script>
 
 {{-- WebP Bulk Conversion Progress Modal --}}
 <div class="modal fade" id="webpConvertModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="webpConvertModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content shadow-lg border-0">
             <div class="modal-header bg-warning text-dark border-0 py-3">
                 <h5 class="modal-title fw-bold" id="webpConvertModalLabel">
                     <i class="bi bi-magic me-2"></i>Converting Images to WebP
                 </h5>
             </div>
-            <div class="modal-body text-center p-4">
+            <div class="modal-body p-4">
                 <div id="webp-processing-view">
-                    <div class="spinner-grow text-warning mb-3" style="width: 3rem; height: 3rem;" role="status">
-                        <span class="visually-hidden">Loading...</span>
+                    <div class="text-center mb-3">
+                        <div class="spinner-grow text-warning mb-3" style="width: 2.5rem; height: 2.5rem;" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <h6 class="fw-semibold mb-1" id="webp-current-file">Initializing conversion queue...</h6>
+                        <p class="text-muted small mb-3" id="webp-progress-counts">Please wait...</p>
+
+                        <div class="progress mb-1" style="height: 12px; border-radius: 6px; background-color: #f0f0f0;">
+                            <div id="webp-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <span class="text-dark fw-bold small" id="webp-progress-percent">0%</span>
                     </div>
-                    <h6 class="fw-semibold mb-1" id="webp-current-file">Initializing conversion queue...</h6>
-                    <p class="text-muted small mb-4" id="webp-progress-counts">Please wait...</p>
-                    
-                    <div class="progress mb-2" style="height: 12px; border-radius: 6px; background-color: #f0f0f0;">
-                        <div id="webp-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+
+                    {{-- Per-item log --}}
+                    <div id="webp-item-log" class="mt-3 border rounded p-2" style="max-height: 220px; overflow-y: auto; font-size: 0.8rem; background: #f8f9fa;">
+                        <div class="text-muted text-center small py-2">Conversion log will appear here...</div>
                     </div>
-                    <span class="text-dark fw-bold small" id="webp-progress-percent">0%</span>
                 </div>
-                
-                <div id="webp-success-view" class="d-none">
+
+                <div id="webp-success-view" class="d-none text-center">
                     <div class="mb-3 text-success">
                         <i class="bi bi-check-circle-fill" style="font-size: 3.5rem;"></i>
                     </div>
