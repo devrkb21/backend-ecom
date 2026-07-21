@@ -75,7 +75,7 @@ class MediaController extends Controller
      */
     public static function convertToWebp(string $sourcePath, string $destinationPath, int $quality = 85): bool
     {
-        // Try Imagick first
+        // Try Imagick first (preferred — handles all formats including palette PNGs)
         if (class_exists(\Imagick::class)) {
             try {
                 $imagick = new \Imagick();
@@ -87,7 +87,11 @@ class MediaController extends Controller
                 $imagick->destroy();
                 return true;
             } catch (\Exception $e) {
-                // Fallback to GD
+                // Log Imagick failure and fall through to GD
+                logger()->warning('Imagick WebP conversion failed, falling back to GD.', [
+                    'source' => $sourcePath,
+                    'error'  => $e->getMessage(),
+                ]);
             }
         }
 
@@ -96,6 +100,7 @@ class MediaController extends Controller
             try {
                 $info = @getimagesize($sourcePath);
                 if (!$info) {
+                    logger()->warning('WebP conversion: getimagesize() failed.', ['source' => $sourcePath]);
                     return false;
                 }
 
@@ -115,26 +120,40 @@ class MediaController extends Controller
                         $image = @imagecreatefromwebp($sourcePath);
                         break;
                     default:
+                        logger()->warning('WebP conversion: unsupported MIME type.', ['mime' => $mime, 'source' => $sourcePath]);
                         return false;
                 }
 
                 if (!$image) {
+                    logger()->warning('WebP conversion: GD failed to load image.', ['source' => $sourcePath]);
                     return false;
+                }
+
+                // Convert palette/indexed images to truecolor.
+                // GD's imagewebp() only supports truecolor; palette images produce a 0-byte file.
+                if (!imageistruecolor($image)) {
+                    imagepalettetotruecolor($image);
                 }
 
                 // Preserve alpha transparency
                 imagealphablending($image, false);
                 imagesavealpha($image, true);
 
-                $result = @imagewebp($image, $destinationPath, $quality);
+                $result = imagewebp($image, $destinationPath, $quality);
                 imagedestroy($image);
 
-                return $result;
+                if (!$result) {
+                    logger()->warning('WebP conversion: imagewebp() returned false.', ['source' => $sourcePath, 'dest' => $destinationPath]);
+                }
+
+                return (bool) $result;
             } catch (\Exception $e) {
+                logger()->error('WebP GD conversion exception.', ['source' => $sourcePath, 'error' => $e->getMessage()]);
                 return false;
             }
         }
 
+        logger()->warning('WebP conversion: neither Imagick nor GD imagewebp() is available.');
         return false;
     }
 
@@ -350,7 +369,8 @@ class MediaController extends Controller
         $subFolder = dirname($oldPath);
         $fullSubFolder = public_path($subFolder);
         
-        $newFilename = $safeName . '_' . uniqid() . '.webp';
+        // Use the same base name — just swap the extension to .webp (no uniqid suffix)
+        $newFilename = $safeName . '.webp';
         $sourcePath = public_path($oldPath);
         $destinationPath = $fullSubFolder . '/' . $newFilename;
 
