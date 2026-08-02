@@ -143,6 +143,13 @@ class OrderCustomerSyncService
                 ) {
                     $phoneMatchQuery
                         ->whereRaw($normalizedShippingPhoneSql . ' = ?', [$normalizedUserPhone])
+                        // Phone numbers get reassigned/reused (family members, a
+                        // reissued SIM) — matching purely on phone with no other
+                        // identity signal is safest limited to orders placed
+                        // shortly before this person registered, i.e. very likely
+                        // their own checkout, not a stranger's from months/years
+                        // back who happened to share the number.
+                        ->where('created_at', '>=', now()->subDays(30))
                         ->where(function (Builder $phoneEmailFallbackQuery) use (
                             $normalizedShippingEmailSql,
                             $guestEmail,

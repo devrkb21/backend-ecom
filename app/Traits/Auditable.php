@@ -6,6 +6,25 @@ use App\Models\AuditLog;
 
 trait Auditable
 {
+    /**
+     * Fields that must never be written into audit_logs.old_values / new_values,
+     * regardless of which lifecycle hook is logging.
+     */
+    protected static array $auditableSensitiveFields = ['password', 'remember_token'];
+
+    private static function redactSensitiveFields(?array $attributes): ?array
+    {
+        if ($attributes === null) {
+            return null;
+        }
+
+        foreach (static::$auditableSensitiveFields as $field) {
+            unset($attributes[$field]);
+        }
+
+        return $attributes;
+    }
+
     public static function bootAuditable(): void
     {
         static::created(function ($model) {
@@ -15,7 +34,7 @@ trait Auditable
                     get_class($model),
                     $model->id,
                     null,
-                    $model->getAttributes()
+                    self::redactSensitiveFields($model->getAttributes())
                 );
             }
         });
@@ -31,8 +50,7 @@ trait Auditable
                 }
 
                 // Remove sensitive fields from audit
-                $sensitiveFields = ['password', 'remember_token'];
-                foreach ($sensitiveFields as $field) {
+                foreach (static::$auditableSensitiveFields as $field) {
                     unset($changes[$field], $original[$field]);
                 }
 
@@ -54,7 +72,7 @@ trait Auditable
                     'deleted',
                     get_class($model),
                     $model->id,
-                    $model->getOriginal(),
+                    self::redactSensitiveFields($model->getOriginal()),
                     null
                 );
             }

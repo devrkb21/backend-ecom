@@ -23,8 +23,18 @@ return Application::configure(basePath: dirname(__DIR__))
             'internal.api' => \App\Http\Middleware\InternalApiOnly::class,
         ]);
 
-        // Trust all proxies (e.g. Cloudflare, Next.js API Routes)
-        $middleware->trustProxies(at: '*');
+        // Trust only known reverse proxies, not every client — trusting '*'
+        // lets any direct caller spoof X-Forwarded-For and forge the IP that
+        // $request->ip() returns, which fraud-block IP matching and any
+        // IP-based rate limiting both rely on. Set TRUSTED_PROXIES in .env to
+        // a comma-separated list of your actual proxy IPs/CIDRs (e.g. your
+        // Next.js host, or Cloudflare's published ranges) to override the
+        // private-network default below.
+        $trustedProxies = array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('TRUSTED_PROXIES', '10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.1'))
+        )));
+        $middleware->trustProxies(at: $trustedProxies ?: null);
 
         // Append API request logging middleware
         $middleware->appendToGroup('api', [

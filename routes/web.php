@@ -43,7 +43,7 @@ Route::get('login', fn() => redirect()->route('admin.login'))->name('login');
 // Admin Auth Routes (Guest)
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('login', [AuthController::class, 'showLoginForm'])->name('login');
-    Route::post('login', [AuthController::class, 'login'])->name('login.submit');
+    Route::post('login', [AuthController::class, 'login'])->middleware('throttle:8,1')->name('login.submit');
 
     // Admin Protected Routes
     Route::middleware(['auth:web', 'is_admin', 'admin_permission'])->group(function () {
@@ -75,8 +75,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Loyalty Rewards
         Route::resource('loyalty-rewards', App\Http\Controllers\Admin\LoyaltyRewardController::class);
 
-        // Fraud Blocker
-        Route::resource('fraud-blocks', App\Http\Controllers\Admin\FraudBlockController::class);
+        // Fraud Blocker — full route set (index/store/destroy + custom actions) is
+        // registered later in this file; FraudBlockController has no create/show/edit/update
+        // methods, so a Route::resource() here would register four routes that 500 if hit.
 
         // Contact Messages
         Route::prefix('contact-messages')->name('contact-messages.')->group(function () {

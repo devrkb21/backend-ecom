@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Http;
 
 class SmsService
 {
-    private const DEFAULT_SEND_URL = 'http://www.bulksmsbd.net/api/smsapi';
-    private const DEFAULT_BALANCE_URL = 'http://www.bulksmsbd.net/api/getBalanceApi';
+    private const DEFAULT_SEND_URL = 'https://www.bulksmsbd.net/api/smsapi';
+    private const DEFAULT_BALANCE_URL = 'https://www.bulksmsbd.net/api/getBalanceApi';
 
     public function isEnabled(): bool
     {
@@ -64,9 +64,11 @@ class SmsService
             'message' => $message,
         ];
 
+        // No withoutVerifying() — that disabled TLS certificate validation
+        // outright, so even an admin-configured https:// URL wouldn't have
+        // been protected from a MITM intercepting the API key in transit.
         $response = Http::asForm()
             ->timeout(15)
-            ->withoutVerifying()
             ->post($sendUrl, $payload);
 
         $raw = trim((string) $response->body());
@@ -199,7 +201,6 @@ class SmsService
         }
 
         $response = Http::timeout(10)
-            ->withoutVerifying()
             ->get($balanceUrl, ['api_key' => $apiKey]);
 
         $raw = trim((string) $response->body());

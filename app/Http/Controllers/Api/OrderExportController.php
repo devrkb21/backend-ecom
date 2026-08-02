@@ -60,6 +60,13 @@ class OrderExportController extends Controller
             return $this->errorResponse('Unauthorized', 403);
         }
 
+        // Defense-in-depth allowlist on top of Laravel's own route-segment
+        // handling (which already blocks literal '/'): only allow the exact
+        // character set export filenames are actually generated with.
+        if (preg_match('/^[A-Za-z0-9_\-\.]+\.csv$/', $filename) !== 1) {
+            return $this->errorResponse('Invalid filename', 400);
+        }
+
         $path = 'exports/' . $filename;
 
         if (!Storage::exists($path)) {

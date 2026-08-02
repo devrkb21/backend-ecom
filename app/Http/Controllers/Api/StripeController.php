@@ -135,10 +135,15 @@ class StripeController extends Controller
                     return $this->errorResponse('Payment intent does not match this order.', 400);
                 }
 
-                $order->update([
-                    'payment_status' => 'paid',
-                    'transaction_id' => $result['id'],
-                ]);
+                // Idempotency guard matching the webhook handler — avoids an
+                // unconditional re-write if the webhook already processed
+                // this same PaymentIntent first.
+                if ($order->payment_status !== 'paid') {
+                    $order->update([
+                        'payment_status' => 'paid',
+                        'transaction_id' => $result['id'],
+                    ]);
+                }
 
                 if ($requestUser && !empty($result['payment_method'])) {
                     try {
@@ -157,8 +162,13 @@ class StripeController extends Controller
                     }
                 }
 
-                // Update order status to processing
-                $this->orderService->updateOrderStatus($order->id, 'processing');
+                // Update order status to processing — guard against the
+                // webhook having already advanced it (e.g. a race between
+                // this request and Stripe's own webhook), since
+                // updateOrderStatus() throws on a same-status transition.
+                if ($order->fresh()->status === 'pending') {
+                    $this->orderService->updateOrderStatus($order->id, 'processing');
+                }
 
                 return $this->successResponse([
                     'status' => 'succeeded',
@@ -222,6 +232,21 @@ class StripeController extends Controller
         if ($orderId) {
             $order = Order::find($orderId);
             if ($order && $order->payment_status !== 'paid') {
+                // Defense-in-depth: the PaymentIntent amount is always
+                // server-computed from $order->total when created, so this
+                // should never mismatch — but if a future bug in intent
+                // creation ever caused one, this stops the webhook from
+                // silently marking a mismatched order paid.
+                $expectedCents = $this->stripeService->convertToCents((float) $order->total);
+                if ((int) $paymentIntent->amount !== $expectedCents) {
+                    Log::warning('Stripe webhook: PaymentIntent amount does not match order total, refusing to mark paid.', [
+                        'order_id' => $order->id,
+                        'expected_cents' => $expectedCents,
+                        'paymentIntent_amount' => $paymentIntent->amount,
+                    ]);
+                    return;
+                }
+
                 $order->update([
                     'payment_status' => 'paid',
                     'transaction_id' => $paymentIntent->id,

@@ -110,6 +110,15 @@ class ExportOrders extends Command
         if ($value === null) {
             return '""';
         }
+
+        // Neutralize CSV/Excel formula injection: a value starting with
+        // =, +, -, or @ is interpreted as a formula by Excel/Sheets when the
+        // file is opened. Prefixing with a tab keeps it plain text without
+        // changing the visible content.
+        if (preg_match('/^[=+\-@]/', $value) === 1) {
+            $value = "\t" . $value;
+        }
+
         return '"' . str_replace('"', '""', $value) . '"';
     }
 }

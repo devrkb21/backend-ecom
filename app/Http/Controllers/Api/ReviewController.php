@@ -327,11 +327,19 @@ class ReviewController extends Controller
     public function canReview(Request $request, int $productId): JsonResponse
     {
         $userId = $request->user()->id;
+        // Match store()'s uniqueness key (user_id, product_id, order_id) —
+        // previously this only checked order_id IS NULL, so a user with
+        // multiple qualifying orders for the same product would see
+        // can_review: true here even after already reviewing that exact
+        // order, because store()'s uniqueness check uses the submitted
+        // order_id while this one didn't accept it at all.
+        $orderId = $request->query('order_id');
+        $orderId = $orderId !== null ? (int) $orderId : null;
 
         // Check if already reviewed
         $existingReview = Review::where('user_id', $userId)
             ->where('product_id', $productId)
-            ->whereNull('order_id')
+            ->where('order_id', $orderId)
             ->first();
 
         if ($existingReview) {

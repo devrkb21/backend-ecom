@@ -59,16 +59,36 @@ class Product extends Model
                 $product->slug = Str::slug($product->name);
             }
             if (empty($product->sku) && !request()->boolean('is_sku_optional')) {
-                // Generate SKU from 8 digit numeric value
-                $product->sku = (string) random_int(10000000, 99999999);
+                $product->sku = self::generateUniqueRandomSku();
             }
         });
 
         static::updating(function ($product) {
             if (empty($product->sku) && !request()->boolean('is_sku_optional')) {
-                $product->sku = (string) random_int(10000000, 99999999);
+                $product->sku = self::generateUniqueRandomSku();
             }
         });
+    }
+
+    /**
+     * Generate a random 8-digit SKU, retrying on collision instead of
+     * letting the DB's unique constraint throw an uncaught QueryException
+     * out of the create/update transaction (which happened under concurrent
+     * product creation before this retry existed).
+     */
+    protected static function generateUniqueRandomSku(): string
+    {
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            $candidate = (string) random_int(10000000, 99999999);
+
+            if (!self::query()->where('sku', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        // Astronomically unlikely to be reached (10 collisions in a row out
+        // of 90M possible values) — fall back to a value guaranteed unique.
+        return 'SKU-' . Str::random(12);
     }
 
     public function category(): BelongsTo
@@ -459,6 +479,31 @@ class Product extends Model
         }
 
         $this->decrement('stock_quantity', $quantity);
+    }
+
+    /**
+     * Atomically decrement stock only if enough is still available, in a
+     * single conditional UPDATE (WHERE stock_quantity >= quantity) — this
+     * closes the race that a separate hasStock() check + decrementStock()
+     * call leaves open between two concurrent checkouts for the last unit.
+     * Returns false (and leaves stock untouched) if not enough remains.
+     */
+    public function decrementStockIfAvailable(int $quantity): bool
+    {
+        if (!self::isStockEnabled() || $this->hasActiveVariants()) {
+            return true;
+        }
+
+        $updated = static::query()
+            ->whereKey($this->id)
+            ->where('stock_quantity', '>=', $quantity)
+            ->decrement('stock_quantity', $quantity);
+
+        if ($updated > 0) {
+            $this->stock_quantity = (int) $this->stock_quantity - $quantity;
+        }
+
+        return $updated > 0;
     }
 
     public function incrementStock(int $quantity): void

@@ -13,15 +13,12 @@ class ForgotPasswordRequest extends FormRequest
 
     public function rules(): array
     {
+        // Intentionally no `exists:users,email` rule — AuthService::sendPasswordResetLink
+        // always returns the same generic "if an account exists" message regardless of
+        // whether the address is registered. Validating existence here would let an
+        // attacker enumerate registered accounts via the distinct 422 response.
         return [
-            'email' => ['required', 'email', 'exists:users,email'],
-        ];
-    }
-
-    public function messages(): array
-    {
-        return [
-            'email.exists' => 'We could not find an account with that email address.',
+            'email' => ['required', 'email'],
         ];
     }
 }

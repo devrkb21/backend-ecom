@@ -46,15 +46,13 @@ Route::get('/health', function () {
 
 // Public routes
 Route::prefix('v1')->group(function () {
-    // Authentication
-    Route::prefix('public')->group(function () {
-        Route::get('/loyalty/check', [App\Http\Controllers\Api\CustomerGroupController::class, 'check']);
-    });
     Route::prefix('auth')->group(function () {
-        Route::post('/register', [AuthController::class, 'register']);
-        Route::post('/login', [AuthController::class, 'login']);
-        Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-        Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+        Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:8,1');
+        Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:8,1');
+        Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:4,1');
+        // Also covers OTP verification — throttling here bounds brute-force guesses
+        // against the 4-digit reset OTP within its 10-minute validity window.
+        Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:8,1');
     });
 
     // Email Verification (signed URL, no auth required)
@@ -74,14 +72,19 @@ Route::prefix('v1')->group(function () {
     Route::get('/bkash/callback', [BkashController::class, 'callback'])->withoutMiddleware('auth:sanctum');
     Route::post('/bkash/create-payment', [BkashController::class, 'createPayment']);
 
-    // Public order tracking
-    Route::prefix('track')->group(function () {
+    // Public order tracking — throttled: order numbers can be sequential/
+    // guessable, so this is otherwise an enumeration vector.
+    Route::prefix('track')->middleware('throttle:20,1')->group(function () {
         Route::get('/order/{orderNumber}', [OrderTrackingController::class, 'trackByOrderNumber']);
         Route::get('/tracking/{trackingNumber}', [OrderTrackingController::class, 'trackByTrackingNumber']);
     });
 
     // Public frontend data routes protected by internal secret
     Route::middleware('internal.api')->group(function () {
+        // Loyalty / customer-group lookup by phone (spend, order count, discount eligibility)
+        // — must never be reachable without the internal secret, it's a customer-data lookup.
+        Route::get('/loyalty/check', [App\Http\Controllers\Api\CustomerGroupController::class, 'check']);
+
         // Pages
         Route::get('/pages', [PageController::class, 'index']);
         Route::get('/pages/{slug}', [PageController::class, 'show']);
@@ -330,14 +333,10 @@ Route::prefix('v1')->group(function () {
             });
         });
 
-        // Payments
+        // Payments (read-only lookup; creation/processing/refunding only via
+        // the real Stripe/bKash integrations and Admin RefundService)
         Route::prefix('payments')->group(function () {
             Route::get('/order/{orderId}', [PaymentController::class, 'show'])->where('orderId', '[0-9]+');
-            Route::post('/', [PaymentController::class, 'store']);
-            Route::post('/{paymentId}/process', [PaymentController::class, 'process'])->where('paymentId', '[0-9]+');
-            Route::middleware('admin_permission:returns.manage')->group(function () {
-                Route::post('/{paymentId}/refund', [PaymentController::class, 'refund'])->where('paymentId', '[0-9]+');
-            });
         });
 
         // Stripe payment routes
@@ -362,8 +361,11 @@ Route::prefix('v1')->group(function () {
         Route::prefix('admin')->middleware('is_admin')->group(function () {
             Route::get('/orders/export', [OrderExportController::class, 'export']);
             Route::get('/orders/export/download/{filename}', [OrderExportController::class, 'download']);
-            Route::get('/audit-logs', [AuditLogController::class, 'index']);
-            Route::get('/audit-logs/{id}', [AuditLogController::class, 'show'])->where('id', '[0-9]+');
+
+            Route::middleware('admin_permission:audit.view')->group(function () {
+                Route::get('/audit-logs', [AuditLogController::class, 'index']);
+                Route::get('/audit-logs/{id}', [AuditLogController::class, 'show'])->where('id', '[0-9]+');
+            });
         });
     });
 });

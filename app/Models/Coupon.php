@@ -268,6 +268,46 @@ class Coupon extends Model
     }
 
     /**
+     * Atomically re-check the global and per-user usage limits and record
+     * this usage, all under a row lock — must be called from inside an
+     * existing DB transaction (checkout already wraps order creation in
+     * one). The earlier isValid()/isValidForUser()/validateForCart() checks
+     * happen well before the order is actually committed, so without this,
+     * two concurrent checkouts can both pass those checks before either's
+     * usage is recorded, bypassing a usage_limit_per_user=1 cap (or the
+     * global usage_limit). Throws if the limit is already exhausted by the
+     * time this actually runs.
+     */
+    public function reserveUsage(?int $userId, ?int $orderId, float $discountAmount): void
+    {
+        /** @var self $locked */
+        $locked = static::query()->whereKey($this->id)->lockForUpdate()->firstOrFail();
+
+        if ($locked->usage_limit && $locked->used_count >= $locked->usage_limit) {
+            throw new \Exception('This coupon has reached its usage limit.');
+        }
+
+        if ($userId !== null && $locked->usage_limit_per_user) {
+            $userUsageCount = $locked->usages()->where('user_id', $userId)->count();
+            if ($userUsageCount >= $locked->usage_limit_per_user) {
+                throw new \Exception('You have already used this coupon the maximum number of times.');
+            }
+        }
+
+        if ($userId !== null) {
+            CouponUsage::create([
+                'coupon_id' => $locked->id,
+                'user_id' => $userId,
+                'order_id' => $orderId,
+                'discount_amount' => $discountAmount,
+            ]);
+        }
+
+        $locked->increment('used_count');
+        $this->used_count = $locked->used_count;
+    }
+
+    /**
      * Get status attribute
      */
     public function getStatusAttribute(): string

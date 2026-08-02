@@ -194,22 +194,12 @@ class FlashSaleService
         return $flashSaleProduct->canPurchase($quantity, $userId);
     }
 
-    /**
-     * Process flash sale purchase (update sold count)
-     */
-    public function processPurchase(int $productId, int $quantity): void
-    {
-        $flashSaleProduct = FlashSaleProduct::whereHas('flashSale', function ($query) {
-            $query->active();
-        })
-            ->where('product_id', $productId)
-            ->where('is_active', true)
-            ->first();
-
-        if ($flashSaleProduct) {
-            $flashSaleProduct->incrementSoldCount($quantity);
-        }
-    }
+    // Note: purchase reservation/sold-count updates happen exclusively via
+    // FlashSaleProduct::reserveActiveForProduct() (called from OrderService
+    // at checkout), which locks the row and re-validates limits atomically.
+    // A prior processPurchase() here duplicated the increment without a
+    // lock and wasn't called from the real checkout path — removed rather
+    // than left as a second, unsafe way to do the same thing.
 
     /**
      * Get flash sale statistics

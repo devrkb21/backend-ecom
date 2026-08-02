@@ -13,6 +13,23 @@ class BusinessIntelligenceController extends Controller
     ) {}
 
     /**
+     * Write a CSV row with formula-injection neutralized: a cell starting
+     * with =, +, -, or @ is interpreted as a formula by Excel/Sheets when
+     * the exported file is opened, so customer/product-name fields (which
+     * are attacker-controlled — a shipping name, a category name) could
+     * otherwise execute arbitrary formulas on whoever opens the export.
+     */
+    private static function csvRow($file, array $row): void
+    {
+        fputcsv($file, array_map(static function ($value) {
+            if (is_string($value) && preg_match('/^[=+\-@]/', $value) === 1) {
+                return "\t" . $value;
+            }
+            return $value;
+        }, $row));
+    }
+
+    /**
      * Main BI Dashboard
      */
     public function index(Request $request)
@@ -183,28 +200,28 @@ class BusinessIntelligenceController extends Controller
             $file = fopen('php://output', 'w');
 
             // Overview section
-            fputcsv($file, ['=== SALES OVERVIEW ===']);
-            fputcsv($file, ['Metric', 'Value', 'Growth %']);
-            fputcsv($file, ['Revenue', $overview['revenue'], $overview['revenue_growth'] . '%']);
-            fputcsv($file, ['Orders', $overview['orders'], $overview['orders_growth'] . '%']);
-            fputcsv($file, ['Avg Order Value', $overview['average_order_value'], $overview['aov_growth'] . '%']);
-            fputcsv($file, ['Refunds', $overview['refunds'], '']);
-            fputcsv($file, ['Net Revenue', $overview['net_revenue'], '']);
-            fputcsv($file, []);
+            self::csvRow($file, ['=== SALES OVERVIEW ===']);
+            self::csvRow($file, ['Metric', 'Value', 'Growth %']);
+            self::csvRow($file, ['Revenue', $overview['revenue'], $overview['revenue_growth'] . '%']);
+            self::csvRow($file, ['Orders', $overview['orders'], $overview['orders_growth'] . '%']);
+            self::csvRow($file, ['Avg Order Value', $overview['average_order_value'], $overview['aov_growth'] . '%']);
+            self::csvRow($file, ['Refunds', $overview['refunds'], '']);
+            self::csvRow($file, ['Net Revenue', $overview['net_revenue'], '']);
+            self::csvRow($file, []);
 
             // By Category
-            fputcsv($file, ['=== SALES BY CATEGORY ===']);
-            fputcsv($file, ['Category', 'Orders', 'Units Sold', 'Revenue']);
+            self::csvRow($file, ['=== SALES BY CATEGORY ===']);
+            self::csvRow($file, ['Category', 'Orders', 'Units Sold', 'Revenue']);
             foreach ($byCategory as $cat) {
-                fputcsv($file, [$cat['name'], $cat['orders'], $cat['units_sold'], $cat['revenue']]);
+                self::csvRow($file, [$cat['name'], $cat['orders'], $cat['units_sold'], $cat['revenue']]);
             }
-            fputcsv($file, []);
+            self::csvRow($file, []);
 
             // By Payment Method
-            fputcsv($file, ['=== SALES BY PAYMENT METHOD ===']);
-            fputcsv($file, ['Method', 'Orders', 'Total']);
+            self::csvRow($file, ['=== SALES BY PAYMENT METHOD ===']);
+            self::csvRow($file, ['Method', 'Orders', 'Total']);
             foreach ($byPaymentMethod as $method) {
-                fputcsv($file, [$method['method'], $method['count'], $method['total']]);
+                self::csvRow($file, [$method['method'], $method['count'], $method['total']]);
             }
 
             fclose($file);
@@ -235,27 +252,27 @@ class BusinessIntelligenceController extends Controller
             $file = fopen('php://output', 'w');
 
             // Valuation Summary
-            fputcsv($file, ['=== INVENTORY VALUATION ===']);
-            fputcsv($file, ['Total Units', $valuation['total_units']]);
-            fputcsv($file, ['Retail Value', $valuation['total_retail_value']]);
-            fputcsv($file, ['Cost Value', $valuation['total_cost_value']]);
-            fputcsv($file, ['Potential Profit', $valuation['potential_profit']]);
-            fputcsv($file, ['Potential Profit %', $valuation['potential_profit_percentage'] . '%']);
-            fputcsv($file, []);
+            self::csvRow($file, ['=== INVENTORY VALUATION ===']);
+            self::csvRow($file, ['Total Units', $valuation['total_units']]);
+            self::csvRow($file, ['Retail Value', $valuation['total_retail_value']]);
+            self::csvRow($file, ['Cost Value', $valuation['total_cost_value']]);
+            self::csvRow($file, ['Potential Profit', $valuation['potential_profit']]);
+            self::csvRow($file, ['Potential Profit %', $valuation['potential_profit_percentage'] . '%']);
+            self::csvRow($file, []);
 
             // Low Stock
-            fputcsv($file, ['=== LOW STOCK ITEMS ===']);
-            fputcsv($file, ['Product', 'SKU', 'Stock', 'Category', 'Price']);
+            self::csvRow($file, ['=== LOW STOCK ITEMS ===']);
+            self::csvRow($file, ['Product', 'SKU', 'Stock', 'Category', 'Price']);
             foreach ($lowStock as $item) {
-                fputcsv($file, [$item['name'], $item['sku'], $item['stock'], $item['category'], $item['price']]);
+                self::csvRow($file, [$item['name'], $item['sku'], $item['stock'], $item['category'], $item['price']]);
             }
-            fputcsv($file, []);
+            self::csvRow($file, []);
 
             // Out of Stock
-            fputcsv($file, ['=== OUT OF STOCK ===']);
-            fputcsv($file, ['Product', 'SKU', 'Category', 'Last Sale', 'Price']);
+            self::csvRow($file, ['=== OUT OF STOCK ===']);
+            self::csvRow($file, ['Product', 'SKU', 'Category', 'Last Sale', 'Price']);
             foreach ($outOfStock as $item) {
-                fputcsv($file, [$item['name'], $item['sku'], $item['category'], $item['last_sale'], $item['price']]);
+                self::csvRow($file, [$item['name'], $item['sku'], $item['category'], $item['last_sale'], $item['price']]);
             }
 
             fclose($file);
@@ -283,18 +300,18 @@ class BusinessIntelligenceController extends Controller
             $file = fopen('php://output', 'w');
 
             // Segments
-            fputcsv($file, ['=== CUSTOMER SEGMENTS ===']);
-            fputcsv($file, ['Segment', 'Count', 'Revenue', 'Description']);
+            self::csvRow($file, ['=== CUSTOMER SEGMENTS ===']);
+            self::csvRow($file, ['Segment', 'Count', 'Revenue', 'Description']);
             foreach ($segments as $seg) {
-                fputcsv($file, [$seg['segment'], $seg['count'], $seg['revenue'], $seg['criteria']]);
+                self::csvRow($file, [$seg['segment'], $seg['count'], $seg['revenue'], $seg['criteria']]);
             }
-            fputcsv($file, []);
+            self::csvRow($file, []);
 
             // Top Customers
-            fputcsv($file, ['=== TOP CUSTOMERS ===']);
-            fputcsv($file, ['Name', 'Email', 'Total Orders', 'Lifetime Value', 'Avg Order', 'Last Order', 'Status']);
+            self::csvRow($file, ['=== TOP CUSTOMERS ===']);
+            self::csvRow($file, ['Name', 'Email', 'Total Orders', 'Lifetime Value', 'Avg Order', 'Last Order', 'Status']);
             foreach ($topCustomers as $customer) {
-                fputcsv($file, [
+                self::csvRow($file, [
                     $customer['name'],
                     $customer['email'],
                     $customer['total_orders'],
