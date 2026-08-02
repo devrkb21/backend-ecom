@@ -18,7 +18,7 @@ class UserController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        if (!$request->user()->isAdmin()) {
+        if (!$request->user()->isAdmin() && !$request->user()->hasAdminPermission('users.manage')) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
@@ -31,8 +31,8 @@ class UserController extends Controller
     {
         $user = $this->userService->getUserById($id);
 
-        // Users can only view their own profile unless admin
-        if (!$request->user()->isAdmin() && $request->user()->id !== $id) {
+        // Users can only view their own profile unless admin / granted user management
+        if (!$request->user()->isAdmin() && !$request->user()->hasAdminPermission('users.manage') && $request->user()->id !== $id) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
@@ -41,8 +41,8 @@ class UserController extends Controller
 
     public function update(UpdateUserRequest $request, int $id): JsonResponse
     {
-        // Users can only update their own profile unless admin
-        if (!$request->user()->isAdmin() && $request->user()->id !== $id) {
+        // Users can only update their own profile unless admin / granted user management
+        if (!$request->user()->isAdmin() && !$request->user()->hasAdminPermission('users.manage') && $request->user()->id !== $id) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
@@ -53,7 +53,7 @@ class UserController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        if (!$request->user()->isAdmin()) {
+        if (!$request->user()->isAdmin() && !$request->user()->hasAdminPermission('users.manage')) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
@@ -76,7 +76,7 @@ class UserController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        if (!$request->user()->isAdmin()) {
+        if (!$request->user()->isAdmin() && !$request->user()->hasAdminPermission('users.manage')) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
@@ -95,7 +95,7 @@ class UserController extends Controller
 
     public function toggleStatus(Request $request, int $id): JsonResponse
     {
-        if (!$request->user()->isAdmin()) {
+        if (!$request->user()->isAdmin() && !$request->user()->hasAdminPermission('users.manage')) {
             return $this->errorResponse('Unauthorized', 403);
         }
 

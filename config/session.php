@@ -18,7 +18,9 @@ return [
     ),
     'path' => '/',
     'domain' => env('SESSION_DOMAIN'),
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // Defaults to secure-by-default in production even if SESSION_SECURE_COOKIE
+    // is never set in .env — only an explicit true/false in .env overrides this.
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production'),
     'http_only' => true,
     'same_site' => 'lax',
     'partitioned' => false,

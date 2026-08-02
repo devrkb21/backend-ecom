@@ -15,22 +15,28 @@ class SteadfastWebhookController extends Controller
      */
     public function handle(Request $request)
     {
-        // 1. Authenticate Request via Bearer Token
+        // 1. Authenticate Request via Bearer Token.
+        // Fail CLOSED: an unconfigured token must reject every request, not
+        // let them all through. Order numbers are visible to customers in
+        // confirmation emails/URLs, so a skipped check here lets anyone mark
+        // any order "delivered"/paid by guessing/knowing an order number.
         $expectedToken = Setting::getValue('courier', 'steadfast_webhook_token');
-        
-        if (!empty($expectedToken)) {
-            $authHeader = $request->header('Authorization');
-            if ($authHeader !== 'Bearer ' . $expectedToken) {
-                Log::warning('SteadFast Webhook Unauthorized Request', [
-                    'ip' => $request->ip(),
-                    'auth_header' => $authHeader
-                ]);
-                return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
-            }
+        $authHeader = (string) $request->header('Authorization', '');
+
+        if (empty($expectedToken) || !hash_equals('Bearer ' . $expectedToken, $authHeader)) {
+            Log::warning('SteadFast Webhook Unauthorized Request', [
+                'ip' => $request->ip(),
+                'token_configured' => !empty($expectedToken),
+            ]);
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
-        $payload = $request->all();
-        Log::info('SteadFast Webhook Received', ['payload' => $payload]);
+        Log::info('SteadFast Webhook Received', [
+            'notification_type' => $request->input('notification_type'),
+            'consignment_id' => $request->input('consignment_id'),
+            'invoice' => $request->input('invoice'),
+            'status' => $request->input('status'),
+        ]);
 
         $notificationType = $request->input('notification_type');
         $consignmentId = $request->input('consignment_id');
@@ -103,6 +109,16 @@ class SteadfastWebhookController extends Controller
                         $orderUpdated = true;
                         $statusName = 'Cancelled';
                     }
+                    break;
+
+                default:
+                    // Unrecognized status from the courier — don't silently
+                    // drop it, flag it so ops can add a mapping if it's a
+                    // real new status code.
+                    Log::warning('SteadFast Webhook: unrecognized delivery status', [
+                        'order_id' => $order->id,
+                        'status' => $newStatus,
+                    ]);
                     break;
             }
 

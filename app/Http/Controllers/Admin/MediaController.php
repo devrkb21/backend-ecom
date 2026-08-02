@@ -158,6 +158,57 @@ class MediaController extends Controller
     }
 
     /**
+     * Strip script-capable content from an uploaded SVG before it's written
+     * to disk: <script> elements, event-handler attributes (onload, onclick,
+     * ...), javascript:/data: URIs in href/xlink:href, and <foreignObject>
+     * (can smuggle arbitrary HTML). Returns null if the file isn't
+     * well-formed XML at all — reject rather than store something we can't
+     * inspect. This is defense-in-depth, not a full SVG spec validator.
+     */
+    private static function sanitizeSvg(string $contents): ?string
+    {
+        if (trim($contents) === '') {
+            return null;
+        }
+
+        $previous = libxml_use_internal_errors(true);
+        $doc = new \DOMDocument();
+        $doc->resolveExternals = false;
+        $doc->substituteEntities = false;
+        // LIBXML_NONET blocks network access for any external reference; combined
+        // with resolveExternals/substituteEntities=false above this prevents XXE.
+        $loaded = $doc->loadXML($contents, LIBXML_NONET);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        if (!$loaded || !$doc->documentElement || strtolower($doc->documentElement->localName ?? '') !== 'svg') {
+            return null;
+        }
+
+        $xpath = new \DOMXPath($doc);
+
+        foreach (iterator_to_array($xpath->query('//*[local-name()="script"] | //*[local-name()="foreignObject"]')) as $node) {
+            $node->parentNode?->removeChild($node);
+        }
+
+        foreach (iterator_to_array($xpath->query('//@*')) as $attr) {
+            /** @var \DOMAttr $attr */
+            $name = strtolower($attr->nodeName);
+            $value = trim($attr->nodeValue ?? '');
+
+            $isEventHandler = str_starts_with($name, 'on');
+            $isDangerousUri = in_array($name, ['href', 'xlink:href', 'src'], true)
+                && preg_match('/^\s*(javascript|data|vbscript):/i', $value) === 1;
+
+            if ($isEventHandler || $isDangerousUri) {
+                $attr->ownerElement?->removeAttributeNode($attr);
+            }
+        }
+
+        return $doc->saveXML() ?: null;
+    }
+
+    /**
      * Upload new media file(s)
      */
     public function upload(Request $request)
@@ -185,8 +236,27 @@ class MediaController extends Controller
                 $subFolder = 'media/' . now()->format('Y/m');
                 
                 if ($mimeType === 'image/svg+xml' || $originalExtension === 'svg') {
+                    // SVGs are stored on the public_root disk and served
+                    // directly by the webserver at the site's own origin —
+                    // an unsanitized upload is a stored-XSS vector against
+                    // anyone (including other admins) who opens the URL.
+                    $sanitizedSvg = self::sanitizeSvg((string) file_get_contents($file->getRealPath()));
+
+                    if ($sanitizedSvg === null) {
+                        continue;
+                    }
+
                     $filename = $safeName . '_' . uniqid() . '.svg';
-                    $path = $file->storeAs($subFolder, $filename, 'public_root');
+                    $fullSubFolder = public_path($subFolder);
+
+                    if (!file_exists($fullSubFolder)) {
+                        mkdir($fullSubFolder, 0755, true);
+                    }
+
+                    $destinationPath = $fullSubFolder . '/' . $filename;
+                    file_put_contents($destinationPath, $sanitizedSvg);
+                    $path = $subFolder . '/' . $filename;
+                    $fileSize = @filesize($destinationPath) ?: $file->getSize();
                 } else {
                     $filename = $safeName . '_' . uniqid() . '.webp';
                     $tempPath = $file->getRealPath();

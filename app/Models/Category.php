@@ -72,12 +72,17 @@ class Category extends Model
     {
         $path = [$this->name];
         $parent = $this->parent;
-        
-        while ($parent) {
+        // Guards against an indirect parent cycle (A -> B -> A) hanging the
+        // request — validation only rejects a category being its own direct
+        // parent, not a longer loop, so this traversal must bound itself.
+        $visited = [$this->id => true];
+
+        while ($parent && !isset($visited[$parent->id])) {
+            $visited[$parent->id] = true;
             array_unshift($path, $parent->name);
             $parent = $parent->parent;
         }
-        
+
         return implode(' > ', $path);
     }
 
@@ -88,12 +93,14 @@ class Category extends Model
     {
         $depth = 0;
         $parent = $this->parent;
-        
-        while ($parent) {
+        $visited = [$this->id => true];
+
+        while ($parent && !isset($visited[$parent->id])) {
+            $visited[$parent->id] = true;
             $depth++;
             $parent = $parent->parent;
         }
-        
+
         return $depth;
     }
 

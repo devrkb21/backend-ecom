@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Cart;
 use App\Models\Coupon;
 use App\Models\CouponUsage;
-use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use InvalidArgumentException;
@@ -191,23 +190,6 @@ class CouponService
             'coupon' => $this->formatCouponPayload($coupon),
             'discount' => $discount,
         ];
-    }
-
-    /**
-     * Record coupon usage after order is placed
-     */
-    public function recordUsage(Coupon $coupon, User $user, Order $order, float $discountAmount): CouponUsage
-    {
-        // Increment coupon usage count
-        $coupon->incrementUsage();
-
-        // Create usage record
-        return CouponUsage::create([
-            'coupon_id' => $coupon->id,
-            'user_id' => $user->id,
-            'order_id' => $order->id,
-            'discount_amount' => $discountAmount,
-        ]);
     }
 
     /**

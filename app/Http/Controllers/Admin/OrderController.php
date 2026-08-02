@@ -9,6 +9,7 @@ use App\Models\OrderActivityLog;
 use App\Models\OrderItem;
 use App\Models\OrderStatus;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\ShippingMethod;
 use App\Models\ShippingMethodDistrictRate;
 use App\Models\BdDistrict;
@@ -466,21 +467,29 @@ class OrderController extends Controller
                 if (!$product) continue;
 
                 $qty = (int) $item['quantity'];
+                $variant = !empty($item['variant_id'])
+                    ? ProductVariant::where('id', $item['variant_id'])->where('product_id', $product->id)->first()
+                    : null;
 
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $product->id,
-                    'product_variant_id' => $item['variant_id'] ?? null,
+                    'product_variant_id' => $variant?->id,
                     'product_name' => $product->name,
-                    'product_sku' => $product->sku ?? '',
+                    'product_sku' => $variant?->sku ?: ($product->sku ?? ''),
                     'quantity' => $qty,
                     'price' => (float) $item['price'],
                     'total' => (float) $item['price'] * $qty,
                 ]);
 
-                // Deduct stock
-                if ($product->stock_quantity !== null) {
-                    $product->decrement('stock_quantity', $qty);
+                // Deduct stock from the variant when one was selected —
+                // Product::decrementStock() no-ops for products that have
+                // active variants, so decrementing the parent here would
+                // silently fail to reduce real available stock.
+                if ($variant) {
+                    $variant->decrementStock($qty);
+                } else {
+                    $product->decrementStock($qty);
                 }
             }
 
@@ -573,6 +582,14 @@ class OrderController extends Controller
             $updateData['delivered_at'] = null;
         }
         $order->update($updateData);
+
+        // Award loyalty points once delivered — mirrors OrderService::updateOrderStatus.
+        // awardOrderPoints() is idempotent per order (checks for an existing
+        // LoyaltyTransaction), so it's safe even if both paths ever fire for
+        // the same order.
+        if ($newStatus === 'delivered' && $order->user_id) {
+            app(\App\Services\LoyaltyService::class)->awardOrderPoints($order);
+        }
 
         // Log status change
         $oldLabel = OrderStatus::where('key', $oldStatus)->value('label') ?? ucfirst($oldStatus);
@@ -894,6 +911,10 @@ class OrderController extends Controller
             $order->update($bulkUpdateData);
             $updated++;
 
+            if ($action === 'delivered' && $order->user_id) {
+                app(\App\Services\LoyaltyService::class)->awardOrderPoints($order);
+            }
+
             // Log status change
             $oldLabel = $statusLabelMap[$oldStatus] ?? ucfirst($oldStatus);
             $newLabel = $statusLabelMap[$action] ?? ucfirst($action);
@@ -1074,13 +1095,14 @@ class OrderController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $order) {
-            // Restore stock for old items
+            // Restore stock for old items — variant-tracked stock lives on
+            // the variant row, not the parent product.
+            $order->loadMissing('items.product', 'items.variant');
             foreach ($order->items as $oldItem) {
-                if ($oldItem->product_id) {
-                    $product = Product::find($oldItem->product_id);
-                    if ($product && $product->stock_quantity !== null) {
-                        $product->increment('stock_quantity', $oldItem->quantity);
-                    }
+                if ($oldItem->variant) {
+                    $oldItem->variant->incrementStock((int) $oldItem->quantity);
+                } elseif ($oldItem->product) {
+                    $oldItem->product->incrementStock((int) $oldItem->quantity);
                 }
             }
 
@@ -1096,21 +1118,27 @@ class OrderController extends Controller
                 $qty = (int) $item['quantity'];
                 $price = (float) $item['price'];
                 $subtotal += $price * $qty;
+                $variant = !empty($item['variant_id'])
+                    ? ProductVariant::where('id', $item['variant_id'])->where('product_id', $product->id)->first()
+                    : null;
 
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $product->id,
-                    'product_variant_id' => $item['variant_id'] ?? null,
+                    'product_variant_id' => $variant?->id,
                     'product_name' => $product->name,
-                    'product_sku' => $product->sku ?? '',
+                    'product_sku' => $variant?->sku ?: ($product->sku ?? ''),
                     'quantity' => $qty,
                     'price' => $price,
                     'total' => $price * $qty,
                 ]);
 
-                // Deduct stock
-                if ($product->stock_quantity !== null) {
-                    $product->decrement('stock_quantity', $qty);
+                // Deduct stock from the variant when one was selected — see
+                // note in store() above.
+                if ($variant) {
+                    $variant->decrementStock($qty);
+                } else {
+                    $product->decrementStock($qty);
                 }
             }
 
@@ -1199,9 +1227,18 @@ class OrderController extends Controller
 
     private function restoreOrderStock(Order $order): void
     {
-        $order->loadMissing('items.product');
+        $order->loadMissing('items.product', 'items.variant');
 
         foreach ($order->items as $item) {
+            // Variant-tracked stock lives on the variant row, not the parent
+            // product — Product::incrementStock() no-ops for products with
+            // active variants, so restoring only the product silently loses
+            // the stock for variant items.
+            if ($item->variant) {
+                $item->variant->incrementStock($item->quantity);
+                continue;
+            }
+
             if ($item->product) {
                 $item->product->incrementStock($item->quantity);
             }

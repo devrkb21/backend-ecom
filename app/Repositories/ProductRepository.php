@@ -59,10 +59,17 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
             ->get();
     }
 
+    /**
+     * Used by the public product-detail endpoints — filters to active
+     * products only, matching index(). Admin editing goes through separate
+     * repository/controller calls, not this method, so this doesn't affect
+     * the admin panel's ability to view/edit inactive products.
+     */
     public function findBySlug(string $slug): ?Product
     {
         return $this->model
             ->with(['category', 'images', 'variants.product', 'variants.attributeValues.attribute'])
+            ->active()
             ->where('slug', $slug)
             ->first();
     }
@@ -71,6 +78,7 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
     {
         return $this->model
             ->with(['category', 'images', 'variants.product', 'variants.attributeValues.attribute'])
+            ->active()
             ->find($id);
     }
 

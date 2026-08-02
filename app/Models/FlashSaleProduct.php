@@ -123,4 +123,49 @@ class FlashSaleProduct extends Model
     {
         $this->increment('sold_count', $quantity);
     }
+
+    /**
+     * Atomically check limits and reserve stock for a purchase of the given
+     * product, if it's currently part of a live flash sale. Must be called
+     * from inside an existing DB transaction (checkout already wraps order
+     * creation in one) so the row lock actually holds until commit.
+     *
+     * Returns null if the product isn't in an active flash sale (caller
+     * should fall back to regular pricing). Throws if it is, but the
+     * requested quantity can't be fulfilled (sold out / limit exceeded) —
+     * the caller decides whether that aborts checkout.
+     *
+     * @return array{flash_sale_product_id:int,unit_price:float}|null
+     */
+    public static function reserveActiveForProduct(int $productId, int $quantity, ?int $userId): ?array
+    {
+        $flashSaleProduct = static::query()
+            ->whereHas('flashSale', fn ($query) => $query->active())
+            ->where('product_id', $productId)
+            ->where('is_active', true)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$flashSaleProduct) {
+            return null;
+        }
+
+        // Re-check liveness after the lock — an in-flight write could have
+        // just deactivated the sale/product between the query above and now.
+        if (!$flashSaleProduct->flashSale || !$flashSaleProduct->flashSale->isLive() || !$flashSaleProduct->is_active) {
+            return null;
+        }
+
+        $check = $flashSaleProduct->canPurchase($quantity, $userId);
+        if (!$check['allowed']) {
+            throw new \Exception($check['reason'] ?? 'This flash sale item is no longer available in the requested quantity.');
+        }
+
+        $flashSaleProduct->incrementSoldCount($quantity);
+
+        return [
+            'flash_sale_product_id' => $flashSaleProduct->id,
+            'unit_price' => (float) $flashSaleProduct->flash_price,
+        ];
+    }
 }

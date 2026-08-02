@@ -74,6 +74,14 @@ class AdminRole extends Model
                     'label' => 'Abandoned Carts',
                     'description' => 'Handle abandoned cart follow-up workflows.',
                 ],
+                'fraud.manage' => [
+                    'label' => 'Fraud Prevention',
+                    'description' => 'Manage phone/email/IP fraud blocks and auto-block settings.',
+                ],
+                'contact.manage' => [
+                    'label' => 'Contact Messages',
+                    'description' => 'View and manage contact form submissions.',
+                ],
             ],
             'Business' => [
                 'marketing.manage' => [
@@ -84,6 +92,14 @@ class AdminRole extends Model
                     'label' => 'Analytics & BI',
                     'description' => 'Access analytics reports and business intelligence screens.',
                 ],
+                'customers.manage' => [
+                    'label' => 'Customers',
+                    'description' => 'View and manage customer profiles and customer groups.',
+                ],
+                'content.manage' => [
+                    'label' => 'Content Pages',
+                    'description' => 'Manage CMS pages and marketing landing pages.',
+                ],
             ],
             'Administration' => [
                 'users.manage' => [
@@ -93,6 +109,10 @@ class AdminRole extends Model
                 'settings.manage' => [
                     'label' => 'Settings',
                     'description' => 'Manage site, payment, shipping, and integration settings.',
+                ],
+                'audit.view' => [
+                    'label' => 'Audit Log',
+                    'description' => 'View the system audit log of create/update/delete events.',
                 ],
             ],
         ];

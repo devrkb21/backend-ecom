@@ -149,6 +149,31 @@ class ProductVariant extends Model
         $this->decrement('stock_quantity', $quantity);
     }
 
+    /**
+     * Atomically decrement stock only if enough is still available, in a
+     * single conditional UPDATE (WHERE stock_quantity >= quantity) — this
+     * closes the race that a separate hasStock() check + decrementStock()
+     * call leaves open between two concurrent checkouts for the last unit.
+     * Returns false (and leaves stock untouched) if not enough remains.
+     */
+    public function decrementStockIfAvailable(int $quantity): bool
+    {
+        if (!Product::isStockEnabled()) {
+            return true;
+        }
+
+        $updated = static::query()
+            ->whereKey($this->id)
+            ->where('stock_quantity', '>=', $quantity)
+            ->decrement('stock_quantity', $quantity);
+
+        if ($updated > 0) {
+            $this->stock_quantity = (int) $this->stock_quantity - $quantity;
+        }
+
+        return $updated > 0;
+    }
+
     public function incrementStock(int $quantity): void
     {
         if (!Product::isStockEnabled()) {

@@ -356,7 +356,7 @@ class StripePaymentService
     /**
      * Convert dollars to cents for Stripe
      */
-    protected function convertToCents(float $amount): int
+    public function convertToCents(float $amount): int
     {
         return (int) round($amount * 100);
     }

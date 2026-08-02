@@ -6,6 +6,7 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -25,7 +26,16 @@ class Handler extends ExceptionHandler
             //
         });
 
-        $this->renderable(function (Throwable $e) {
+        $this->renderable(function (Throwable $e, Request $request) {
+            // Mirrors bootstrap/app.php's shouldRenderJsonWhen() scoping —
+            // without this check, every exception on every route (including
+            // the server-rendered admin panel) got forced into a JSON
+            // response instead of Laravel's normal HTML error page/redirect,
+            // and — when APP_DEBUG is on — leaked stack traces there too.
+            if (!$request->is('api/*') && !$request->expectsJson()) {
+                return null;
+            }
+
             return $this->handleApiException($e);
         });
     }

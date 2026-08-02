@@ -82,7 +82,8 @@ class ShippingMethodController extends Controller
             $cost = $method->calculateCost(
                 (float) ($amount ?? 0),
                 (int) $itemCount,
-                (float) ($weight ?? 0)
+                (float) ($weight ?? 0),
+                $districtId
             );
 
             return [
@@ -205,7 +206,8 @@ class ShippingMethodController extends Controller
         $cost = $method->calculateCost(
             (float) $validated['amount'],
             (int) ($validated['item_count'] ?? 1),
-            (float) ($validated['weight'] ?? 0)
+            (float) ($validated['weight'] ?? 0),
+            $districtId
         );
 
         return $this->successResponse([

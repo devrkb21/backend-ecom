@@ -74,7 +74,7 @@ This project is a layered Laravel 12 backend that powers:
 | Services | 20 |
 | Repositories | 8 (with interfaces) |
 | API Resources | 19 |
-| Form Requests | 19 |
+| Form Requests | 17 |
 | Database Migrations | 83 |
 | Database Seeders | 7 |
 | Artisan Commands | 7 |
@@ -519,6 +519,23 @@ Public-facing data routes (products, categories, settings, etc.) are protected b
 - **Controller-level checks**: Many admin operations additionally enforce strict admin checks in service logic
 - **Ownership checks**: Applied on user/order/payment scoped resources
 
+### Hardening Notes (Applied)
+
+The following are enforced in the current codebase, not just documented intent:
+
+| Area | Fix |
+|---|---|
+| **Payments** | Removed the legacy generic "create/process/refund payment" endpoints and their simulated gateway fallback (`PaymentService::simulatePaymentGateway`). All real money movement now goes exclusively through `StripeController`/`BkashController`, which talk to the actual gateway SDKs. |
+| **Stock integrity** | Product/variant stock decrements use an atomic conditional `UPDATE ... WHERE stock_quantity >= ?` (`decrementStockIfAvailable()`), and flash-sale/coupon usage reservation uses `lockForUpdate()` row locks — closes race conditions where concurrent checkouts could oversell limited stock or a limited-use coupon. |
+| **Webhooks** | Steadfast webhook signature comparison uses `hash_equals()` (fail-closed, timing-safe) instead of `===`; unrecognized status values are logged instead of silently ignored. |
+| **Uploaded SVGs** | Sanitized server-side via `DOMDocument`/`DOMXPath` before storage — strips `<script>`, event handler attributes, and `javascript:` URIs to prevent stored XSS through the media library. |
+| **Category trees** | `getFullPathAttribute()`/`getDepthAttribute()` and admin category-update validation both guard against parent-cycle corruption (a category set as its own ancestor). |
+| **CSV/Excel exports** | Values are prefixed to neutralize formula injection (`=`, `+`, `-`, `@` leading characters) before being written to order/report exports. |
+| **Rate limiting** | `throttle:8,1` on register/login/reset-password, `throttle:4,1` on forgot-password, `throttle:20,1` on public order-tracking lookups. |
+| **Error responses** | Exception → JSON rendering is scoped to API/JSON requests only, so admin panel (Blade) errors don't leak stack traces as JSON and vice versa. |
+| **Trusted proxies** | `bootstrap/app.php` reads `TRUSTED_PROXIES` from env (private-network default) instead of trusting `*`, which previously allowed spoofed `X-Forwarded-For` headers to fake the client IP. |
+| **Session cookies** | `SESSION_SECURE_COOKIE` defaults to `true` automatically when `APP_ENV=production` and unset, instead of silently defaulting to `false`. |
+
 ---
 
 ## Core Modules
@@ -931,7 +948,7 @@ These routes serve the Next.js storefront via server-side rendering:
 - List, show, cancel, tracking, invoice, notes
 
 #### Payments
-- Show by order, create, process, refund
+- Show by order (`GET /payments/order/{orderId}`) — read-only lookup. Payment creation/processing/refunding happens exclusively through the gateway-specific controllers (`StripeController`, `BkashController`), never through a generic "create payment" endpoint.
 
 #### bKash
 - Check status, refund
@@ -1095,7 +1112,7 @@ All repositories implement interface contracts registered in `RepositoryServiceP
 
 ## Form Requests (Validation)
 
-19 form request classes organized by domain:
+17 form request classes organized by domain:
 
 | Domain | Requests | Validations |
 |---|---|---|
@@ -1104,7 +1121,6 @@ All repositories implement interface contracts registered in `RepositoryServiceP
 | **Cart** | `AddToCartRequest`, `UpdateCartItemRequest` | Product existence, stock validation, variant support |
 | **Category** | `StoreCategoryRequest`, `UpdateCategoryRequest` | Name/slug rules, parent validation |
 | **Order** | `StoreOrderRequest`, `UpdateOrderStatusRequest` | Complex checkout validation (12KB), address rules, payment method |
-| **Payment** | `StorePaymentRequest`, `ProcessPaymentRequest` | Gateway validation, amount rules |
 | **Product** | `StoreProductRequest`, `UpdateProductRequest` | Price rules, image limits, variant validation |
 | **User** | `UpdateUserRequest` | Profile field validation |
 
@@ -1370,6 +1386,8 @@ REDIS_CACHE_DB=1
 REDIS_PREFIX=ecommerce_
 ```
 
+> **No Redis available locally?** Set `CACHE_DRIVER=file`, `QUEUE_CONNECTION=sync`, and `SESSION_DRIVER=file` instead. Everything works identically for local development — queued jobs just run synchronously instead of via a worker. Use Redis in staging/production for real queue workers and shared cache.
+
 ### Sanctum Authentication
 ```env
 SANCTUM_STATEFUL_DOMAINS=localhost,localhost:3000,127.0.0.1,127.0.0.1:8000
@@ -1550,6 +1568,19 @@ php artisan route:list --path=api/v1 --json
 - [ ] Configure log rotation for `storage/logs/`
 - [ ] Review and restrict admin panel access by IP if needed
 - [ ] Enable `MAIL_ENCRYPTION=tls` in production
+
+---
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Frontend shows only the header — no products/categories/settings load | Frontend `.env.local` is missing or `INTERNAL_API_SECRET` is empty. The `/api/internal/*` proxy hard-fails with HTTP 500 whenever the secret isn't set, and everything data-driven on the storefront goes through that proxy. | Ensure `INTERNAL_API_SECRET` is set in **both** `backend/.env` and `frontend/.env.local`, and that the two values match exactly. |
+| `composer install` fails with `ext-fileinfo` requirement not satisfied | The `fileinfo` PHP extension is disabled (common on a fresh Windows PHP install). | Uncomment `extension=fileinfo` in `php.ini` and restart `php artisan serve`. Verify with `php -m | grep fileinfo`. |
+| App errors on boot referencing Redis (`Connection refused` on `127.0.0.1:6379`) | `CACHE_DRIVER`/`QUEUE_CONNECTION`/`SESSION_DRIVER` are set to `redis` but no Redis server is running. | For local development without Redis, set all three to `file`/`sync`/`file` in `.env`. Use `redis` in staging/production as documented above. |
+| `php artisan test` fails immediately with a missing `Unit` testsuite error | `phpunit.xml.dist` declares a `Unit` suite but `tests/Unit` doesn't exist in this project (only `tests/Feature` is used). | Run `php artisan test --testsuite=Feature` explicitly, or add an empty `tests/Unit` directory. |
+| `LandingPageTest` fails locally but not elsewhere | `INTERNAL_API_SECRET` is missing from `.env`. Because `config/shop.php` always registers the config key via `env('INTERNAL_API_SECRET', '')`, the key resolves to an empty string rather than being "missing", so `config('shop.internal_api_secret', 'fallback')`-style fallbacks never kick in. | Set an explicit `INTERNAL_API_SECRET` value in `.env` — there is no working default. |
+| MySQL connection fails with `SQLSTATE[HY000] [2054] ... auth_gssapi_client` | Wrong or empty `DB_PASSWORD` for the configured `DB_USERNAME`, often from copying `.env.example` verbatim. | Set the real root/user password for your local MySQL/MariaDB instance in `DB_PASSWORD`. |
 
 ---
 

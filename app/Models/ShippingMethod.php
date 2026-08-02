@@ -162,17 +162,22 @@ class ShippingMethod extends Model
     }
 
     /**
-     * Calculate shipping cost for an order
+     * Calculate shipping cost for an order. When a district ID is supplied
+     * and an admin-configured per-district rate exists for it, that rate
+     * replaces the flat base_cost (matching how the admin order editor's
+     * district-rate lookup already treats it) before per-item/per-kg
+     * additions are applied.
      */
-    public function calculateCost(float $orderAmount, int $itemCount = 1, float $weight = 0): float
+    public function calculateCost(float $orderAmount, int $itemCount = 1, float $weight = 0, ?int $districtId = null): float
     {
         // Check for free shipping
         if ($this->free_shipping_threshold && $orderAmount >= $this->free_shipping_threshold) {
             return 0;
         }
 
-        $cost = (float) $this->base_cost;
-        
+        $districtRate = $districtId !== null ? $this->getDistrictRate($districtId) : null;
+        $cost = $districtRate !== null ? $districtRate : (float) $this->base_cost;
+
         // Add per-item cost
         if ($this->cost_per_item > 0) {
             $cost += (float) $this->cost_per_item * $itemCount;

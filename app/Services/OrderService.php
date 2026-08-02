@@ -5,8 +5,8 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\FlashSaleProduct;
 use App\Models\Coupon;
-use App\Models\CouponUsage;
 use App\Models\Cart;
 use App\Models\Address;
 use App\Models\BdDistrict;
@@ -38,7 +38,8 @@ class OrderService
         protected CartRepositoryInterface $cartRepository,
         protected ProductRepositoryInterface $productRepository,
         protected BangladeshLocationResolver $locationResolver,
-        protected CheckoutTaxService $checkoutTaxService
+        protected CheckoutTaxService $checkoutTaxService,
+        protected LoyaltyService $loyaltyService
     ) {}
 
     public function getUserOrders(int $userId, int $perPage = 15): LengthAwarePaginator
@@ -135,7 +136,17 @@ class OrderService
             $orderOwnerId = $orderOwner?->id;
             $stockEnabled = Product::isStockEnabled();
 
-            // Validate stock for all items
+            // Re-price against any live flash sale and atomically reserve
+            // flash-sale stock/per-user limits. Must run before stock
+            // validation/subtotal below, since it can change 'price' and
+            // rejects the checkout if the flash-sale quantity is unavailable.
+            $checkoutItems = $this->applyFlashSalePricing($checkoutItems, $orderOwnerId);
+
+            // Fast-path validation for a friendly error message in the common
+            // (non-concurrent) case. This alone doesn't prevent a race between
+            // two simultaneous checkouts for the last unit — the authoritative
+            // check is the atomic decrementStockIfAvailable() call below, which
+            // runs inside this same transaction right before each item is saved.
             if ($stockEnabled) {
                 foreach ($checkoutItems as $item) {
                     /** @var Product $product */
@@ -244,8 +255,9 @@ class OrderService
             $upazila = $upazila ?? ($upazilaId ? BdUpazila::query()->find($upazilaId) : null);
             $union = $union ?? ($unionId ? BdUnion::query()->find($unionId) : null);
 
-            // Calculate shipping cost using selected method
-            $baseShipping = $shippingMethod->calculateCost($subtotal, $itemCount, 0);
+            // Calculate shipping cost using selected method, applying any
+            // admin-configured per-district rate override for this district.
+            $baseShipping = $shippingMethod->calculateCost($subtotal, $itemCount, 0, $districtId);
 
             // Product-level free delivery offer (if any cart product enables it)
             $hasProductFreeDelivery = $checkoutItems->contains(function (array $item) {
@@ -392,12 +404,16 @@ class OrderService
                     'price' => (float) $item['price'],
                 ];
 
-                // Decrement stock
+                // Decrement stock atomically (WHERE stock_quantity >= qty in
+                // the same UPDATE) so two concurrent checkouts for the last
+                // unit can't both pass and both decrement.
                 if ($stockEnabled) {
                     if (($item['variant'] ?? null) instanceof ProductVariant) {
-                        $item['variant']->decrementStock((int) $item['quantity']);
-                    } else {
-                        $product->decrementStock((int) $item['quantity']);
+                        if (!$item['variant']->decrementStockIfAvailable((int) $item['quantity'])) {
+                            throw new \Exception("Insufficient stock for variant of product: {$item['product_name']}");
+                        }
+                    } elseif (!$product->decrementStockIfAvailable((int) $item['quantity'])) {
+                        throw new \Exception("Insufficient stock for product: {$item['product_name']}");
                     }
                 }
             }
@@ -422,18 +438,12 @@ class OrderService
                 $shippingData
             );
 
-            // Record coupon usage
+            // Record coupon usage — reserveUsage() re-checks the global and
+            // per-user limits under a row lock at the moment of recording,
+            // closing the race where two concurrent checkouts both pass the
+            // earlier (unlocked) validity check before either's usage exists.
             if ($coupon && $discountAmount > 0) {
-                if ($orderOwnerId !== null) {
-                    CouponUsage::create([
-                        'coupon_id' => $coupon->id,
-                        'user_id' => $orderOwnerId,
-                        'order_id' => $order->id,
-                        'discount_amount' => $discountAmount,
-                    ]);
-                }
-
-                $coupon->incrementUsage();
+                $coupon->reserveUsage($orderOwnerId, $order->id, $discountAmount);
             }
 
             // Clear the cart
@@ -450,6 +460,31 @@ class OrderService
             }
 
             return $order;
+        });
+    }
+
+    /**
+     * Re-price checkout items against any currently-live flash sale and
+     * atomically reserve flash-sale stock/per-user limits at the same time.
+     * Falls back to each item's existing price when no flash sale applies.
+     * Throws if a flash sale applies but the requested quantity can't be
+     * fulfilled (sold out, or over the per-user limit).
+     */
+    protected function applyFlashSalePricing(SupportCollection $checkoutItems, ?int $userId): SupportCollection
+    {
+        return $checkoutItems->map(function (array $item) use ($userId) {
+            $reservation = FlashSaleProduct::reserveActiveForProduct(
+                (int) $item['product_id'],
+                (int) $item['quantity'],
+                $userId
+            );
+
+            if ($reservation !== null) {
+                $item['price'] = round($reservation['unit_price'], 2);
+                $item['flash_sale_product_id'] = $reservation['flash_sale_product_id'];
+            }
+
+            return $item;
         });
     }
 
@@ -709,7 +744,9 @@ class OrderService
                         /** @var ProductVariant|null $variant */
                         $variant = $variants->get((int) $variantId);
                         if ($variant) {
-                            $variant->decrementStock((int) $item['quantity']);
+                            if (!$variant->decrementStockIfAvailable((int) $item['quantity'])) {
+                                throw new \Exception("Insufficient stock for recovered checkout variant: {$item['product_name']}");
+                            }
                             continue;
                         }
                     }
@@ -717,7 +754,9 @@ class OrderService
                     /** @var Product|null $product */
                     $product = $products->get((int) $item['product_id']);
                     if ($product) {
-                        $product->decrementStock((int) $item['quantity']);
+                        if (!$product->decrementStockIfAvailable((int) $item['quantity'])) {
+                            throw new \Exception("Insufficient stock for recovered checkout product: {$item['product_name']}");
+                        }
                     }
                 }
             }
@@ -738,57 +777,17 @@ class OrderService
             return $authenticatedUser;
         }
 
-        $shippingEmail = strtolower(trim((string) ($canonicalShipping['shipping_email'] ?? '')));
-        $shippingPhone = (string) ($canonicalShipping['shipping_phone'] ?? '');
-
-        return $this->findExistingUserByContact($shippingEmail, $shippingPhone);
-    }
-
-    protected function findExistingUserByContact(string $email, string $phone): ?User
-    {
-        $guestEmail = strtolower(trim((string) config('shop.guest_checkout_user_email', 'guest.checkout@innercollection.local')));
-
-        if (
-            $email !== ''
-            && $email !== 'customer@local.invalid'
-            && $email !== $guestEmail
-            && filter_var($email, FILTER_VALIDATE_EMAIL)
-        ) {
-            $matchedByEmail = User::query()
-                ->whereRaw('LOWER(email) = ?', [$email])
-                ->first();
-
-            if ($matchedByEmail) {
-                return $matchedByEmail;
-            }
-        }
-
-        $normalizedPhone = $this->normalizePhone($phone);
-        if ($normalizedPhone === '') {
-            return null;
-        }
-
-        $normalizedPhoneSql = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '(', ''), ')', ''), '+', '')";
-
-        $matchedCustomerByPhone = User::query()
-            ->where('role', User::ROLE_CUSTOMER)
-            ->whereRaw($normalizedPhoneSql . ' = ?', [$normalizedPhone])
-            ->orderByDesc('id')
-            ->first();
-
-        if ($matchedCustomerByPhone) {
-            return $matchedCustomerByPhone;
-        }
-
-        return User::query()
-            ->whereRaw($normalizedPhoneSql . ' = ?', [$normalizedPhone])
-            ->orderByDesc('id')
-            ->first();
-    }
-
-    protected function normalizePhone(?string $phone): string
-    {
-        return preg_replace('/\D+/', '', (string) ($phone ?? '')) ?? '';
+        // Deliberately does NOT look up an existing account by the
+        // submitted shipping email/phone: an unauthenticated guest can
+        // submit any contact info, so matching against it would let anyone
+        // attach a new order to a stranger's account (and, via
+        // persistCheckoutAddresses below, overwrite that account's saved
+        // default address) with no proof of ownership. Guest checkouts
+        // always land on the shared guest placeholder account instead;
+        // legitimate account linking already happens the safe way, at
+        // registration time, via OrderCustomerSyncService matching against
+        // the *registering* user's own verified email/phone.
+        return null;
     }
 
     protected function shouldPersistCheckoutAddressesForUser(?User $user): bool
@@ -1823,6 +1822,14 @@ class OrderService
 
         $oldStatus = $order->status;
         $updatedOrder = $this->orderRepository->updateStatus($orderId, $status);
+
+        // Award loyalty points once an order is actually delivered (not on
+        // creation/COD placement, since those can still be cancelled).
+        // awardOrderPoints() is idempotent per order, so this is safe even
+        // if updateOrderStatus is ever called again for the same order.
+        if ($status === 'delivered' && $updatedOrder->user_id) {
+            $this->loyaltyService->awardOrderPoints($updatedOrder);
+        }
 
         // Send status update notifications only when order belongs to a user account.
         if ($updatedOrder->user) {

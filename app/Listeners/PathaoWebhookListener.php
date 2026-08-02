@@ -12,6 +12,18 @@ class PathaoWebhookListener
     /**
      * Handle the event.
      *
+     * NOTE — webhook authenticity: this listener trusts PathaoWebhookReceived
+     * unconditionally; it has no access to the raw request here to verify a
+     * signature itself. Verification (if any) has to happen upstream, in the
+     * devrkb21/pathao-laravel package's own webhook route/controller, using
+     * config('pathao.webhook_integration_secret'). That package isn't present
+     * in this environment's vendor/ (no network access to install it), so
+     * its verification logic could not be audited as part of this pass —
+     * confirm directly against the installed package version that it
+     * actually validates the configured secret/signature before firing this
+     * event, the same way the Steadfast webhook controller was found to
+     * (fail-open when unconfigured) and fixed in this codebase.
+     *
      * @param  PathaoWebhookReceived  $event
      * @return void
      */
