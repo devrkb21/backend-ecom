@@ -520,6 +520,11 @@
                             @endif
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link submenu-link {{ request()->routeIs('admin.orders.courier-checker') ? 'active' : '' }}" href="{{ route('admin.orders.courier-checker') }}">
+                            <i class="bi bi-signpost-split"></i> Courier Checker
+                        </a>
+                    </li>
                 </ul>
             </li>
 
@@ -1420,12 +1425,7 @@
                     return;
                 }
 
-                if (typeof window.showAdminToast === 'function') {
-                    window.showAdminToast(message, type || 'info');
-                    return;
-                }
-
-                window.alert(message);
+                window.showAdminToast(message, type || 'info');
             }
 
             function firstErrorMessage(errors, fallback) {

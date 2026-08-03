@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\FraudBlock;
 use App\Models\Order;
+use App\Support\FraudNormalizer;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class FraudBlockController extends Controller
 {
@@ -26,7 +26,9 @@ class FraudBlockController extends Controller
             if ($status === 'active') {
                 $query->active();
             } elseif ($status === 'inactive') {
-                $query->where('is_active', false);
+                $query->where('is_active', false)->where('needs_review', false);
+            } elseif ($status === 'needs_review') {
+                $query->where('needs_review', true);
             }
         }
 
@@ -40,9 +42,11 @@ class FraudBlockController extends Controller
         $perPage = (int) $request->input('per_page', 25);
         $blocks = $query->paginate($perPage)->withQueryString();
         $summary = FraudBlock::getSummary();
+        $needsReviewCount = FraudBlock::where('needs_review', true)->count();
         $defaults = \App\Models\Setting::getGroup('fraud_blocks', false);
+        $automation = $this->getAutomationSettings();
 
-        return view('admin.fraud-blocks.index', compact('blocks', 'summary', 'defaults'));
+        return view('admin.fraud-blocks.index', compact('blocks', 'summary', 'needsReviewCount', 'defaults', 'automation'));
     }
 
     /**
@@ -52,19 +56,23 @@ class FraudBlockController extends Controller
     {
         $validated = $request->validate([
             'type' => 'required|in:phone,email,ip,device',
-            'value' => [
-                'required',
-                'string',
-                'max:500',
-                Rule::unique('fraud_blocks')->where(function ($query) use ($request) {
-                    return $query->where('type', $request->input('type'));
-                }),
-            ],
+            'value' => 'required|string|max:500',
             'reason' => 'nullable|string|max:500',
             'custom_message' => 'nullable|string|max:1000',
-        ], [
-            'value.unique' => 'This value is already blocked for this type.',
         ]);
+
+        // Duplicate check runs on the normalized form, not the raw string —
+        // "+8801712345678" and "01712345678" are the same phone number and
+        // must not create two rows that silently don't match each other.
+        if (FraudBlock::getBlock($validated['type'], $validated['value']) !== null) {
+            $message = 'This value is already blocked for this type.';
+
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+
+            return back()->withErrors(['value' => $message])->withInput();
+        }
 
         FraudBlock::create([
             'type' => $validated['type'],
@@ -101,13 +109,17 @@ class FraudBlockController extends Controller
 
         $value = trim($validated['value']);
         $type = $validated['type'];
+        $normalizedValue = FraudNormalizer::forType($type, $value);
 
-        // Check if already blocked
-        $existing = FraudBlock::where('type', $type)->where('value', $value)->first();
+        // Check if already blocked (normalized match, so format variance
+        // on the same phone/email/device can't create a duplicate entry)
+        $existing = $normalizedValue !== null
+            ? FraudBlock::where('type', $type)->where('normalized_value', $normalizedValue)->first()
+            : FraudBlock::where('type', $type)->where('value', $value)->first();
 
         if ($existing) {
             if (!$existing->is_active) {
-                $existing->update(['is_active' => true, 'blocked_by' => auth()->id()]);
+                $existing->update(['is_active' => true, 'needs_review' => false, 'blocked_by' => auth()->id()]);
                 return response()->json([
                     'success' => true,
                     'message' => 'Re-activated existing block.',
@@ -149,9 +161,11 @@ class FraudBlockController extends Controller
             'value' => 'required|string|max:500',
         ]);
 
-        $block = FraudBlock::where('type', $validated['type'])
-            ->where('value', trim($validated['value']))
-            ->first();
+        $normalizedValue = FraudNormalizer::forType($validated['type'], $validated['value']);
+
+        $block = $normalizedValue !== null
+            ? FraudBlock::where('type', $validated['type'])->where('normalized_value', $normalizedValue)->first()
+            : FraudBlock::where('type', $validated['type'])->where('value', trim($validated['value']))->first();
 
         if ($block) {
             $block->delete();
@@ -161,6 +175,37 @@ class FraudBlockController extends Controller
             'success' => true,
             'message' => 'Unblocked successfully.',
         ]);
+    }
+
+    /**
+     * Confirm an auto-flagged "needs review" entry: activates the block and
+     * clears the review flag.
+     */
+    public function confirmReview(FraudBlock $fraudBlock)
+    {
+        $fraudBlock->update(['is_active' => true, 'needs_review' => false, 'blocked_by' => auth()->id()]);
+
+        if (request()->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Block confirmed and activated.']);
+        }
+
+        return redirect()->back()->with('success', 'Block confirmed and activated.');
+    }
+
+    /**
+     * Dismiss an auto-flagged "needs review" entry as a false positive.
+     * Deletes it outright — if the phone crosses the threshold again later,
+     * it will simply be re-flagged.
+     */
+    public function dismissReview(FraudBlock $fraudBlock)
+    {
+        $fraudBlock->delete();
+
+        if (request()->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Flag dismissed.']);
+        }
+
+        return redirect()->back()->with('success', 'Flag dismissed.');
     }
 
     /**
@@ -247,5 +292,50 @@ class FraudBlockController extends Controller
         }
 
         return redirect()->back()->with('success', 'Default messages saved successfully.');
+    }
+
+    /**
+     * Save automated fraud-detection settings (order velocity limits,
+     * repeat-offender threshold/action).
+     */
+    public function saveAutomationSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'velocity_enabled' => 'nullable|boolean',
+            'velocity_limit_count' => 'required|integer|min:1|max:1000',
+            'velocity_limit_window_minutes' => 'required|integer|min:1|max:10080',
+            'repeat_offender_enabled' => 'nullable|boolean',
+            'repeat_offender_threshold' => 'required|integer|min:1|max:100',
+            'repeat_offender_action' => 'required|in:flag,auto_block',
+        ]);
+
+        $values = [
+            'velocity_enabled' => $request->boolean('velocity_enabled') ? '1' : '0',
+            'velocity_limit_count' => (string) $validated['velocity_limit_count'],
+            'velocity_limit_window_minutes' => (string) $validated['velocity_limit_window_minutes'],
+            'repeat_offender_enabled' => $request->boolean('repeat_offender_enabled') ? '1' : '0',
+            'repeat_offender_threshold' => (string) $validated['repeat_offender_threshold'],
+            'repeat_offender_action' => $validated['repeat_offender_action'],
+        ];
+
+        foreach ($values as $key => $value) {
+            \App\Models\Setting::setValue('fraud_blocks', $key, $value, ['type' => 'string', 'is_public' => false]);
+        }
+
+        \App\Models\Setting::clearCache('fraud_blocks');
+
+        return redirect()->route('admin.fraud-blocks.index')->with('success', 'Automation settings saved successfully.');
+    }
+
+    private function getAutomationSettings(): array
+    {
+        return [
+            'velocity_enabled' => filter_var(\App\Models\Setting::getValue('fraud_blocks', 'velocity_enabled', '1'), FILTER_VALIDATE_BOOLEAN),
+            'velocity_limit_count' => (int) \App\Models\Setting::getValue('fraud_blocks', 'velocity_limit_count', 5),
+            'velocity_limit_window_minutes' => (int) \App\Models\Setting::getValue('fraud_blocks', 'velocity_limit_window_minutes', 60),
+            'repeat_offender_enabled' => filter_var(\App\Models\Setting::getValue('fraud_blocks', 'repeat_offender_enabled', '1'), FILTER_VALIDATE_BOOLEAN),
+            'repeat_offender_threshold' => (int) \App\Models\Setting::getValue('fraud_blocks', 'repeat_offender_threshold', 3),
+            'repeat_offender_action' => \App\Models\Setting::getValue('fraud_blocks', 'repeat_offender_action', 'flag'),
+        ];
     }
 }

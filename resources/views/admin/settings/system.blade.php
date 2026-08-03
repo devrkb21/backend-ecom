@@ -518,7 +518,7 @@
                                 $subTab = 'steadfast';
                             }
                         @endphp
-                        
+
                         <div class="card border-0 shadow-sm mb-4">
                             <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                                 <h6 class="mb-0 fw-semibold text-dark">
@@ -546,6 +546,12 @@
                                     <div class="tab-pane fade {{ $subTab === 'pathao' ? 'show active' : '' }}" id="subtab-pathao" role="tabpanel">
                                         @include('admin.settings.partials.pathao')
                                     </div>
+                                </div>
+
+                                <div class="alert alert-light border mt-3 mb-0 small">
+                                    <i class="bi bi-signpost-split me-1"></i>
+                                    Looking for the cross-courier fraud-history check? It's under
+                                    <a href="{{ route('admin.orders.courier-checker') }}">Orders → Courier Checker</a>.
                                 </div>
                             </div>
                         </div>
@@ -661,7 +667,7 @@
                     if (!form.checkValidity()) {
                         event.preventDefault()
                         event.stopPropagation()
-                        alert('Required fields are missing content. Please input values for all fields marked with * before saving.');
+                        showAdminToast('Required fields are missing content. Please input values for all fields marked with * before saving.', 'warning');
                     }
                     form.classList.add('was-validated')
                 }, false)
@@ -1269,7 +1275,7 @@
                         saveFieldFromEditor();
                     } else {
                         e.preventDefault();
-                        alert('Please resolve validation errors in the field properties editor before saving settings.');
+                        showAdminToast('Please resolve validation errors in the field properties editor before saving settings.', 'warning');
                         const firstInvalid = document.querySelector('.is-invalid');
                         if (firstInvalid) firstInvalid.focus();
                         return;

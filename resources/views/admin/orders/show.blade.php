@@ -600,6 +600,19 @@
             </div>
         </div>
 
+        {{-- Courier Delivery History (cross-courier fraud check) --}}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-signpost-split me-2"></i>Courier Delivery History</h6>
+                <button type="button" id="courierHistoryCheckBtn" class="courier-history-action-btn btn btn-sm btn-outline-secondary py-0 px-2" data-url="{{ route('admin.orders.courier-history-check', $order) }}" data-refresh="0">
+                    <small><i class="bi bi-arrow-repeat me-1"></i>{{ $courierCheckResult ? 'Check' : 'Check Now' }}</small>
+                </button>
+            </div>
+            <div class="card-body" id="courierHistoryCardBody">
+                @include('admin.orders.partials.courier-history-card-body', ['courierCheckResult' => $courierCheckResult, 'fromCache' => (bool) $courierCheckResult])
+            </div>
+        </div>
+
         {{-- Update Status --}}
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white py-3"><h6 class="mb-0 fw-bold"><i class="bi bi-arrow-repeat me-2"></i>Update Status</h6></div>
@@ -870,6 +883,64 @@
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const buttons = document.querySelectorAll('.courier-history-action-btn');
+        const body = document.getElementById('courierHistoryCardBody');
+        if (!buttons.length || !body) return;
+
+        buttons.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const isRefresh = btn.dataset.refresh === '1';
+                const originalBodyHtml = body.innerHTML;
+                const originalHtmlByBtn = new Map();
+
+                buttons.forEach(function(b) {
+                    originalHtmlByBtn.set(b, b.innerHTML);
+                    b.disabled = true;
+                });
+                btn.innerHTML = '<small><span class="spinner-border spinner-border-sm me-1"></span>' + (isRefresh ? 'Refreshing...' : 'Checking...') + '</small>';
+                body.innerHTML = '<div class="d-flex align-items-center text-muted small py-2"><span class="spinner-border spinner-border-sm me-2"></span>' + (isRefresh ? 'Bypassing cache — contacting couriers live, this can take up to 30 seconds...' : 'Checking cache (falls back to a live check if none within 6 hours)...') + '</div>';
+
+                fetch(btn.dataset.url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ refresh: isRefresh }),
+                })
+                .then(response => response.json().then(data => ({ ok: response.ok, data })))
+                .then(({ ok, data }) => {
+                    buttons.forEach(function(b) {
+                        b.disabled = false;
+                        b.innerHTML = originalHtmlByBtn.get(b);
+                    });
+
+                    if (ok && data.success) {
+                        body.innerHTML = data.html;
+                        showAdminToast(data.from_cache ? 'Showing cached courier history.' : 'Courier history updated.', 'success');
+                    } else {
+                        body.innerHTML = originalBodyHtml;
+                        showAdminToast(data.message || 'Failed to check courier history.', 'danger');
+                    }
+                })
+                .catch(function() {
+                    buttons.forEach(function(b) {
+                        b.disabled = false;
+                        b.innerHTML = originalHtmlByBtn.get(b);
+                    });
+                    body.innerHTML = originalBodyHtml;
+                    showAdminToast('Network error occurred.', 'danger');
+                });
+            });
+        });
+    });
+</script>
+@endpush
 
 {{-- ==================== MODALS (unchanged) ==================== --}}
 
@@ -1527,17 +1598,17 @@
                         currentBlockButton.className = 'btn btn-sm btn-danger fraud-unblock-btn';
                         currentBlockButton.innerHTML = '<i class="bi bi-shield-fill-x"></i> <small>Blocked</small>';
                         currentBlockButton.title = 'Click to unblock';
-                        
+
                         // Re-attach listener by reloading page to be safe, or just changing class and attaching event
                         window.location.reload();
                     } else if(data.message) {
-                        alert(data.message);
+                        showAdminToast(data.message, 'danger');
                     }
                 })
                 .catch(() => {
                     modalBlockBtn.disabled = false;
                     modalBlockBtn.innerHTML = '<i class="bi bi-shield-x me-1"></i>Block';
-                    alert('An error occurred while blocking.');
+                    showAdminToast('An error occurred while blocking.', 'danger');
                 });
             });
         }
@@ -1746,7 +1817,7 @@
                 if (selectedCancelReason === 'other') {
                     selectedCancelReason = cancelOtherInput.value.trim();
                     if (!selectedCancelReason) {
-                        alert('Please specify a reason');
+                        showAdminToast('Please specify a reason', 'warning');
                         return;
                     }
                 }
@@ -1832,28 +1903,15 @@
                         }
                     }
 
-                    if (typeof showAdminToast === 'function') {
-                        showAdminToast('Order status updated successfully.', 'success');
-                    } else {
-                        alert('Order status updated successfully.');
-                    }
+                    showAdminToast('Order status updated successfully.', 'success');
                 } else if (data && data.error) {
-                    if (typeof showAdminToast === 'function') {
-                        showAdminToast(data.error, 'danger');
-                    } else {
-                        alert(data.error);
-                    }
+                    showAdminToast(data.error, 'danger');
                 }
             })
             .catch(err => {
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
-                const errorMsg = 'An error occurred while updating status: ' + (err.message || err);
-                if (typeof showAdminToast === 'function') {
-                    showAdminToast(errorMsg, 'danger');
-                } else {
-                    alert(errorMsg);
-                }
+                showAdminToast('An error occurred while updating status: ' + (err.message || err), 'danger');
             });
         }
 

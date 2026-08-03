@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\StoreOrderRequest;
 use App\Http\Requests\Order\UpdateOrderStatusRequest;
 use App\Http\Resources\OrderResource;
+use App\Jobs\CheckCourierHistoryJob;
 use App\Models\Order;
+use App\Services\FraudDetectionService;
 use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +17,8 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 class OrderController extends Controller
 {
     public function __construct(
-        protected OrderService $orderService
+        protected OrderService $orderService,
+        protected FraudDetectionService $fraudDetectionService
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -172,8 +175,8 @@ class OrderController extends Controller
             $fraudIp = $request->ip();
             $fraudDevice = $request->userAgent();
 
-            $fraudResult = \App\Models\FraudBlock::checkOrder($fraudPhone, $fraudEmail, $fraudIp, $fraudDevice);
-            if (!empty($fraudResult['types'])) {
+            $fraudResult = $this->fraudDetectionService->checkBlocklist($fraudPhone, $fraudEmail, $fraudIp, $fraudDevice);
+            if ($fraudResult['blocked']) {
                 $defaultMessage = 'Your order could not be processed. Please contact support.';
                 $message = $fraudResult['message'] ?? $defaultMessage;
 
@@ -183,6 +186,16 @@ class OrderController extends Controller
                     'fraud_blocked' => true,
                     'fraud_message' => $message,
                 ], 403);
+            }
+
+            $velocityResult = $this->fraudDetectionService->checkVelocity($fraudPhone, $fraudIp, $fraudDevice);
+            if ($velocityResult['exceeded']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Too many orders placed recently. Please try again later or contact support.',
+                    'fraud_blocked' => true,
+                    'fraud_message' => 'Too many orders placed recently. Please try again later or contact support.',
+                ], 429);
             }
 
             $validatedData = $request->validated();
@@ -195,6 +208,9 @@ class OrderController extends Controller
                 $validatedData,
                 $checkoutSessionId !== '' ? $checkoutSessionId : null
             );
+
+            $this->fraudDetectionService->tagOrder($order, $fraudIp, $fraudDevice, $fraudPhone);
+            CheckCourierHistoryJob::dispatch($order->id);
 
             return $this->createdResponse([
                 'id' => $order->id,

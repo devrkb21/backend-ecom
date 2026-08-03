@@ -370,7 +370,7 @@
                                     <label class="form-label fw-bold mb-1"><i class="bi bi-link-45deg text-pathao-brand me-1"></i>Callback / Webhook URL</label>
                                     <div class="input-group">
                                         <input type="text" class="form-control form-control-sm bg-white text-dark" value="{{ url('/api/pathao/webhook') }}" readonly id="pathaoWebhookUrl">
-                                        <button class="btn btn-sm btn-pathao" type="button" onclick="navigator.clipboard.writeText(document.getElementById('pathaoWebhookUrl').value); alert('Copied to clipboard!');">
+                                        <button class="btn btn-sm btn-pathao" type="button" onclick="navigator.clipboard.writeText(document.getElementById('pathaoWebhookUrl').value); showAdminToast('Copied to clipboard!', 'success');">
                                             <i class="bi bi-clipboard"></i> Copy
                                         </button>
                                     </div>

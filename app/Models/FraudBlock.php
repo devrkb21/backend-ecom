@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\FraudNormalizer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -10,18 +11,34 @@ class FraudBlock extends Model
     protected $fillable = [
         'type',
         'value',
+        'normalized_value',
         'reason',
         'custom_message',
         'blocked_by',
         'order_id',
         'is_active',
+        'source',
+        'needs_review',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'needs_review' => 'boolean',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Every write recomputes normalized_value from type+value, so a
+        // manually-entered block ("+8801712345678") and an auto-generated
+        // one ("01712345678") for the same real phone number still collide
+        // on the same normalized form instead of creating two entries that
+        // silently don't match each other at checkout.
+        static::saving(function (self $block) {
+            $block->normalized_value = FraudNormalizer::forType($block->type, $block->value);
+        });
     }
 
     // ==================== RELATIONSHIPS ====================
@@ -90,28 +107,25 @@ class FraudBlock extends Model
      */
     public static function isBlocked(string $type, ?string $value): bool
     {
-        if ($value === null || trim($value) === '') {
-            return false;
-        }
-
-        return self::active()
-            ->where('type', $type)
-            ->where('value', trim($value))
-            ->exists();
+        return self::getBlock($type, $value) !== null;
     }
 
     /**
-     * Get the block record for a given type and value (if blocked).
+     * Get the block record for a given type and value (if blocked). Matches
+     * on the normalized form so formatting variance (phone spacing/country
+     * code, email case, etc.) can't be used to slip past an existing block.
      */
     public static function getBlock(string $type, ?string $value): ?self
     {
-        if ($value === null || trim($value) === '') {
+        $normalized = FraudNormalizer::forType($type, $value);
+
+        if ($normalized === null) {
             return null;
         }
 
         return self::active()
             ->where('type', $type)
-            ->where('value', trim($value))
+            ->where('normalized_value', $normalized)
             ->first();
     }
 

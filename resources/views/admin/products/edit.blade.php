@@ -1739,12 +1739,7 @@ function notify(message, type) {
         return;
     }
 
-    if (typeof window.showAdminToast === 'function') {
-        window.showAdminToast(message, type || 'info');
-        return;
-    }
-
-    alert(message);
+    window.showAdminToast(message, type || 'info');
 }
 
 function getCsrfToken() {
@@ -2082,7 +2077,7 @@ async function submitBulkDeleteSelectedVariants() {
     });
 
     if (selectedIds.length === 0) {
-        alert('Select at least one variant to delete.');
+        notify('Select at least one variant to delete.', 'warning');
         return;
     }
 

@@ -786,13 +786,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         fraudModal.hide();
                         window.location.reload();
                     } else if(data.message) {
-                        alert(data.message);
+                        showAdminToast(data.message, 'danger');
                     }
                 })
                 .catch(() => {
                     modalBlockBtn.disabled = false;
                     modalBlockBtn.innerHTML = '<i class="fas fa-shield-alt me-1"></i>Block';
-                    alert('An error occurred while blocking.');
+                    showAdminToast('An error occurred while blocking.', 'danger');
                 });
             });
         }
