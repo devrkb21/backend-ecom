@@ -422,8 +422,13 @@ class OrderService
             $order = $this->orderRepository->createWithItems($orderData, $items);
 
             if ($guestAccessToken !== null) {
-                // Expose the one-time guest token to the controller response without storing plain text in DB.
-                $order->setAttribute('guest_access_token', $guestAccessToken);
+                // Expose the one-time guest token to the controller response without
+                // storing plain text in the DB. Assigned to a declared public property
+                // rather than setAttribute() so it never enters the attribute bag --
+                // otherwise the model stays dirty and the next save() on this instance
+                // (e.g. FraudDetectionService::tagOrder()) would emit a phantom
+                // `guest_access_token` column in its UPDATE.
+                $order->plainGuestAccessToken = $guestAccessToken;
             }
 
             // Persist checkout addresses for authenticated and matched users.
