@@ -15,6 +15,21 @@ class Order extends Model
 {
     use HasFactory, SoftDeletes, Auditable;
 
+    /**
+     * Plain-text guest access token, generated once during checkout and returned
+     * in the create-order response.
+     *
+     * Deliberately a declared property, NOT an Eloquent attribute. Only the
+     * sha256 hash is persisted (see $fillable: guest_access_token_hash). Putting
+     * the plaintext into the attribute bag via setAttribute() would mark the
+     * model dirty, and the next save() on the same instance would try to write a
+     * `guest_access_token` column that does not exist -> SQLSTATE[42S22].
+     *
+     * A declared public property is resolved by PHP before __set(), so Eloquent
+     * never sees it, and it stays out of toArray()/getDirty()/audit logs.
+     */
+    public ?string $plainGuestAccessToken = null;
+
     protected $fillable = [
         'user_id',
         'coupon_id',
