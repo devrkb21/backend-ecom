@@ -201,7 +201,7 @@
                                     <label class="form-label fw-bold mb-1"><i class="bi bi-link-45deg text-steadfast-brand me-1"></i>Callback / Webhook URL</label>
                                     <div class="input-group">
                                         <input type="text" class="form-control form-control-sm bg-white text-dark" value="{{ route('api.webhooks.steadfast') }}" readonly id="steadfastWebhookUrl">
-                                        <button class="btn btn-sm btn-steadfast" type="button" onclick="navigator.clipboard.writeText(document.getElementById('steadfastWebhookUrl').value); alert('Copied to clipboard!');">
+                                        <button class="btn btn-sm btn-steadfast" type="button" onclick="navigator.clipboard.writeText(document.getElementById('steadfastWebhookUrl').value); showAdminToast('Copied to clipboard!', 'success');">
                                             <i class="bi bi-clipboard"></i> Copy
                                         </button>
                                     </div>
@@ -274,16 +274,12 @@
                     
                     if (data.success) {
                         steadfastBalanceDisplay.innerText = '৳' + parseFloat(data.balance).toFixed(2);
-                        if (typeof Toast !== 'undefined') {
-                            Toast.fire({icon: 'success', title: 'Balance retrieved successfully'});
-                        }
+                        showAdminToast('Balance retrieved successfully', 'success');
                     } else {
                         steadfastBalanceResult.innerText = data.message || 'Error occurred';
                         steadfastBalanceResult.classList.remove('d-none');
                         steadfastBalanceResult.classList.add('text-danger');
-                        if (typeof Toast !== 'undefined') {
-                            Toast.fire({icon: 'error', title: 'Failed to retrieve balance'});
-                        }
+                        showAdminToast('Failed to retrieve balance', 'danger');
                     }
                 })
                 .catch(error => {
@@ -292,6 +288,7 @@
                     steadfastBalanceResult.innerText = 'Network error occurred.';
                     steadfastBalanceResult.classList.remove('d-none');
                     steadfastBalanceResult.classList.add('text-danger');
+                    showAdminToast('Network error occurred.', 'danger');
                     console.error('Error:', error);
                 });
             });

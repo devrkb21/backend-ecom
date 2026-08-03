@@ -929,7 +929,7 @@ document.addEventListener('DOMContentLoaded', function () {
             let val = document.getElementById('cancelReasonSelect').value;
             if (val === 'other') {
                 val = document.getElementById('cancelReasonOtherInput').value.trim();
-                if (!val) { alert('Please specify a reason'); return; }
+                if (!val) { showAdminToast('Please specify a reason', 'warning'); return; }
             }
             isBulkCancelConfirmed = true;
             cancelModal.hide();
@@ -1002,13 +1002,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!checked) {
             event.preventDefault();
-            alert('Please select at least one order.');
+            showAdminToast('Please select at least one order.', 'warning');
             return;
         }
 
         if (!actionSelect.value) {
             event.preventDefault();
-            alert('Please select a bulk action.');
+            showAdminToast('Please select a bulk action.', 'warning');
             return;
         }
 

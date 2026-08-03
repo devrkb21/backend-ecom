@@ -118,6 +118,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('orders/district-shipping-rate', [OrderController::class, 'getDistrictShippingRate'])->name('orders.district-shipping-rate');
         Route::get('orders/export', [OrderController::class, 'export'])->name('orders.export');
         Route::post('orders/bulk-action', [OrderController::class, 'bulkAction'])->name('orders.bulk-action');
+
+        // Courier Checker — cross-courier fraud-history check: credentials,
+        // automation thresholds, and an ad-hoc phone search. Registered
+        // before orders/{order} so "courier-checker" isn't swallowed by the
+        // wildcard order-id segment.
+        Route::get('orders/courier-checker', [\App\Http\Controllers\Admin\CourierCheckerController::class, 'index'])->name('orders.courier-checker');
+        Route::put('orders/courier-checker/credentials', [\App\Http\Controllers\Admin\CourierCheckerController::class, 'updateCredentials'])->name('orders.courier-checker.credentials');
+        Route::put('orders/courier-checker/automation', [\App\Http\Controllers\Admin\CourierCheckerController::class, 'updateAutomation'])->name('orders.courier-checker.automation');
+        Route::post('orders/courier-checker/search', [\App\Http\Controllers\Admin\CourierCheckerController::class, 'search'])->name('orders.courier-checker.search');
+        Route::get('orders/courier-checker/history/{courierCheckResult}', [\App\Http\Controllers\Admin\CourierCheckerController::class, 'show'])->name('orders.courier-checker.show');
+
         Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show')->withTrashed();
         Route::get('orders/{order}/print', [OrderController::class, 'print'])->name('orders.print')->withTrashed();
         Route::post('orders/{order}/restore', [OrderController::class, 'restore'])->name('orders.restore')->withTrashed();
@@ -130,6 +141,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('orders/{order}/refund', [OrderController::class, 'refund'])->name('orders.refund');
         Route::patch('orders/{order}/customer-info', [OrderController::class, 'updateCustomerInfo'])->name('orders.update-customer-info');
         Route::post('orders/{order}/items', [OrderController::class, 'updateItems'])->name('orders.update-items');
+        Route::post('orders/{order}/courier-history-check', [OrderController::class, 'checkCourierHistory'])->name('orders.courier-history-check');
         Route::post('orders/{order}/steadfast', [\App\Http\Controllers\Admin\SteadfastController::class, 'sendSingle'])->name('orders.steadfast.send');
         Route::post('orders/steadfast/bulk', [\App\Http\Controllers\Admin\SteadfastController::class, 'sendBulk'])->name('orders.steadfast.bulk');
         Route::post('orders/{order}/pathao', [\App\Http\Controllers\Admin\PathaoController::class, 'sendSingle'])->name('orders.pathao.send');
@@ -363,10 +375,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/', [FraudBlockController::class, 'index'])->name('index');
             Route::post('/', [FraudBlockController::class, 'store'])->name('store');
             Route::post('/settings', [FraudBlockController::class, 'saveSettings'])->name('settings.save');
+            Route::post('/automation-settings', [FraudBlockController::class, 'saveAutomationSettings'])->name('automation-settings.save');
             Route::post('/quick-block', [FraudBlockController::class, 'quickBlock'])->name('quick-block');
             Route::post('/quick-unblock', [FraudBlockController::class, 'quickUnblock'])->name('quick-unblock');
             Route::post('/check', [FraudBlockController::class, 'check'])->name('check');
             Route::patch('/{fraudBlock}/toggle', [FraudBlockController::class, 'toggle'])->name('toggle');
+            Route::patch('/{fraudBlock}/confirm-review', [FraudBlockController::class, 'confirmReview'])->name('confirm-review');
+            Route::delete('/{fraudBlock}/dismiss-review', [FraudBlockController::class, 'dismissReview'])->name('dismiss-review');
             Route::delete('/{fraudBlock}', [FraudBlockController::class, 'destroy'])->name('destroy');
         });
     });

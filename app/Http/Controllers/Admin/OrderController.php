@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateOrderStatusRequest;
+use App\Models\CourierCheckResult;
 use App\Models\Order;
 use App\Models\OrderActivityLog;
 use App\Models\OrderItem;
@@ -13,7 +14,10 @@ use App\Models\ProductVariant;
 use App\Models\ShippingMethod;
 use App\Models\ShippingMethodDistrictRate;
 use App\Models\BdDistrict;
+use App\Services\CourierHistoryCheckService;
+use App\Services\FraudDetectionService;
 use App\Services\SmsService;
+use App\Support\FraudNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -195,7 +199,62 @@ class OrderController extends Controller
 
         $districts = BdDistrict::orderBy('name')->get(['id', 'name', 'division_id']);
 
-        return view('admin.orders.show', compact('order', 'availableStatuses', 'activeCoupons', 'smsTemplates', 'districts'));
+        $courierCheckNormalizedPhone = $order->normalized_phone ?: FraudNormalizer::phone($order->shipping_phone);
+        $courierCheckResult = $courierCheckNormalizedPhone
+            ? CourierCheckResult::where('normalized_phone', $courierCheckNormalizedPhone)->first()
+            : null;
+
+        return view('admin.orders.show', compact('order', 'availableStatuses', 'activeCoupons', 'smsTemplates', 'districts', 'courierCheckResult'));
+    }
+
+    /**
+     * The "Check" / "Refresh" buttons on the order page — an explicit admin
+     * action, so unlike the automatic post-checkout job this runs
+     * synchronously and returns the real result (or a real error) directly,
+     * for the AJAX call to render in place. "Check" serves a result already
+     * cached within CourierHistoryCheckService::SEARCH_CACHE_HOURS without
+     * touching any courier; "Refresh" (refresh=true) bypasses that cache
+     * for a guaranteed live answer, ignoring the `courier_check_enabled`
+     * automation toggle either way since this is an explicit admin request.
+     */
+    public function checkCourierHistory(Request $request, Order $order, CourierHistoryCheckService $courierHistoryCheckService, FraudDetectionService $fraudDetectionService): JsonResponse
+    {
+        // Logging into up to 5 courier portals (with multi-account failover
+        // on each) can comfortably exceed PHP's default 30s execution limit
+        // — this is an explicit, admin-initiated action the user is actively
+        // waiting on, so give it real headroom instead of fataling mid-check.
+        set_time_limit(180);
+
+        $forceRefresh = $request->boolean('refresh');
+
+        if (!$courierHistoryCheckService->hasAnyCredentialsConfigured()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No courier credentials are configured yet.',
+                'settings_url' => route('admin.orders.courier-checker', ['tab' => 'settings']),
+            ], 422);
+        }
+
+        $normalizedPhone = $order->normalized_phone ?: FraudNormalizer::phone($order->shipping_phone);
+        if ($normalizedPhone === null) {
+            return response()->json(['success' => false, 'message' => 'This order has no usable phone number to check.'], 422);
+        }
+
+        ['result' => $courierCheckResult, 'from_cache' => $fromCache] = $courierHistoryCheckService->checkWithCache($normalizedPhone, $forceRefresh, $order->id);
+
+        if (!$fromCache) {
+            $fraudDetectionService->evaluateCourierHistory($order, [
+                'total_deliveries' => $courierCheckResult->total_deliveries,
+                'success_ratio' => (float) $courierCheckResult->success_ratio,
+            ]);
+        }
+
+        $html = view('admin.orders.partials.courier-history-card-body', [
+            'courierCheckResult' => $courierCheckResult,
+            'fromCache' => $fromCache,
+        ])->render();
+
+        return response()->json(['success' => true, 'html' => $html, 'from_cache' => $fromCache]);
     }
 
     public function print(Order $order)

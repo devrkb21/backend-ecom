@@ -501,7 +501,7 @@
                     if (!form.checkValidity()) {
                         event.preventDefault()
                         event.stopPropagation()
-                        alert('Required fields are missing content. Please input values for all fields marked with * before saving.');
+                        showAdminToast('Required fields are missing content. Please input values for all fields marked with * before saving.', 'warning');
                     }
                     form.classList.add('was-validated')
                 }, false)
@@ -704,7 +704,7 @@
             else if (type === 'page') url = document.getElementById('new-menu-page').value;
 
             if (labelInput.value.trim() === '' || url === '') {
-                alert('Please provide both a label and a URL/selection.');
+                showAdminToast('Please provide both a label and a URL/selection.', 'warning');
                 return;
             }
 
@@ -1476,7 +1476,7 @@
                     saveFieldFromEditor();
                 } else {
                     e.preventDefault();
-                    alert('Please resolve validation errors in the field properties editor before saving settings.');
+                    showAdminToast('Please resolve validation errors in the field properties editor before saving settings.', 'warning');
                     const firstInvalid = document.querySelector('.is-invalid');
                     if (firstInvalid) firstInvalid.focus();
                     return;

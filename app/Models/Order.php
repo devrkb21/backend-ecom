@@ -49,6 +49,14 @@ class Order extends Model
         'shipping_country',
         'notes',
         'checkout_fields_payload',
+        // Fraud detection fields — set internally by FraudDetectionService /
+        // OrderObserver, never from raw request input.
+        'device_ip',
+        'device_hash',
+        'normalized_phone',
+        'is_fraud_flagged',
+        'fraud_flag_reasons',
+        'fraud_risk_score',
         // Tracking fields
         'tracking_number',
         'carrier',
@@ -72,6 +80,9 @@ class Order extends Model
             'loyalty_discount_amount' => 'decimal:2',
             'total' => 'decimal:2',
             'checkout_fields_payload' => 'array',
+            'is_fraud_flagged' => 'boolean',
+            'fraud_flag_reasons' => 'array',
+            'fraud_risk_score' => 'integer',
             'shipped_at' => 'datetime',
             'estimated_delivery_at' => 'datetime',
             'delivered_at' => 'datetime',

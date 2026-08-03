@@ -213,14 +213,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     btn.disabled = false;
                     btn.innerHTML = originalHtml;
-                    alert(data.message || 'Failed to delete file.');
+                    showAdminToast(data.message || 'Failed to delete file.', 'danger');
                 }
             })
             .catch(err => {
                 console.error(err);
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
-                alert('An error occurred while deleting.');
+                showAdminToast('An error occurred while deleting.', 'danger');
             });
         });
     });
@@ -339,7 +339,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(err => {
                 console.error(err);
-                alert('Failed to initialize bulk WebP conversion.');
+                showAdminToast('Failed to initialize bulk WebP conversion.', 'danger');
                 modal.hide();
             });
         });
