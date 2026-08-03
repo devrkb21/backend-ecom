@@ -215,7 +215,7 @@ class OrderController extends Controller
             return $this->createdResponse([
                 'id' => $order->id,
                 'order_number' => $order->order_number,
-                'guest_access_token' => $user ? null : $order->getAttribute('guest_access_token'),
+                'guest_access_token' => $user ? null : $order->plainGuestAccessToken,
                 'status' => $order->status,
                 'payment_status' => $order->payment_status,
                 'payment_method' => $order->payment_method,
