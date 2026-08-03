@@ -1,7 +1,6 @@
 /vendor/
 node_modules/
 .env
-composer.lock
 .env.*
 !.env.example
 .phpunit.result.cache
