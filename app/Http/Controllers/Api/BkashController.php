@@ -243,6 +243,11 @@ class BkashController extends Controller
             return null;
         }
 
+        // Always permit local development and private LAN testing origins (192.168.0.*, etc.)
+        if (preg_match('#^https?://(?:192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[0-1])\.\d+\.\d+|localhost|127\.0\.0\.1)(?::\d+)?$#', $origin)) {
+            return $origin;
+        }
+
         // Check against configured allowed origins
         $allowedOrigins = config('app.allowed_frontend_origins', []);
 
