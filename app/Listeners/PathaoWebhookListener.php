@@ -4,6 +4,8 @@ namespace App\Listeners;
 
 use App\Models\Order;
 use App\Models\OrderActivityLog;
+use App\Services\SmsService;
+use Carbon\Carbon;
 use devrkb21\PathaoLaravel\Events\PathaoWebhookReceived;
 use Illuminate\Support\Facades\Log;
 
@@ -24,7 +26,6 @@ class PathaoWebhookListener
      * event, the same way the Steadfast webhook controller was found to
      * (fail-open when unconfigured) and fixed in this codebase.
      *
-     * @param  PathaoWebhookReceived  $event
      * @return void
      */
     public function handle(PathaoWebhookReceived $event)
@@ -36,8 +37,9 @@ class PathaoWebhookListener
         $orderNumber = $payload['merchant_order_id'] ?? null;
         $eventName = $payload['event'] ?? null;
 
-        if (!$consignmentId && !$orderNumber) {
+        if (! $consignmentId && ! $orderNumber) {
             Log::warning('Pathao Webhook missing consignment_id and merchant_order_id.');
+
             return;
         }
 
@@ -46,16 +48,17 @@ class PathaoWebhookListener
             ->when($consignmentId, function ($q) use ($consignmentId) {
                 $q->where('tracking_number', $consignmentId);
             })
-            ->when(!$consignmentId && $orderNumber, function ($q) use ($orderNumber) {
+            ->when(! $consignmentId && $orderNumber, function ($q) use ($orderNumber) {
                 $q->where('order_number', $orderNumber);
             })
             ->first();
 
-        if (!$order) {
+        if (! $order) {
             Log::warning('Pathao Webhook: Order not found.', [
                 'consignment_id' => $consignmentId,
-                'merchant_order_id' => $orderNumber
+                'merchant_order_id' => $orderNumber,
             ]);
+
             return;
         }
 
@@ -67,7 +70,7 @@ class PathaoWebhookListener
 
         // Extract message/details from payload
         $reason = $payload['reason'] ?? '';
-        $occurredAt = isset($payload['updated_at']) ? \Carbon\Carbon::parse($payload['updated_at']) : now();
+        $occurredAt = isset($payload['updated_at']) ? Carbon::parse($payload['updated_at']) : now();
 
         // Map events to statuses
         switch ($eventName) {
@@ -116,7 +119,7 @@ class PathaoWebhookListener
                     // Update notes/COD info if relevant
                     $collectedAmount = $payload['collected_amount'] ?? null;
                     if ($collectedAmount !== null) {
-                        $order->notes = trim(($order->notes ?: '') . " (Partial Delivery: Collected {$collectedAmount})");
+                        $order->notes = trim(($order->notes ?: '')." (Partial Delivery: Collected {$collectedAmount})");
                     }
                 }
                 break;
@@ -172,13 +175,13 @@ class PathaoWebhookListener
 
             // Send automatic SMS notification for status change
             try {
-                $smsResult = app(\App\Services\SmsService::class)->sendOrderStatusSms($order, $newStatus);
+                $smsResult = app(SmsService::class)->sendOrderStatusSms($order, $newStatus);
                 if ($smsResult['success']) {
                     OrderActivityLog::log($order, 'sms_sent', "SMS sent: Status → {$statusName} (via Pathao webhook)", $smsResult['message'] ?? null, [
                         'status' => $newStatus,
                         'phone' => $order->shipping_phone,
                     ]);
-                } elseif (!str_contains($smsResult['message'] ?? '', 'not enabled')) {
+                } elseif (! str_contains($smsResult['message'] ?? '', 'not enabled')) {
                     OrderActivityLog::log($order, 'sms_failed', 'SMS failed (via Pathao webhook)', $smsResult['message'] ?? null, [
                         'status' => $newStatus,
                         'error' => $smsResult['message'] ?? 'Unknown error',

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -34,7 +35,7 @@ class UserController extends Controller
         }
 
         if ($request->input('date') === 'today') {
-            $query->whereDate('created_at', \Carbon\Carbon::today());
+            $query->whereDate('created_at', Carbon::today());
         }
 
         $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
@@ -72,7 +73,7 @@ class UserController extends Controller
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'phone' => ['nullable', 'string', 'max:20'],
             'address' => ['nullable', 'string'],
-            'role' => ['required', 'string', 'in:' . implode(',', $roleOptions)],
+            'role' => ['required', 'string', 'in:'.implode(',', $roleOptions)],
         ]);
 
         User::create([
@@ -94,7 +95,7 @@ class UserController extends Controller
         $roleOptions = array_keys(User::roleOptions());
 
         $validated = $request->validate([
-            'role' => ['required', 'string', 'in:' . implode(',', $roleOptions)],
+            'role' => ['required', 'string', 'in:'.implode(',', $roleOptions)],
         ]);
 
         $user = User::withTrashed()->findOrFail($id);

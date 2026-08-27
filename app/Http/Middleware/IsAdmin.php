@@ -12,10 +12,11 @@ class IsAdmin
     {
         $user = $request->user();
 
-        if (!$user || !$user->canAccessAdminPanel()) {
+        if (! $user || ! $user->canAccessAdminPanel()) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
+
             return redirect()->route('admin.login')->with('error', 'Access denied. Admin panel access is not allowed for this role.');
         }
 

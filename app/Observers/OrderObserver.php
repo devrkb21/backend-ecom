@@ -21,11 +21,11 @@ class OrderObserver
      */
     public function updated(Order $order): void
     {
-        if (!$order->wasChanged('status')) {
+        if (! $order->wasChanged('status')) {
             return;
         }
 
-        if (!in_array($order->status, ['cancelled', 'returned'], true)) {
+        if (! in_array($order->status, ['cancelled', 'returned'], true)) {
             return;
         }
 

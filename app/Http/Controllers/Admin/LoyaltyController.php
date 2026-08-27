@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\LoyaltyRedemption;
 use App\Models\LoyaltyReward;
 use App\Models\LoyaltyTier;
 use App\Models\LoyaltyTransaction;
-use App\Models\LoyaltyRedemption;
-use App\Models\User;
 use App\Models\Product;
+use App\Models\User;
 use App\Services\LoyaltyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -317,7 +317,7 @@ class LoyaltyController extends Controller
 
         $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
         $redemptions = $query->orderBy('created_at', 'desc')->paginate($perPage)->withQueryString();
-        
+
         $rewards = LoyaltyReward::orderBy('name')->get();
 
         return view('admin.loyalty.redemptions', compact('redemptions', 'rewards'));
@@ -365,7 +365,7 @@ class LoyaltyController extends Controller
             ->orderBy('lifetime_points', 'desc')
             ->get();
 
-        $filename = 'loyalty_members_' . now()->format('Y-m-d_His') . '.csv';
+        $filename = 'loyalty_members_'.now()->format('Y-m-d_His').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',

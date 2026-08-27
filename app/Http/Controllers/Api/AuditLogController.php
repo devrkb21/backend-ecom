@@ -11,7 +11,7 @@ class AuditLogController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        if (!$request->user()->isAdmin() && !$request->user()->hasAdminPermission('audit.view')) {
+        if (! $request->user()->isAdmin() && ! $request->user()->hasAdminPermission('audit.view')) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
@@ -45,7 +45,7 @@ class AuditLogController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
-        if (!$request->user()->isAdmin() && !$request->user()->hasAdminPermission('audit.view')) {
+        if (! $request->user()->isAdmin() && ! $request->user()->hasAdminPermission('audit.view')) {
             return $this->errorResponse('Unauthorized', 403);
         }
 

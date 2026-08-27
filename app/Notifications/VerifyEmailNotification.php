@@ -24,7 +24,7 @@ class VerifyEmailNotification extends Notification implements ShouldQueue
     {
         return (new MailMessage)
             ->subject('Verify Your Email Address')
-            ->greeting('Welcome, ' . $notifiable->name . '!')
+            ->greeting('Welcome, '.$notifiable->name.'!')
             ->line('Thank you for creating an account. Please click the button below to verify your email address.')
             ->action('Verify Email Address', $this->verificationUrl)
             ->line('This verification link will expire in 60 minutes.')

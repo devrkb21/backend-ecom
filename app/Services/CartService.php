@@ -27,7 +27,7 @@ class CartService
             $cart = $this->cartRepository->getOrCreateForUser($userId);
             $product = $this->productRepository->findOrFail($productId);
 
-            if (!$product->is_active) {
+            if (! $product->is_active) {
                 throw new \Exception('Product is not available.');
             }
 
@@ -59,7 +59,7 @@ class CartService
         return DB::transaction(function () use ($userId, $productId, $quantity, $variantId) {
             $cart = $this->cartRepository->getByUserId($userId);
 
-            if (!$cart) {
+            if (! $cart) {
                 throw new \Exception('Cart not found.');
             }
 
@@ -67,7 +67,7 @@ class CartService
                 $this->cartRepository->removeItem($cart->id, $productId, $variantId);
             } else {
                 $product = $this->productRepository->findOrFail($productId);
-                if (!$product->is_active) {
+                if (! $product->is_active) {
                     throw new \Exception('Product is not available.');
                 }
 
@@ -92,7 +92,7 @@ class CartService
         return DB::transaction(function () use ($userId, $productId, $variantId) {
             $cart = $this->cartRepository->getByUserId($userId);
 
-            if (!$cart) {
+            if (! $cart) {
                 throw new \Exception('Cart not found.');
             }
 
@@ -131,11 +131,11 @@ class CartService
 
         $variant = $product->variants()->where('id', $variantId)->first();
 
-        if (!$variant) {
+        if (! $variant) {
             throw new \Exception('Selected variant is invalid for this product.');
         }
 
-        if (!$variant->is_active) {
+        if (! $variant->is_active) {
             throw new \Exception('Selected variant is not available.');
         }
 
@@ -144,19 +144,19 @@ class CartService
 
     protected function assertStockAvailability(Product $product, ?ProductVariant $variant, int $quantity): void
     {
-        if (!Product::isStockEnabled()) {
+        if (! Product::isStockEnabled()) {
             return;
         }
 
         if ($variant instanceof ProductVariant) {
-            if (!$variant->hasStock($quantity)) {
+            if (! $variant->hasStock($quantity)) {
                 throw new \Exception('Insufficient stock available for the selected variant.');
             }
 
             return;
         }
 
-        if (!$product->hasStock($quantity)) {
+        if (! $product->hasStock($quantity)) {
             throw new \Exception('Insufficient stock available.');
         }
     }

@@ -52,6 +52,7 @@ class SendAbandonedCartReminders extends Command
                     $sentToGuests++;
                 } else {
                     $failed++;
+
                     return;
                 }
 

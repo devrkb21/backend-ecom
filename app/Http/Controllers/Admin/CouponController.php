@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Coupon;
 use App\Models\Category;
+use App\Models\Coupon;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -134,7 +134,7 @@ class CouponController extends Controller
 
         $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
         $usages = $coupon->usages()->with(['user', 'order'])->latest()->paginate($perPage)->withQueryString();
-        
+
         return view('admin.coupons.show', compact('coupon', 'usages'));
     }
 
@@ -211,6 +211,7 @@ class CouponController extends Controller
         if ($coupon->used_count > 0) {
             // Soft delete by deactivating instead
             $coupon->update(['is_active' => false]);
+
             return redirect()
                 ->route('admin.coupons.index')
                 ->with('info', 'Coupon has been deactivated as it has existing usage records.');
@@ -228,7 +229,7 @@ class CouponController extends Controller
      */
     public function toggleStatus(Coupon $coupon)
     {
-        $coupon->update(['is_active' => !$coupon->is_active]);
+        $coupon->update(['is_active' => ! $coupon->is_active]);
 
         $status = $coupon->is_active ? 'activated' : 'deactivated';
 
@@ -243,7 +244,7 @@ class CouponController extends Controller
     public function duplicate(Coupon $coupon)
     {
         $newCoupon = $coupon->replicate();
-        $newCoupon->code = $coupon->code . '_COPY';
+        $newCoupon->code = $coupon->code.'_COPY';
         $newCoupon->used_count = 0;
         $newCoupon->is_active = false;
         $newCoupon->save();

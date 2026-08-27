@@ -16,7 +16,7 @@ class PublicSettingResource extends JsonResource
         $formatted = [];
 
         foreach ($settings as $group => $items) {
-            $formatted[$group] = collect($items)->mapWithKeys(function ($value, $key) use ($group) {
+            $formatted[$group] = collect($items)->mapWithKeys(function ($value, $key) {
                 return [$key => $value];
             })->toArray();
         }
@@ -52,7 +52,7 @@ class PublicSettingResource extends JsonResource
 
             return (str_starts_with($normalized, 'media/') || str_starts_with($normalized, 'storage/'))
                 ? asset($normalized)
-                : asset('storage/' . $normalized);
+                : asset('storage/'.$normalized);
         }
 
         return match ($this->type) {

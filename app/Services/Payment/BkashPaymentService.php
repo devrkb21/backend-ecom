@@ -4,6 +4,12 @@ namespace App\Services\Payment;
 
 use App\Models\Order;
 use App\Models\PaymentGateway;
+use Devrkb21\Bkash\BkashManager;
+use Devrkb21\Bkash\Contracts\AgreementServiceContract;
+use Devrkb21\Bkash\Contracts\AuthServiceContract;
+use Devrkb21\Bkash\Contracts\BkashClientContract;
+use Devrkb21\Bkash\Contracts\PaymentServiceContract;
+use Devrkb21\Bkash\Contracts\RefundServiceContract;
 use Devrkb21\Bkash\Facades\Bkash;
 
 class BkashPaymentService
@@ -13,7 +19,7 @@ class BkashPaymentService
     public function __construct()
     {
         $this->gateway = PaymentGateway::findByCode('bkash');
-        
+
         if ($this->gateway && $this->gateway->is_active) {
             $this->configureFromGateway();
         }
@@ -24,9 +30,12 @@ class BkashPaymentService
      */
     protected function getModeSetting(string $key): ?string
     {
-        if (!$this->gateway) return null;
+        if (! $this->gateway) {
+            return null;
+        }
         $mode = $this->gateway->getSetting('mode', 'sandbox');
         $env = $mode === 'sandbox' ? 'sandbox' : 'live';
+
         return $this->gateway->getSetting("{$env}.{$key}");
     }
 
@@ -44,7 +53,7 @@ class BkashPaymentService
         $sandbox = $mode === 'sandbox' || $mode !== 'live';
 
         $environment = $sandbox ? 'sandbox' : 'production';
-        $baseUrl = $sandbox 
+        $baseUrl = $sandbox
             ? 'https://tokenized.sandbox.bka.sh/v2/tokenized-checkout'
             : 'https://tokenized.pay.bka.sh/v2/tokenized-checkout';
 
@@ -59,18 +68,18 @@ class BkashPaymentService
         ]);
 
         // Clear resolved singletons in container to load fresh dynamic configurations
-        app()->forgetInstance(\Devrkb21\Bkash\Contracts\BkashClientContract::class);
-        app()->forgetInstance(\Devrkb21\Bkash\Contracts\AuthServiceContract::class);
-        app()->forgetInstance(\Devrkb21\Bkash\Contracts\PaymentServiceContract::class);
-        app()->forgetInstance(\Devrkb21\Bkash\Contracts\AgreementServiceContract::class);
-        app()->forgetInstance(\Devrkb21\Bkash\Contracts\RefundServiceContract::class);
-        app()->forgetInstance(\Devrkb21\Bkash\BkashManager::class);
+        app()->forgetInstance(BkashClientContract::class);
+        app()->forgetInstance(AuthServiceContract::class);
+        app()->forgetInstance(PaymentServiceContract::class);
+        app()->forgetInstance(AgreementServiceContract::class);
+        app()->forgetInstance(RefundServiceContract::class);
+        app()->forgetInstance(BkashManager::class);
         app()->forgetInstance('bkash');
-        
+
         // Debug log to verify config is set
         \Log::debug('bKash config set for devrkb21 package', [
             'environment' => config('bkash.environment'),
-            'app_key' => substr((string) config('bkash.app_key'), 0, 8) . '...',
+            'app_key' => substr((string) config('bkash.app_key'), 0, 8).'...',
             'username' => config('bkash.username'),
         ]);
     }
@@ -80,7 +89,7 @@ class BkashPaymentService
      */
     public function isConfigured(): bool
     {
-        if (!$this->gateway || !$this->gateway->is_active) {
+        if (! $this->gateway || ! $this->gateway->is_active) {
             return false;
         }
 
@@ -89,7 +98,7 @@ class BkashPaymentService
         $username = $this->getModeSetting('username');
         $password = $this->getModeSetting('password');
 
-        return !empty($appKey) && !empty($appSecret) && !empty($username) && !empty($password);
+        return ! empty($appKey) && ! empty($appSecret) && ! empty($username) && ! empty($password);
     }
 
     /**
@@ -105,7 +114,7 @@ class BkashPaymentService
      */
     public function createPayment(Order $order): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             throw new \Exception('bKash is not properly configured.');
         }
 
@@ -113,7 +122,7 @@ class BkashPaymentService
         $this->configureFromGateway();
 
         $invoiceNumber = $order->order_number;
-        
+
         $requestData = [
             'intent' => 'sale',
             'mode' => '0011', // Tokenized checkout
@@ -132,13 +141,13 @@ class BkashPaymentService
                 // If it fails due to merchantInvoiceNumber validation (duplicate), retry with time appended (HHMM)
                 if (str_contains($e->getMessage(), 'merchantInvoiceNumber')) {
                     $suffix = now()->timezone('Asia/Dhaka')->format('Hi');
-                    $modifiedInvoiceNumber = $invoiceNumber . '-' . $suffix;
+                    $modifiedInvoiceNumber = $invoiceNumber.'-'.$suffix;
                     $requestData['merchantInvoiceNumber'] = $modifiedInvoiceNumber;
-                    
+
                     \Log::warning('bKash merchantInvoiceNumber duplicate detected. Retrying with suffix.', [
                         'original' => $invoiceNumber,
                         'modified' => $modifiedInvoiceNumber,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
 
                     $response = Bkash::payment()->createPayment($requestData);
@@ -146,15 +155,16 @@ class BkashPaymentService
                     throw $e;
                 }
             }
-            
+
             // Log response for debugging
             \Log::debug('bKash cPayment response', [
                 'request' => $requestData,
                 'response' => $response,
             ]);
-            
-            if (!$response) {
+
+            if (! $response) {
                 \Log::error('bKash API returned null response');
+
                 return [
                     'success' => false,
                     'message' => 'bKash API is not responding. Please try again later.',
@@ -182,10 +192,10 @@ class BkashPaymentService
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return [
                 'success' => false,
-                'message' => 'bKash payment failed: ' . $e->getMessage(),
+                'message' => 'bKash payment failed: '.$e->getMessage(),
                 'error_code' => 'EXCEPTION',
             ];
         }
@@ -196,7 +206,7 @@ class BkashPaymentService
      */
     public function executePayment(string $paymentId): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             throw new \Exception('bKash is not properly configured.');
         }
 
@@ -208,7 +218,7 @@ class BkashPaymentService
         } catch (\Exception $e) {
             \Log::warning('bKash executePayment failed, trying queryPayment fallback', [
                 'payment_id' => $paymentId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             try {
                 $response = Bkash::payment()->queryPayment($paymentId);
@@ -217,7 +227,7 @@ class BkashPaymentService
             }
         }
 
-        if (isset($response['statusCode']) && $response['statusCode'] === '0000' && 
+        if (isset($response['statusCode']) && $response['statusCode'] === '0000' &&
             ($response['transactionStatus'] ?? '') === 'Completed') {
             return [
                 'success' => true,
@@ -241,7 +251,7 @@ class BkashPaymentService
      */
     public function queryPayment(string $paymentId): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             throw new \Exception('bKash is not properly configured.');
         }
 
@@ -268,7 +278,7 @@ class BkashPaymentService
      */
     public function searchTransaction(string $transactionId): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             throw new \Exception('bKash is not properly configured.');
         }
 
@@ -279,6 +289,7 @@ class BkashPaymentService
             return Bkash::refund()->searchTransaction($transactionId);
         } catch (\Exception $e) {
             \Log::error('bKash searchTransaction failed', ['trxId' => $transactionId, 'error' => $e->getMessage()]);
+
             return [];
         }
     }
@@ -288,14 +299,14 @@ class BkashPaymentService
      */
     public function refund(string $paymentId, string $transactionId, float $amount, string $reason = ''): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             throw new \Exception('bKash is not properly configured.');
         }
 
         // Ensure config is fresh
         $this->configureFromGateway();
 
-        $sku = 'refund-' . time();
+        $sku = 'refund-'.time();
         $payload = [
             'paymentID' => $paymentId,
             'trxID' => $transactionId,
@@ -308,9 +319,10 @@ class BkashPaymentService
             $response = Bkash::refund()->refundTransaction($payload);
         } catch (\Exception $e) {
             \Log::error('bKash refund failed', ['payload' => $payload, 'error' => $e->getMessage()]);
+
             return [
                 'success' => false,
-                'message' => 'bKash refund error: ' . $e->getMessage(),
+                'message' => 'bKash refund error: '.$e->getMessage(),
             ];
         }
 
@@ -335,7 +347,7 @@ class BkashPaymentService
      */
     public function refundStatus(string $paymentId, string $transactionId): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             throw new \Exception('bKash is not properly configured.');
         }
 
@@ -346,6 +358,7 @@ class BkashPaymentService
             return Bkash::refund()->refundStatus($paymentId, $transactionId);
         } catch (\Exception $e) {
             \Log::error('bKash refundStatus failed', ['paymentId' => $paymentId, 'trxId' => $transactionId, 'error' => $e->getMessage()]);
+
             return [];
         }
     }

@@ -57,12 +57,12 @@ class PaymentGateway extends Model
      */
     public function isAvailableFor(float $amount, string $currency = 'BDT'): bool
     {
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return false;
         }
 
         // Check currency support
-        if ($this->supported_currencies && !in_array($currency, $this->supported_currencies)) {
+        if ($this->supported_currencies && ! in_array($currency, $this->supported_currencies)) {
             return false;
         }
 
@@ -95,6 +95,7 @@ class PaymentGateway extends Model
         $settings = $this->settings ?? [];
         data_set($settings, $key, $value);
         $this->settings = $settings;
+
         return $this;
     }
 
@@ -127,10 +128,10 @@ class PaymentGateway extends Model
                 $className = trim(preg_replace('/\s+/', ' ', $configuredIcon));
 
                 if (str_starts_with($className, 'bi-')) {
-                    $className = 'bi ' . $className;
+                    $className = 'bi '.$className;
                 }
 
-                return '<i class="' . e($className) . '"></i>';
+                return '<i class="'.e($className).'"></i>';
             }
 
             // Render image-based icons when admin sets URL or relative storage path.
@@ -146,22 +147,23 @@ class PaymentGateway extends Model
                 $iconPath = $configuredIcon;
 
                 if (
-                    !str_starts_with($iconPath, 'http://')
-                    && !str_starts_with($iconPath, 'https://')
-                    && !str_starts_with($iconPath, '/storage/')
-                    && !str_starts_with($iconPath, 'data:image/')
+                    ! str_starts_with($iconPath, 'http://')
+                    && ! str_starts_with($iconPath, 'https://')
+                    && ! str_starts_with($iconPath, '/storage/')
+                    && ! str_starts_with($iconPath, 'data:image/')
                 ) {
                     $normalizedPath = ltrim($iconPath, '/');
 
                     if (str_starts_with($normalizedPath, 'media/') || str_starts_with($normalizedPath, 'storage/')) {
                         $iconPath = asset($normalizedPath);
                     } else {
-                        $iconPath = asset('storage/' . $normalizedPath);
+                        $iconPath = asset('storage/'.$normalizedPath);
                     }
                 }
 
                 $src = e($iconPath);
-                return '<img src="' . $src . '" alt="' . e($this->name) . '" style="width:1.5rem;height:1.5rem;object-fit:contain;" loading="lazy">';
+
+                return '<img src="'.$src.'" alt="'.e($this->name).'" style="width:1.5rem;height:1.5rem;object-fit:contain;" loading="lazy">';
             }
         }
 

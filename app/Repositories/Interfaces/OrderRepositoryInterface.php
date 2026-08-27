@@ -12,6 +12,8 @@ interface OrderRepositoryInterface extends BaseRepositoryInterface
 
     public function getByUserIdPaginated(int $userId, int $perPage = 15): LengthAwarePaginator;
 
+    public function paginateCreatedBefore(\DateTimeInterface $before, int $perPage = 15): LengthAwarePaginator;
+
     public function findByOrderNumber(string $orderNumber): ?Order;
 
     public function getByStatus(string $status): Collection;

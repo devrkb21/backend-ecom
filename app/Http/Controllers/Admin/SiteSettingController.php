@@ -3,8 +3,16 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
+use App\Models\Order;
+use App\Models\OrderStatus;
+use App\Models\Page;
+use App\Models\PaymentGateway;
 use App\Models\Setting;
+use App\Models\ShippingMethod;
 use App\Services\CheckoutAddressConfigService;
+use App\Services\SmsService;
+use devrkb21\PathaoLaravel\Facades\PathaoLaravel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -291,7 +299,7 @@ class SiteSettingController extends Controller
         $defaultMenu = [
             ['label' => 'All Products', 'url' => '/products', 'type' => 'link'],
             ['label' => 'Categories', 'url' => '/categories', 'type' => 'link'],
-            ['label' => 'Deals', 'url' => '/products?on_sale=true', 'type' => 'link']
+            ['label' => 'Deals', 'url' => '/products?on_sale=true', 'type' => 'link'],
         ];
 
         $setting = Setting::firstOrCreate(
@@ -424,7 +432,7 @@ class SiteSettingController extends Controller
         // Extra hero variables
         $heroSettings = $settings->get('hero', collect());
         $bannersSetting = $heroSettings->firstWhere('key', 'banners');
-        if (!$bannersSetting) {
+        if (! $bannersSetting) {
             // Read current individual settings to create the initial banner slide
             $title = $heroSettings->firstWhere('key', 'title')?->value ?? 'Welcome to Our Store';
             $subtitle = $heroSettings->firstWhere('key', 'subtitle')?->value ?? '';
@@ -441,7 +449,7 @@ class SiteSettingController extends Controller
                 'image' => $image,
                 'button_text' => $buttonText,
                 'button_link' => $buttonLink,
-                'enabled' => $enabled
+                'enabled' => $enabled,
             ];
 
             Setting::create([
@@ -451,7 +459,7 @@ class SiteSettingController extends Controller
                 'label' => 'Banners Configuration',
                 'value' => json_encode([$initialBanner]),
                 'is_public' => true,
-                'sort_order' => 8
+                'sort_order' => 8,
             ]);
 
             // Reload settings
@@ -465,9 +473,9 @@ class SiteSettingController extends Controller
         $banners = json_decode($heroSettings->firstWhere('key', 'banners')?->value ?? '[]', true);
 
         // Extra navigation variables
-        $categories = \App\Models\Category::with('children')->whereNull('parent_id')->active()->ordered()->get();
+        $categories = Category::with('children')->whereNull('parent_id')->active()->ordered()->get();
         $allCategories = $this->flattenCategories($categories);
-        $allPages = \App\Models\Page::active()->get();
+        $allPages = Page::active()->get();
 
         $groupLabels = [
             'hero' => 'Hero Section',
@@ -528,17 +536,17 @@ class SiteSettingController extends Controller
 
         // 2. Courier Variables
         $courierSettings = Setting::where('group', 'courier')->orderBy('sort_order')->get()->keyBy('key');
-        
-        $sentToCourierCountSteadfast = \App\Models\Order::where('carrier', 'steadfast')->count();
-        $pendingSendCountSteadfast = \App\Models\Order::whereIn('status', ['pending', 'processing'])
-            ->where(function($q) {
+
+        $sentToCourierCountSteadfast = Order::where('carrier', 'steadfast')->count();
+        $pendingSendCountSteadfast = Order::whereIn('status', ['pending', 'processing'])
+            ->where(function ($q) {
                 $q->whereNull('carrier')->orWhere('carrier', '!=', 'steadfast');
             })
             ->count();
 
-        $sentToCourierCountPathao = \App\Models\Order::where('carrier', 'pathao')->count();
-        $pendingSendCountPathao = \App\Models\Order::whereIn('status', ['pending', 'processing'])
-            ->where(function($q) {
+        $sentToCourierCountPathao = Order::where('carrier', 'pathao')->count();
+        $pendingSendCountPathao = Order::whereIn('status', ['pending', 'processing'])
+            ->where(function ($q) {
                 $q->whereNull('carrier')->orWhere('carrier', '!=', 'pathao');
             })
             ->count();
@@ -548,12 +556,12 @@ class SiteSettingController extends Controller
         $pathaoConnectionMessage = '';
 
         if ($courierSettings->get('pathao_enabled')?->value == '1' &&
-            !empty($courierSettings->get('pathao_client_id')?->value) &&
-            !empty($courierSettings->get('pathao_client_secret')?->value)) {
-            
+            ! empty($courierSettings->get('pathao_client_id')?->value) &&
+            ! empty($courierSettings->get('pathao_client_secret')?->value)) {
+
             try {
                 $this->initializePathao();
-                $response = \devrkb21\PathaoLaravel\Facades\PathaoLaravel::GET_STORES();
+                $response = PathaoLaravel::GET_STORES();
                 if (isset($response['status']) && $response['status'] == 200) {
                     $pathaoStores = $response['data']['data'] ?? [];
                     $pathaoConnectionSuccess = true;
@@ -566,16 +574,16 @@ class SiteSettingController extends Controller
         }
 
         // 3. Payment Gateways Variables
-        $gateways = \App\Models\PaymentGateway::orderBy('sort_order')->get();
+        $gateways = PaymentGateway::orderBy('sort_order')->get();
         $currencySymbol = (string) Setting::getValue('general', 'currency_symbol', '৳');
 
         // 4. Shipping Methods Variables
-        $methods = \App\Models\ShippingMethod::withCount('locationRules')
+        $methods = ShippingMethod::withCount('locationRules')
             ->orderBy('sort_order')
             ->get();
 
         // 5. Order Statuses Variables
-        $statuses = \App\Models\OrderStatus::query()
+        $statuses = OrderStatus::query()
             ->withCount('orders')
             ->orderBy('sort_order')
             ->orderBy('id')
@@ -586,7 +594,7 @@ class SiteSettingController extends Controller
         $cancellationReasons = array_values(array_filter(array_map('trim', explode(',', $cancellationReasonsStr))));
 
         // 7. SMS Templates Variables
-        $smsTemplates = \App\Services\SmsService::getOrderSmsTemplates();
+        $smsTemplates = SmsService::getOrderSmsTemplates();
 
         $groupLabels = [
             'general' => 'General Settings',
@@ -658,12 +666,13 @@ class SiteSettingController extends Controller
     {
         $flattened = collect();
         foreach ($categories as $category) {
-            $category->name_with_indent = str_repeat('— ', $level) . $category->name;
+            $category->name_with_indent = str_repeat('— ', $level).$category->name;
             $flattened->push($category);
             if ($category->children && $category->children->count() > 0) {
                 $flattened = $flattened->merge($this->flattenCategories($category->children, $level + 1));
             }
         }
+
         return $flattened;
     }
 
@@ -695,8 +704,8 @@ class SiteSettingController extends Controller
                         'image' => $firstBanner['image'] ?? '',
                         'button_text' => $firstBanner['button_text'] ?? '',
                         'button_link' => $firstBanner['button_link'] ?? '',
-                        'enabled' => ($firstBanner['enabled'] ?? true) ? '1' : '0'
-                    ])
+                        'enabled' => ($firstBanner['enabled'] ?? true) ? '1' : '0',
+                    ]),
                 ]);
             }
         }
@@ -731,27 +740,27 @@ class SiteSettingController extends Controller
 
             if (
                 $setting->group === 'checkout'
-                && !in_array($key, ['checkout_form_enabled', 'enable_guest_checkout', 'tax_enabled', 'tax_percentage', 'checkout_fields_schema'], true)
+                && ! in_array($key, ['checkout_form_enabled', 'enable_guest_checkout', 'tax_enabled', 'tax_percentage', 'checkout_fields_schema'], true)
             ) {
                 return;
             }
-            
+
             // Handle image type - now uses media library path
             if ($setting->type === 'image') {
                 $newValue = $request->input("settings.{$key}");
-                
+
                 // Only update if value changed
                 if ($newValue !== $setting->value) {
                     // Delete old image if it's not from media library
-                    if ($setting->value && !str_starts_with($setting->value, 'media/') && Storage::disk('public')->exists($setting->value)) {
+                    if ($setting->value && ! str_starts_with($setting->value, 'media/') && Storage::disk('public')->exists($setting->value)) {
                         Storage::disk('public')->delete($setting->value);
                     }
-                    
+
                     $setting->value = $newValue ?: '';
                     $setting->save();
                     $updatedKeys[] = $key;
                 }
-            } 
+            }
             // Handle checkout field schema JSON
             elseif ($setting->key === 'checkout_fields_schema') {
                 /** @var CheckoutAddressConfigService $checkoutConfigService */
@@ -792,7 +801,7 @@ class SiteSettingController extends Controller
             }
             // Handle product grid columns as constrained enum values
             elseif ($setting->group === 'general' && ($setting->key === 'product_grid_columns_desktop' || $setting->key === 'product_grid_columns_mobile')) {
-                if (!$request->has("settings.{$key}")) {
+                if (! $request->has("settings.{$key}")) {
                     return;
                 }
 
@@ -809,7 +818,7 @@ class SiteSettingController extends Controller
             }
             // Handle order number prefix
             elseif ($setting->group === 'general' && $setting->key === 'order_number_prefix') {
-                if (!$request->has("settings.{$key}")) {
+                if (! $request->has("settings.{$key}")) {
                     return;
                 }
 
@@ -825,7 +834,7 @@ class SiteSettingController extends Controller
             }
             // Handle order number generation mode
             elseif ($setting->group === 'general' && $setting->key === 'order_number_generation_mode') {
-                if (!$request->has("settings.{$key}")) {
+                if (! $request->has("settings.{$key}")) {
                     return;
                 }
 
@@ -841,11 +850,11 @@ class SiteSettingController extends Controller
             }
             // Handle logo height as clamped integer
             elseif ($setting->group === 'general' && in_array($setting->key, ['logo_height', 'logo_height_desktop', 'logo_height_mobile'], true)) {
-                if (!$request->has("settings.{$key}")) {
+                if (! $request->has("settings.{$key}")) {
                     return;
                 }
 
-                $max = match($setting->key) {
+                $max = match ($setting->key) {
                     'logo_height_desktop' => 300,
                     'logo_height_mobile' => 200,
                     default => 200,
@@ -875,7 +884,7 @@ class SiteSettingController extends Controller
         // Clear cache
         Setting::clearCache($group);
 
-        if ($group === 'checkout' && !empty($updatedKeys)) {
+        if ($group === 'checkout' && ! empty($updatedKeys)) {
             Log::debug('Checkout settings updated.', [
                 'updated_keys' => array_values(array_unique($updatedKeys)),
             ]);
@@ -899,7 +908,7 @@ class SiteSettingController extends Controller
 
         $setting = Setting::where('group', $group)->where('key', $key)->first();
 
-        if (!$setting || $setting->type !== 'image') {
+        if (! $setting || $setting->type !== 'image') {
             return back()->with('error', 'Setting not found.');
         }
 
@@ -937,7 +946,7 @@ class SiteSettingController extends Controller
     {
         $request->validate([
             'group' => 'required|string|max:255',
-            'key' => 'required|string|max:255|unique:settings,key,NULL,id,group,' . $request->group,
+            'key' => 'required|string|max:255|unique:settings,key,NULL,id,group,'.$request->group,
             'label' => 'required|string|max:255',
             'type' => 'required|string|in:text,textarea,image,boolean,number,json,color',
             'value' => 'nullable',

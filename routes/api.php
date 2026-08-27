@@ -1,36 +1,41 @@
 <?php
 
+use App\Http\Controllers\Api\AbandonedCartController;
+use App\Http\Controllers\Api\AddressController;
+use App\Http\Controllers\Api\Admin\LicenseController;
 use App\Http\Controllers\Api\AttributeController;
+use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BangladeshLocationController;
 use App\Http\Controllers\Api\BkashController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CategoryController;
-use App\Http\Controllers\Api\PageController;
+use App\Http\Controllers\Api\ContactController;
+use App\Http\Controllers\Api\CouponController as ApiCouponController;
+use App\Http\Controllers\Api\CustomerGroupController;
+use App\Http\Controllers\Api\FlashSaleController;
 use App\Http\Controllers\Api\FrontendSettingController;
+use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\LandingPageController as ApiLandingPageController;
+use App\Http\Controllers\Api\LoyaltyController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderExportController;
+use App\Http\Controllers\Api\OrderNoteController;
 use App\Http\Controllers\Api\OrderTrackingController;
+use App\Http\Controllers\Api\PageController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PaymentGatewayController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\RelatedProductController;
+use App\Http\Controllers\Api\ReturnController;
+use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\SavedPaymentMethodController;
 use App\Http\Controllers\Api\ShippingMethodController;
+use App\Http\Controllers\Api\SteadfastWebhookController;
 use App\Http\Controllers\Api\StripeController;
 use App\Http\Controllers\Api\UserController;
-use App\Http\Controllers\Api\CouponController as ApiCouponController;
 use App\Http\Controllers\Api\WishlistController;
-use App\Http\Controllers\Api\ReviewController;
-use App\Http\Controllers\Api\AddressController;
-use App\Http\Controllers\Api\AbandonedCartController;
-use App\Http\Controllers\Api\ReturnController;
-use App\Http\Controllers\Api\RelatedProductController;
-use App\Http\Controllers\Api\BangladeshLocationController;
-use App\Http\Controllers\Api\FlashSaleController;
-use App\Http\Controllers\Api\LoyaltyController;
-use App\Http\Controllers\Api\NotificationController;
-use App\Http\Controllers\Api\OrderNoteController;
-use App\Http\Controllers\Api\AuditLogController;
-use App\Http\Controllers\Api\SavedPaymentMethodController;
-use App\Http\Controllers\Api\LandingPageController as ApiLandingPageController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -83,7 +88,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware('internal.api')->group(function () {
         // Loyalty / customer-group lookup by phone (spend, order count, discount eligibility)
         // — must never be reachable without the internal secret, it's a customer-data lookup.
-        Route::get('/loyalty/check', [App\Http\Controllers\Api\CustomerGroupController::class, 'check']);
+        Route::get('/loyalty/check', [CustomerGroupController::class, 'check']);
 
         // Pages
         Route::get('/pages', [PageController::class, 'index']);
@@ -173,7 +178,7 @@ Route::prefix('v1')->group(function () {
     });
 
     // Contact form (public)
-    Route::post('/contact', [\App\Http\Controllers\Api\ContactController::class, 'store']);
+    Route::post('/contact', [ContactController::class, 'store']);
 
     // Checkout order placement (supports guests and authenticated users)
     Route::post('/orders', [OrderController::class, 'store']);
@@ -200,7 +205,7 @@ Route::prefix('v1')->group(function () {
         // Users
         Route::middleware('admin_permission:users.manage')->group(function () {
             Route::get('/users', [UserController::class, 'index']);
-            Route::post('/users', [UserController::class, 'store']);
+            Route::post('/users', [UserController::class, 'store'])->middleware('license.create');
             Route::delete('/users/{id}', [UserController::class, 'destroy'])->where('id', '[0-9]+');
             Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->where('id', '[0-9]+');
         });
@@ -209,14 +214,14 @@ Route::prefix('v1')->group(function () {
 
         // Categories (admin catalog permission required for CUD)
         Route::middleware('admin_permission:catalog.manage')->group(function () {
-            Route::post('/categories', [CategoryController::class, 'store']);
+            Route::post('/categories', [CategoryController::class, 'store'])->middleware('license.create');
             Route::put('/categories/{id}', [CategoryController::class, 'update'])->where('id', '[0-9]+');
             Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->where('id', '[0-9]+');
         });
 
         // Products (admin catalog permission required for CUD)
         Route::middleware('admin_permission:catalog.manage')->group(function () {
-            Route::post('/products', [ProductController::class, 'store']);
+            Route::post('/products', [ProductController::class, 'store'])->middleware('license.create');
             Route::put('/products/{id}', [ProductController::class, 'update'])->where('id', '[0-9]+');
             Route::delete('/products/{id}', [ProductController::class, 'destroy'])->where('id', '[0-9]+');
             Route::post('/products/bulk-action', [ProductController::class, 'bulkAction']);
@@ -322,7 +327,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/{id}', [OrderController::class, 'show'])->where('id', '[0-9]+');
             Route::post('/{id}/cancel', [OrderController::class, 'cancel'])->where('id', '[0-9]+');
             Route::get('/{id}/tracking', [OrderTrackingController::class, 'show'])->where('id', '[0-9]+');
-            Route::get('/{id}/invoice', [\App\Http\Controllers\Api\InvoiceController::class, 'show'])->where('id', '[0-9]+');
+            Route::get('/{id}/invoice', [InvoiceController::class, 'show'])->where('id', '[0-9]+');
             // Order Notes
             Route::get('/{id}/notes', [OrderNoteController::class, 'index'])->where('id', '[0-9]+');
             Route::middleware('admin_permission:orders.manage')->group(function () {
@@ -366,7 +371,14 @@ Route::prefix('v1')->group(function () {
                 Route::get('/audit-logs', [AuditLogController::class, 'index']);
                 Route::get('/audit-logs/{id}', [AuditLogController::class, 'show'])->where('id', '[0-9]+');
             });
+
+            // License status: any admin/staff can check it (e.g. a dashboard
+            // banner); only settings.manage can change the key.
+            Route::get('/license', [LicenseController::class, 'show']);
+            Route::middleware('admin_permission:settings.manage')->group(function () {
+                Route::put('/license', [LicenseController::class, 'update']);
+            });
         });
     });
 });
-Route::post('/webhooks/steadfast', [\App\Http\Controllers\Api\SteadfastWebhookController::class, 'handle'])->name('api.webhooks.steadfast');
+Route::post('/webhooks/steadfast', [SteadfastWebhookController::class, 'handle'])->name('api.webhooks.steadfast');

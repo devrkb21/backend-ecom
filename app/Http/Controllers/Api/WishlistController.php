@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\WishlistResource;
 use App\Models\Product;
 use App\Models\Wishlist;
+use App\Services\CartService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -121,7 +122,7 @@ class WishlistController extends Controller
             ->where('product_variant_id', $validated['product_variant_id'] ?? null)
             ->delete();
 
-        if (!$deleted) {
+        if (! $deleted) {
             return response()->json([
                 'success' => false,
                 'message' => 'Product not found in wishlist',
@@ -184,7 +185,7 @@ class WishlistController extends Controller
 
         // Check if product is available
         $product = $wishlist->product;
-        if (!$product || !$product->is_active) {
+        if (! $product || ! $product->is_active) {
             return response()->json([
                 'success' => false,
                 'message' => 'Product is no longer available',
@@ -192,8 +193,8 @@ class WishlistController extends Controller
         }
 
         // Add to cart using cart service
-        $cartService = app(\App\Services\CartService::class);
-        
+        $cartService = app(CartService::class);
+
         try {
             $cartService->addToCart(
                 $request->user()->id,

@@ -25,19 +25,19 @@ class PaymentRepository extends BaseRepository implements PaymentRepositoryInter
     public function updateStatus(int $paymentId, string $status, ?string $transactionId = null): Payment
     {
         $payment = $this->findOrFail($paymentId);
-        
+
         $updateData = ['status' => $status];
-        
+
         if ($transactionId) {
             $updateData['transaction_id'] = $transactionId;
         }
-        
+
         if ($status === 'completed') {
             $updateData['paid_at'] = now();
         }
-        
+
         $payment->update($updateData);
-        
+
         return $payment->fresh();
     }
 }

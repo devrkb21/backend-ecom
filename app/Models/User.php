@@ -2,26 +2,31 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\Auditable;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Schema;
-use App\Traits\Auditable;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasApiTokens, HasFactory, Notifiable, SoftDeletes, Auditable;
+    use Auditable, HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     public const ROLE_ADMIN = 'admin';
+
     public const ROLE_SHOP_MANAGER = 'shop_manager';
+
     public const ROLE_CASHIER = 'cashier';
+
     public const ROLE_SALES = 'sales';
+
     public const ROLE_CUSTOMER = 'customer';
 
     protected $fillable = [
@@ -108,7 +113,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Get products in user's wishlist
      */
-    public function wishlistProducts(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function wishlistProducts(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'wishlists')
             ->withTimestamps();
@@ -167,7 +172,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function hasAdminPermission(string $permission): bool
     {
-        if (!$this->canAccessAdminPanel()) {
+        if (! $this->canAccessAdminPanel()) {
             return false;
         }
 
@@ -183,7 +188,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public static function roleOptions(bool $onlyActive = true): array
     {
-        if (!Schema::hasTable('admin_roles')) {
+        if (! Schema::hasTable('admin_roles')) {
             return self::legacyRoleOptions();
         }
 
@@ -195,7 +200,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
         $options = $query->pluck('name', 'key')->toArray();
 
-        return !empty($options) ? $options : self::legacyRoleOptions();
+        return ! empty($options) ? $options : self::legacyRoleOptions();
     }
 
     public function getRoleLabelAttribute(): string

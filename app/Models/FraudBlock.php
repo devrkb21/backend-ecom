@@ -154,7 +154,7 @@ class FraudBlock extends Model
             if ($block) {
                 $blocked[] = $type;
                 // Use the first custom message found
-                if ($customMessage === null && !empty($block->custom_message)) {
+                if ($customMessage === null && ! empty($block->custom_message)) {
                     $customMessage = $block->custom_message;
                 }
             }
@@ -172,7 +172,7 @@ class FraudBlock extends Model
     public static function getSummary(): array
     {
         $counts = self::active()
-            ->selectRaw("type, COUNT(*) as count")
+            ->selectRaw('type, COUNT(*) as count')
             ->groupBy('type')
             ->pluck('count', 'type')
             ->toArray();

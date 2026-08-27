@@ -72,7 +72,7 @@ class CartRepository extends BaseRepository implements CartRepositoryInterface
     {
         $cart = Cart::query()->find($cartId);
 
-        if (!$cart) {
+        if (! $cart) {
             return;
         }
 

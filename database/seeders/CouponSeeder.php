@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\Coupon;
-use Illuminate\Database\Seeder;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class CouponSeeder extends Seeder
 {

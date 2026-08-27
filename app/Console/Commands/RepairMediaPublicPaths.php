@@ -56,11 +56,11 @@ class RepairMediaPublicPaths extends Command
 
         $this->newLine();
         $this->info('Media path repair summary:');
-        $this->line('- Rows scanned: ' . $stats['rows_scanned']);
-        $this->line('- Rows updated: ' . $stats['rows_updated']);
-        $this->line('- Media files checked: ' . $stats['files_checked']);
-        $this->line('- Media files copied to public/media: ' . $stats['files_copied']);
-        $this->line('- Media files missing from old location: ' . $stats['files_missing']);
+        $this->line('- Rows scanned: '.$stats['rows_scanned']);
+        $this->line('- Rows updated: '.$stats['rows_updated']);
+        $this->line('- Media files checked: '.$stats['files_checked']);
+        $this->line('- Media files copied to public/media: '.$stats['files_copied']);
+        $this->line('- Media files missing from old location: '.$stats['files_missing']);
 
         if ($dryRun) {
             $this->comment('Dry run completed. Re-run without --dry-run to apply changes.');
@@ -73,8 +73,9 @@ class RepairMediaPublicPaths extends Command
 
     private function repairMediaTable(bool $dryRun, array &$stats): void
     {
-        if (!Schema::hasTable('media')) {
+        if (! Schema::hasTable('media')) {
             $this->warn('Skipping media table: table not found.');
+
             return;
         }
 
@@ -98,7 +99,7 @@ class RepairMediaPublicPaths extends Command
                         continue;
                     }
 
-                    if (!$dryRun) {
+                    if (! $dryRun) {
                         DB::table('media')
                             ->where('id', $row->id)
                             ->update([
@@ -120,7 +121,7 @@ class RepairMediaPublicPaths extends Command
         array &$stats,
         ?callable $scope = null
     ): void {
-        if (!Schema::hasTable($table) || !Schema::hasColumn($table, $column)) {
+        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $column)) {
             return;
         }
 
@@ -137,7 +138,7 @@ class RepairMediaPublicPaths extends Command
                 $stats['rows_scanned']++;
 
                 $oldValue = $row->{$column};
-                if (!is_string($oldValue) || trim($oldValue) === '') {
+                if (! is_string($oldValue) || trim($oldValue) === '') {
                     continue;
                 }
 
@@ -150,7 +151,7 @@ class RepairMediaPublicPaths extends Command
                     $this->ensurePublicMediaFile($newValue, $dryRun, $stats);
                 }
 
-                if (!$dryRun) {
+                if (! $dryRun) {
                     DB::table($table)
                         ->where('id', $row->id)
                         ->update([$column => $newValue]);
@@ -163,7 +164,7 @@ class RepairMediaPublicPaths extends Command
 
     private function repairJsonArrayColumn(string $table, string $column, bool $dryRun, array &$stats): void
     {
-        if (!Schema::hasTable($table) || !Schema::hasColumn($table, $column)) {
+        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $column)) {
             return;
         }
 
@@ -176,12 +177,12 @@ class RepairMediaPublicPaths extends Command
                     $stats['rows_scanned']++;
 
                     $rawValue = $row->{$column};
-                    if (!is_string($rawValue) || trim($rawValue) === '') {
+                    if (! is_string($rawValue) || trim($rawValue) === '') {
                         continue;
                     }
 
                     $decoded = json_decode($rawValue, true);
-                    if (!is_array($decoded)) {
+                    if (! is_array($decoded)) {
                         continue;
                     }
 
@@ -189,8 +190,9 @@ class RepairMediaPublicPaths extends Command
                     $normalized = [];
 
                     foreach ($decoded as $item) {
-                        if (!is_string($item) || trim($item) === '') {
+                        if (! is_string($item) || trim($item) === '') {
                             $normalized[] = $item;
+
                             continue;
                         }
 
@@ -206,11 +208,11 @@ class RepairMediaPublicPaths extends Command
                         $normalized[] = $next;
                     }
 
-                    if (!$changed) {
+                    if (! $changed) {
                         continue;
                     }
 
-                    if (!$dryRun) {
+                    if (! $dryRun) {
                         DB::table($table)
                             ->where('id', $row->id)
                             ->update([$column => json_encode($normalized)]);
@@ -244,7 +246,7 @@ class RepairMediaPublicPaths extends Command
         }
 
         if (str_starts_with($path, 'storage/media/')) {
-            return 'media/' . ltrim(substr($path, strlen('storage/media/')), '/');
+            return 'media/'.ltrim(substr($path, strlen('storage/media/')), '/');
         }
 
         if (str_starts_with($path, 'media/')) {
@@ -252,11 +254,11 @@ class RepairMediaPublicPaths extends Command
         }
 
         if (preg_match('#(?:^|/)storage/media/(.+)$#', $path, $matches) === 1) {
-            return 'media/' . ltrim((string) $matches[1], '/');
+            return 'media/'.ltrim((string) $matches[1], '/');
         }
 
         if (preg_match('#(?:^|/)media/(.+)$#', $path, $matches) === 1) {
-            return 'media/' . ltrim((string) $matches[1], '/');
+            return 'media/'.ltrim((string) $matches[1], '/');
         }
 
         return $value;
@@ -264,7 +266,7 @@ class RepairMediaPublicPaths extends Command
 
     private function ensurePublicMediaFile(string $relativePath, bool $dryRun, array &$stats): void
     {
-        if (!str_starts_with($relativePath, 'media/')) {
+        if (! str_starts_with($relativePath, 'media/')) {
             return;
         }
 
@@ -278,8 +280,8 @@ class RepairMediaPublicPaths extends Command
         }
 
         $sourceCandidates = [
-            storage_path('app/public/' . $normalized),
-            public_path('storage/' . $normalized),
+            storage_path('app/public/'.$normalized),
+            public_path('storage/'.$normalized),
         ];
 
         $source = null;
@@ -290,8 +292,9 @@ class RepairMediaPublicPaths extends Command
             }
         }
 
-        if (!$source) {
+        if (! $source) {
             $stats['files_missing']++;
+
             return;
         }
 

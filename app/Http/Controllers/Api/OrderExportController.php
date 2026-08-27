@@ -4,15 +4,19 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Services\LicenseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OrderExportController extends Controller
 {
+    public function __construct(protected LicenseService $licenseService) {}
+
     public function export(Request $request): JsonResponse
     {
-        if (!$request->user()->isAdmin()) {
+        if (! $request->user()->isAdmin()) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
@@ -33,7 +37,11 @@ class OrderExportController extends Controller
         }
 
         if ($request->has('to')) {
-            $query->where('created_at', '<=', $request->to . ' 23:59:59');
+            $query->where('created_at', '<=', $request->to.' 23:59:59');
+        }
+
+        if ($cutoff = $this->licenseService->expiredSince()) {
+            $query->where('created_at', '<=', $cutoff);
         }
 
         $orders = $query->orderBy('created_at', 'desc')->get();
@@ -43,20 +51,20 @@ class OrderExportController extends Controller
         }
 
         $csvContent = $this->buildCsv($orders);
-        $filename = 'orders_' . now()->format('Y-m-d_His') . '.csv';
+        $filename = 'orders_'.now()->format('Y-m-d_His').'.csv';
 
-        Storage::put('exports/' . $filename, $csvContent);
+        Storage::put('exports/'.$filename, $csvContent);
 
         return $this->successResponse([
             'filename' => $filename,
             'total_orders' => $orders->count(),
-            'download_url' => url('/api/v1/admin/orders/export/download/' . $filename),
+            'download_url' => url('/api/v1/admin/orders/export/download/'.$filename),
         ], 'Orders exported successfully');
     }
 
-    public function download(Request $request, string $filename): \Symfony\Component\HttpFoundation\StreamedResponse|JsonResponse
+    public function download(Request $request, string $filename): StreamedResponse|JsonResponse
     {
-        if (!$request->user()->isAdmin()) {
+        if (! $request->user()->isAdmin()) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
@@ -67,9 +75,9 @@ class OrderExportController extends Controller
             return $this->errorResponse('Invalid filename', 400);
         }
 
-        $path = 'exports/' . $filename;
+        $path = 'exports/'.$filename;
 
-        if (!Storage::exists($path)) {
+        if (! Storage::exists($path)) {
             return $this->errorResponse('File not found', 404);
         }
 
@@ -137,6 +145,7 @@ class OrderExportController extends Controller
         if ($value === null) {
             return '""';
         }
-        return '"' . str_replace('"', '""', $value) . '"';
+
+        return '"'.str_replace('"', '""', $value).'"';
     }
 }

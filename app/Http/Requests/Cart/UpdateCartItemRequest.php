@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Cart;
 
+use App\Models\ProductVariant;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateCartItemRequest extends FormRequest
@@ -24,12 +25,12 @@ class UpdateCartItemRequest extends FormRequest
                     }
 
                     $productId = (int) $this->route('productId');
-                    $variantBelongsToProduct = \App\Models\ProductVariant::query()
+                    $variantBelongsToProduct = ProductVariant::query()
                         ->where('id', (int) $value)
                         ->where('product_id', $productId)
                         ->exists();
 
-                    if (!$variantBelongsToProduct) {
+                    if (! $variantBelongsToProduct) {
                         $fail('The selected variant is invalid for the selected product.');
                     }
                 },

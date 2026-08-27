@@ -45,6 +45,7 @@ abstract class BaseRepository implements BaseRepositoryInterface
     {
         $record = $this->findOrFail($id);
         $record->update($data);
+
         return $record->fresh();
     }
 

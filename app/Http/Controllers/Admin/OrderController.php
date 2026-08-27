@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateOrderStatusRequest;
+use App\Models\BdDistrict;
+use App\Models\Coupon;
 use App\Models\CourierCheckResult;
 use App\Models\Order;
 use App\Models\OrderActivityLog;
@@ -11,13 +13,16 @@ use App\Models\OrderItem;
 use App\Models\OrderStatus;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\Setting;
 use App\Models\ShippingMethod;
-use App\Models\ShippingMethodDistrictRate;
-use App\Models\BdDistrict;
 use App\Services\CourierHistoryCheckService;
 use App\Services\FraudDetectionService;
+use App\Services\LicenseService;
+use App\Services\LoyaltyService;
+use App\Services\Payment\BkashPaymentService;
 use App\Services\SmsService;
 use App\Support\FraudNormalizer;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +30,8 @@ use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
+    public function __construct(protected LicenseService $licenseService) {}
+
     public function index(Request $request)
     {
         $statuses = OrderStatus::query()
@@ -41,7 +48,7 @@ class OrderController extends Controller
         $allowedViews = array_merge(['all', 'trash'], $statusKeys);
         $view = (string) $request->input('view', 'all');
 
-        if (!in_array($view, $allowedViews, true)) {
+        if (! in_array($view, $allowedViews, true)) {
             $view = 'all';
         }
 
@@ -55,6 +62,13 @@ class OrderController extends Controller
         $query = Order::with(['user', 'payment', 'statusConfig'])
             ->withCount('items')
             ->orderByDesc('created_at');
+
+        // Orders placed after the license expired stay invisible to admin
+        // (storefront checkout is unaffected) until renewal.
+        $licenseCutoff = $this->licenseService->expiredSince();
+        if ($licenseCutoff !== null) {
+            $query->where('created_at', '<=', $licenseCutoff);
+        }
 
         if ($view === 'trash') {
             $query->onlyTrashed();
@@ -103,7 +117,7 @@ class OrderController extends Controller
         }
 
         if ($request->input('date') === 'today') {
-            $query->whereDate($dateType, \Carbon\Carbon::today());
+            $query->whereDate($dateType, Carbon::today());
         }
 
         if ($request->filled('product_id')) {
@@ -123,11 +137,17 @@ class OrderController extends Controller
         $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
         $orders = $query->paginate($perPage)->withQueryString();
 
-        $filterCounts = ['all' => Order::query()->count()];
+        $countQuery = fn () => $licenseCutoff !== null
+            ? Order::query()->where('created_at', '<=', $licenseCutoff)
+            : Order::query();
+
+        $filterCounts = ['all' => $countQuery()->count()];
         foreach ($statusKeys as $statusKey) {
-            $filterCounts[$statusKey] = Order::query()->where('status', $statusKey)->count();
+            $filterCounts[$statusKey] = $countQuery()->where('status', $statusKey)->count();
         }
-        $filterCounts['trash'] = Order::onlyTrashed()->count();
+        $filterCounts['trash'] = $licenseCutoff !== null
+            ? Order::onlyTrashed()->where('created_at', '<=', $licenseCutoff)->count()
+            : Order::onlyTrashed()->count();
 
         if ($statuses->isEmpty()) {
             $statuses = collect($statusKeys)->map(static function (string $key, int $index) {
@@ -157,13 +177,13 @@ class OrderController extends Controller
 
         $orderSources = Order::select('order_source')->distinct()->whereNotNull('order_source')->pluck('order_source');
         $paymentMethods = Order::select('payment_method')->distinct()->whereNotNull('payment_method')->pluck('payment_method');
-        
+
         // Allowed Payment Statuses
         $paymentStatuses = ['pending', 'awaiting', 'paid', 'failed', 'refunded'];
 
-        $products = \App\Models\Product::select('id', 'name')->where('is_active', true)->orderBy('name')->get();
-        $districts = \App\Models\BdDistrict::select('id', 'name')->orderBy('name')->get();
-        $availableShippingMethods = \App\Models\ShippingMethod::select('id', 'name')->where('is_active', true)->orderBy('name')->get();
+        $products = Product::select('id', 'name')->where('is_active', true)->orderBy('name')->get();
+        $districts = BdDistrict::select('id', 'name')->orderBy('name')->get();
+        $availableShippingMethods = ShippingMethod::select('id', 'name')->where('is_active', true)->orderBy('name')->get();
 
         return view('admin.orders.index', compact(
             'orders', 'view', 'statuses', 'filterCounts', 'bulkStatuses',
@@ -193,7 +213,7 @@ class OrderController extends Controller
             ->orderBy('id')
             ->get();
 
-        $activeCoupons = \App\Models\Coupon::active()->get();
+        $activeCoupons = Coupon::active()->get();
 
         $smsTemplates = SmsService::getOrderSmsTemplates();
 
@@ -227,7 +247,7 @@ class OrderController extends Controller
 
         $forceRefresh = $request->boolean('refresh');
 
-        if (!$courierHistoryCheckService->hasAnyCredentialsConfigured()) {
+        if (! $courierHistoryCheckService->hasAnyCredentialsConfigured()) {
             return response()->json([
                 'success' => false,
                 'message' => 'No courier credentials are configured yet.',
@@ -242,7 +262,7 @@ class OrderController extends Controller
 
         ['result' => $courierCheckResult, 'from_cache' => $fromCache] = $courierHistoryCheckService->checkWithCache($normalizedPhone, $forceRefresh, $order->id);
 
-        if (!$fromCache) {
+        if (! $fromCache) {
             $fraudDetectionService->evaluateCourierHistory($order, [
                 'total_deliveries' => $courierCheckResult->total_deliveries,
                 'success_ratio' => (float) $courierCheckResult->success_ratio,
@@ -271,10 +291,10 @@ class OrderController extends Controller
             'shippingUnion',
         ]);
 
-        $invoiceSettings = \App\Models\Setting::getGroup('invoice', false);
-        $steadfastEnabled = filter_var(\App\Models\Setting::getValue('courier', 'steadfast_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
-        $pathaoEnabled = filter_var(\App\Models\Setting::getValue('courier', 'pathao_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
-        $primaryColor = \App\Models\Setting::getValue('appearance', 'primary_color', '#db2777');
+        $invoiceSettings = Setting::getGroup('invoice', false);
+        $steadfastEnabled = filter_var(Setting::getValue('courier', 'steadfast_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+        $pathaoEnabled = filter_var(Setting::getValue('courier', 'pathao_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+        $primaryColor = Setting::getValue('appearance', 'primary_color', '#db2777');
 
         return view('admin.orders.print', compact('order', 'invoiceSettings', 'steadfastEnabled', 'pathaoEnabled', 'primaryColor'));
     }
@@ -295,7 +315,7 @@ class OrderController extends Controller
         $allowedViews = array_merge(['all', 'trash'], $statusKeys);
         $view = (string) $request->input('view', 'all');
 
-        if (!in_array($view, $allowedViews, true)) {
+        if (! in_array($view, $allowedViews, true)) {
             $view = 'all';
         }
 
@@ -308,6 +328,10 @@ class OrderController extends Controller
 
         $query = Order::with(['user', 'payment', 'statusConfig', 'shippingDivision', 'shippingDistrict', 'items.product', 'items.variant'])
             ->orderByDesc('created_at');
+
+        if ($cutoff = $this->licenseService->expiredSince()) {
+            $query->where('created_at', '<=', $cutoff);
+        }
 
         if ($view === 'trash') {
             $query->onlyTrashed();
@@ -356,7 +380,7 @@ class OrderController extends Controller
         }
 
         if ($request->input('date') === 'today') {
-            $query->whereDate($dateType, \Carbon\Carbon::today());
+            $query->whereDate($dateType, Carbon::today());
         }
 
         if ($request->filled('product_id')) {
@@ -373,41 +397,41 @@ class OrderController extends Controller
             $query->where('shipping_district_id', $request->input('shipping_district_id'));
         }
 
-        $filename = "orders-export-" . date('Y-m-d-His') . ".csv";
+        $filename = 'orders-export-'.date('Y-m-d-His').'.csv';
 
         $headers = [
-            "Content-type"        => "text/csv; charset=UTF-8",
-            "Content-Disposition" => "attachment; filename=$filename",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
+            'Content-type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=$filename",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
         ];
 
         $columns = [
             'Order ID', 'Order Number', 'Date Placed', 'Customer Name', 'Customer Phone', 'Customer Email',
             'Shipping Address', 'District', 'Division', 'Payment Method', 'Payment Status',
             'Carrier/Courier', 'Tracking Number', 'Subtotal', 'Discount', 'Shipping Cost', 'Tax', 'Total',
-            'Order Status', 'Order Notes', 'Items Details'
+            'Order Status', 'Order Notes', 'Items Details',
         ];
 
-        $callback = function() use($query, $columns) {
+        $callback = function () use ($query, $columns) {
             $file = fopen('php://output', 'w');
-            
+
             // Add UTF-8 BOM to support non-ASCII characters like Bengali perfectly in Microsoft Excel
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-            
+
             fputcsv($file, $columns);
 
-            $query->chunk(100, function($orders) use($file) {
+            $query->chunk(100, function ($orders) use ($file) {
                 foreach ($orders as $order) {
                     $itemsDetails = [];
                     foreach ($order->items as $item) {
-                        $variantStr = ($item->variant && $item->variant->attributeValues->count() > 0) 
-                            ? " (" . $item->variant->attributeValues->pluck('value')->implode('/') . ")" 
-                            : "";
-                        $itemsDetails[] = ($item->product->name ?? $item->product_name) . $variantStr . " x " . $item->quantity;
+                        $variantStr = ($item->variant && $item->variant->attributeValues->count() > 0)
+                            ? ' ('.$item->variant->attributeValues->pluck('value')->implode('/').')'
+                            : '';
+                        $itemsDetails[] = ($item->product->name ?? $item->product_name).$variantStr.' x '.$item->quantity;
                     }
-                    $itemsString = implode(" | ", $itemsDetails);
+                    $itemsString = implode(' | ', $itemsDetails);
 
                     fputcsv($file, [
                         $order->id,
@@ -430,7 +454,7 @@ class OrderController extends Controller
                         $order->total,
                         $order->status,
                         $order->notes,
-                        $itemsString
+                        $itemsString,
                     ]);
                 }
             });
@@ -486,7 +510,7 @@ class OrderController extends Controller
 
             // Get shipping method name
             $shippingMethodName = null;
-            if (!empty($validated['shipping_method_id'])) {
+            if (! empty($validated['shipping_method_id'])) {
                 $method = ShippingMethod::find($validated['shipping_method_id']);
                 $shippingMethodName = $method?->name;
                 if ($shippingCost <= 0 && $method) {
@@ -523,10 +547,12 @@ class OrderController extends Controller
             // Create order items and deduct stock
             foreach ($validated['items'] as $item) {
                 $product = Product::find($item['product_id']);
-                if (!$product) continue;
+                if (! $product) {
+                    continue;
+                }
 
                 $qty = (int) $item['quantity'];
-                $variant = !empty($item['variant_id'])
+                $variant = ! empty($item['variant_id'])
                     ? ProductVariant::where('id', $item['variant_id'])->where('product_id', $product->id)->first()
                     : null;
 
@@ -557,7 +583,7 @@ class OrderController extends Controller
 
         return redirect()
             ->route('admin.orders.show', $order)
-            ->with('success', 'Order #' . $order->order_number . ' created successfully.');
+            ->with('success', 'Order #'.$order->order_number.' created successfully.');
     }
 
     /**
@@ -573,9 +599,9 @@ class OrderController extends Controller
         $products = Product::where('is_active', true)
             ->where(function ($q) use ($query) {
                 $q->where('name', 'like', "%{$query}%")
-                  ->orWhere('sku', 'like', "%{$query}%");
+                    ->orWhere('sku', 'like', "%{$query}%");
             })
-            ->with(['images' => fn($q) => $q->orderByDesc('is_primary')->limit(1)])
+            ->with(['images' => fn ($q) => $q->orderByDesc('is_primary')->limit(1)])
             ->limit(15)
             ->get()
             ->map(function (Product $product) {
@@ -594,12 +620,13 @@ class OrderController extends Controller
                             if ($variantPrice <= 0) {
                                 $variantPrice = $currentPrice;
                             }
+
                             return [
                                 'id' => $v->id,
                                 'sku' => $v->sku,
                                 'price' => $variantPrice,
                                 'stock' => (int) $v->stock_quantity,
-                                'label' => $v->attributeValues->map(fn($av) => $av->value)->join(' / '),
+                                'label' => $v->attributeValues->map(fn ($av) => $av->value)->join(' / '),
                             ];
                         });
                 }
@@ -627,6 +654,7 @@ class OrderController extends Controller
             if ($request->ajax()) {
                 return response()->json(['error' => "Cannot change status from {$oldStatus} to {$newStatus}."]);
             }
+
             return back()->with('error', "Cannot change status from {$oldStatus} to {$newStatus}.");
         }
 
@@ -647,13 +675,13 @@ class OrderController extends Controller
         // LoyaltyTransaction), so it's safe even if both paths ever fire for
         // the same order.
         if ($newStatus === 'delivered' && $order->user_id) {
-            app(\App\Services\LoyaltyService::class)->awardOrderPoints($order);
+            app(LoyaltyService::class)->awardOrderPoints($order);
         }
 
         // Log status change
         $oldLabel = OrderStatus::where('key', $oldStatus)->value('label') ?? ucfirst($oldStatus);
         $newLabel = OrderStatus::where('key', $newStatus)->value('label') ?? ucfirst($newStatus);
-        
+
         $reason = $request->input('cancel_reason');
         $logMessage = "Status changed: {$oldLabel} → {$newLabel}";
         if ($newStatus === 'cancelled' && $reason) {
@@ -698,7 +726,7 @@ class OrderController extends Controller
                 'message' => 'Order status updated successfully.',
                 'new_status' => $newStatus,
                 'new_label' => $newLabel,
-                'new_color' => OrderStatus::where('key', $newStatus)->value('color') ?? '#6C757D'
+                'new_color' => OrderStatus::where('key', $newStatus)->value('color') ?? '#6C757D',
             ]);
         }
 
@@ -729,17 +757,20 @@ class OrderController extends Controller
                 OrderActivityLog::log($order, 'manual_sms', 'Manual SMS sent', $validated['sms_message'], [
                     'phone' => $phone,
                 ]);
-                return back()->with('success', 'SMS sent successfully to ' . $phone);
+
+                return back()->with('success', 'SMS sent successfully to '.$phone);
             } else {
                 OrderActivityLog::log($order, 'sms_failed', 'Manual SMS failed', $result['message'] ?? 'Unknown error', [
                     'phone' => $phone,
                     'attempted_message' => $validated['sms_message'],
                 ]);
-                return back()->with('error', 'SMS failed: ' . ($result['message'] ?? 'Unknown error'));
+
+                return back()->with('error', 'SMS failed: '.($result['message'] ?? 'Unknown error'));
             }
         } catch (\Throwable $e) {
             OrderActivityLog::log($order, 'sms_failed', 'Manual SMS exception', $e->getMessage());
-            return back()->with('error', 'SMS error: ' . $e->getMessage());
+
+            return back()->with('error', 'SMS error: '.$e->getMessage());
         }
     }
 
@@ -803,15 +834,15 @@ class OrderController extends Controller
         } elseif ($type === 'percentage') {
             $discountAmount = ($order->subtotal * (float) $value) / 100;
         } elseif ($type === 'coupon') {
-            $coupon = \App\Models\Coupon::where('code', $value)->first();
-            if (!$coupon) {
+            $coupon = Coupon::where('code', $value)->first();
+            if (! $coupon) {
                 return back()->with('error', 'Invalid coupon code.');
             }
             // Assume coupon has a discount_type of fixed or percentage, and discount_value
             // Let's use generic logic if fields exist, or fallback
             $couponType = $coupon->discount_type ?? ($coupon->type ?? 'fixed');
             $couponValue = (float) ($coupon->discount_value ?? ($coupon->value ?? 0));
-            
+
             if ($couponType === 'fixed') {
                 $discountAmount = $couponValue;
             } else {
@@ -842,7 +873,7 @@ class OrderController extends Controller
     public function removeDiscount(Order $order)
     {
         $total = ($order->subtotal + $order->tax + $order->shipping);
-        
+
         $order->update([
             'discount_amount' => 0,
             'coupon_code' => null,
@@ -877,11 +908,11 @@ class OrderController extends Controller
         ]);
 
         if ($validated['bulk_action'] === 'steadfast_send') {
-            return app(\App\Http\Controllers\Admin\SteadfastController::class)->sendBulk($request);
+            return app(SteadfastController::class)->sendBulk($request);
         }
 
         if ($validated['bulk_action'] === 'pathao_send') {
-            return app(\App\Http\Controllers\Admin\PathaoController::class)->sendBulk($request);
+            return app(PathaoController::class)->sendBulk($request);
         }
 
         $action = (string) $validated['bulk_action'];
@@ -899,6 +930,14 @@ class OrderController extends Controller
             return back()->with('error', 'No valid orders were selected.');
         }
 
+        // Orders placed after the license expired can't be bulk-acted-on
+        // from the admin panel until renewal.
+        $orders = $orders->reject(fn (Order $order) => $this->licenseService->isOrderLocked($order))->values();
+
+        if ($orders->isEmpty()) {
+            return back()->with('error', 'The selected order(s) were placed after your license expired. Renew your license to manage them.');
+        }
+
         $updated = 0;
         $skipped = 0;
 
@@ -908,52 +947,61 @@ class OrderController extends Controller
         }
 
         foreach ($orders as $order) {
-            if (!$order instanceof Order) {
+            if (! $order instanceof Order) {
                 $skipped++;
+
                 continue;
             }
 
             if ($action === 'trash') {
                 if ($order->trashed()) {
                     $skipped++;
+
                     continue;
                 }
 
                 $order->delete();
                 $updated++;
+
                 continue;
             }
 
             if ($action === 'restore') {
-                if (!$order->trashed()) {
+                if (! $order->trashed()) {
                     $skipped++;
+
                     continue;
                 }
 
                 $order->restore();
                 $updated++;
+
                 continue;
             }
 
             if ($action === 'force_delete') {
-                if (!$order->trashed()) {
+                if (! $order->trashed()) {
                     $skipped++;
+
                     continue;
                 }
 
                 $order->forceDelete();
                 $updated++;
+
                 continue;
             }
 
             if ($order->trashed()) {
                 $skipped++;
+
                 continue;
             }
 
             $oldStatus = $order->status;
             if ((string) $oldStatus === $action) {
                 $skipped++;
+
                 continue;
             }
 
@@ -971,13 +1019,13 @@ class OrderController extends Controller
             $updated++;
 
             if ($action === 'delivered' && $order->user_id) {
-                app(\App\Services\LoyaltyService::class)->awardOrderPoints($order);
+                app(LoyaltyService::class)->awardOrderPoints($order);
             }
 
             // Log status change
             $oldLabel = $statusLabelMap[$oldStatus] ?? ucfirst($oldStatus);
             $newLabel = $statusLabelMap[$action] ?? ucfirst($action);
-            
+
             $logMessage = "Status changed: {$oldLabel} → {$newLabel} (Bulk Action)";
             if ($action === 'cancelled' && $reason) {
                 $logMessage .= " (Reason: {$reason})";
@@ -1013,7 +1061,7 @@ class OrderController extends Controller
             'cancelled' => 'marked as Cancelled',
             'trash' => 'moved to Trash',
             'restore' => 'restored',
-            default => 'marked as ' . ($statusLabelMap[$action] ?? ucfirst(str_replace('_', ' ', $action))),
+            default => 'marked as '.($statusLabelMap[$action] ?? ucfirst(str_replace('_', ' ', $action))),
         };
 
         $message = "{$updated} order(s) {$actionLabel}.";
@@ -1046,16 +1094,16 @@ class OrderController extends Controller
             $changes[] = "Phone: {$order->shipping_phone} → {$validated['shipping_phone']}";
         }
         if (($order->shipping_email ?? '') !== ($validated['shipping_email'] ?? '')) {
-            $changes[] = "Email updated";
+            $changes[] = 'Email updated';
         }
         if ($order->shipping_address !== ($validated['shipping_address'] ?? '')) {
-            $changes[] = "Address updated";
+            $changes[] = 'Address updated';
         }
         if (($order->shipping_city ?? '') !== ($validated['shipping_city'] ?? '')) {
-            $changes[] = "City updated";
+            $changes[] = 'City updated';
         }
         if (($order->notes ?? '') !== ($validated['notes'] ?? '')) {
-            $changes[] = "Notes updated";
+            $changes[] = 'Notes updated';
         }
 
         $updateData = [
@@ -1092,7 +1140,7 @@ class OrderController extends Controller
                     $updateData['total'] = max(0, $total);
 
                     $changes[] = "District: {$oldDistrictName} → {$newDistrict->name}";
-                    $changes[] = "Shipping: ৳" . number_format($oldShipping, 2) . " → ৳" . number_format($newShippingCost, 2);
+                    $changes[] = 'Shipping: ৳'.number_format($oldShipping, 2).' → ৳'.number_format($newShippingCost, 2);
                 } else {
                     $changes[] = "District: {$oldDistrictName} → {$newDistrict->name} (shipping rate unchanged)";
                 }
@@ -1112,7 +1160,7 @@ class OrderController extends Controller
         if ($newDistrictId) {
             $payload['shipping_district_id'] = (string) $newDistrictId;
         }
-        
+
         // Additional payload fields
         if ($request->has('shipping_location_text')) {
             $payload['shipping_location_text'] = $request->input('shipping_location_text');
@@ -1120,12 +1168,12 @@ class OrderController extends Controller
         if ($request->has('shipping_area')) {
             $payload['shipping_area'] = $request->input('shipping_area');
         }
-        
+
         $updateData['checkout_fields_payload'] = $payload;
 
         $order->update($updateData);
 
-        if (!empty($changes)) {
+        if (! empty($changes)) {
             OrderActivityLog::log(
                 $order,
                 'status_change',
@@ -1172,12 +1220,14 @@ class OrderController extends Controller
             $subtotal = 0;
             foreach ($validated['items'] as $item) {
                 $product = Product::find($item['product_id']);
-                if (!$product) continue;
+                if (! $product) {
+                    continue;
+                }
 
                 $qty = (int) $item['quantity'];
                 $price = (float) $item['price'];
                 $subtotal += $price * $qty;
-                $variant = !empty($item['variant_id'])
+                $variant = ! empty($item['variant_id'])
                     ? ProductVariant::where('id', $item['variant_id'])->where('product_id', $product->id)->first()
                     : null;
 
@@ -1238,7 +1288,7 @@ class OrderController extends Controller
             'success' => true,
             'district_name' => $district?->name,
             'rate' => $rate,
-            'formatted_rate' => $rate !== null ? '৳' . number_format($rate, 2) : null,
+            'formatted_rate' => $rate !== null ? '৳'.number_format($rate, 2) : null,
         ]);
     }
 
@@ -1259,12 +1309,13 @@ class OrderController extends Controller
 
         // Check if the current shipping method is still valid for this new district
         if ($shippingMethodName) {
-            $currentMethod = $availableMethods->first(function($m) use ($shippingMethodName) {
+            $currentMethod = $availableMethods->first(function ($m) use ($shippingMethodName) {
                 return $m->code === $shippingMethodName || $m->name === $shippingMethodName;
             });
 
             if ($currentMethod) {
                 $rate = $currentMethod->getDistrictRate($districtId);
+
                 return $rate !== null ? $rate : (float) $currentMethod->base_cost;
             }
         }
@@ -1278,6 +1329,7 @@ class OrderController extends Controller
 
         if ($methodToUse) {
             $rate = $methodToUse->getDistrictRate($districtId);
+
             return $rate !== null ? (float) $rate : (float) $methodToUse->base_cost;
         }
 
@@ -1295,6 +1347,7 @@ class OrderController extends Controller
             // the stock for variant items.
             if ($item->variant) {
                 $item->variant->incrementStock($item->quantity);
+
                 continue;
             }
 
@@ -1307,23 +1360,26 @@ class OrderController extends Controller
     private function saveNewCancelReason(?string $reason): void
     {
         $reason = trim((string) $reason);
-        if (!$reason) return;
+        if (! $reason) {
+            return;
+        }
 
-        $existingReasonsStr = \App\Models\Setting::getValue('general', 'cancellation_reasons', 'Out of Stock,Customer Request,Fraudulent,Payment Failed,Other');
+        $existingReasonsStr = Setting::getValue('general', 'cancellation_reasons', 'Out of Stock,Customer Request,Fraudulent,Payment Failed,Other');
         $existingReasons = array_filter(array_map('trim', explode(',', $existingReasonsStr)));
-        
+
         $found = false;
         foreach ($existingReasons as $er) {
             if (strtolower($er) === strtolower($reason)) {
-                $found = true; break;
+                $found = true;
+                break;
             }
         }
-        
-        if (!$found) {
-            $existingReasons = array_filter($existingReasons, fn($r) => strtolower($r) !== 'other');
+
+        if (! $found) {
+            $existingReasons = array_filter($existingReasons, fn ($r) => strtolower($r) !== 'other');
             $existingReasons[] = $reason;
             $existingReasons[] = 'Other';
-            \App\Models\Setting::setValue('general', 'cancellation_reasons', implode(',', $existingReasons));
+            Setting::setValue('general', 'cancellation_reasons', implode(',', $existingReasons));
         }
     }
 
@@ -1331,6 +1387,7 @@ class OrderController extends Controller
     {
         if ($order->trashed()) {
             $order->restore();
+
             return back()->with('success', 'Order restored successfully.');
         }
 
@@ -1340,7 +1397,7 @@ class OrderController extends Controller
     public function refund(Request $request, Order $order)
     {
         $request->validate([
-            'amount' => 'nullable|numeric|min:0.01|max:' . $order->total,
+            'amount' => 'nullable|numeric|min:0.01|max:'.$order->total,
             'reason' => 'nullable|string|max:255',
         ]);
 
@@ -1355,7 +1412,7 @@ class OrderController extends Controller
         $paymentId = $order->bkash_payment_id;
         $transactionId = $order->transaction_id;
 
-        if (!$paymentId || !$transactionId) {
+        if (! $paymentId || ! $transactionId) {
             return back()->with('error', 'Missing bKash payment or transaction ID for this order.');
         }
 
@@ -1363,7 +1420,7 @@ class OrderController extends Controller
         $reason = $request->reason ?? 'Admin initiated refund';
 
         try {
-            $bkashService = app(\App\Services\Payment\BkashPaymentService::class);
+            $bkashService = app(BkashPaymentService::class);
             $result = $bkashService->refund($paymentId, $transactionId, $amount, $reason);
 
             if ($result['success']) {
@@ -1371,13 +1428,12 @@ class OrderController extends Controller
                     'payment_status' => $amount >= (float) $order->total ? 'refunded' : 'partially_refunded',
                 ]);
 
-                return back()->with('success', 'Refund processed successfully. Refund Trx ID: ' . ($result['refund_transaction_id'] ?? 'N/A'));
+                return back()->with('success', 'Refund processed successfully. Refund Trx ID: '.($result['refund_transaction_id'] ?? 'N/A'));
             }
 
-            return back()->with('error', 'Refund failed: ' . ($result['message'] ?? 'Unknown error'));
+            return back()->with('error', 'Refund failed: '.($result['message'] ?? 'Unknown error'));
         } catch (\Exception $e) {
-            return back()->with('error', 'Refund error: ' . $e->getMessage());
+            return back()->with('error', 'Refund error: '.$e->getMessage());
         }
     }
-
 }

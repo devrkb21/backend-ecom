@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Media;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -19,8 +20,8 @@ class MediaController extends Controller
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('original_name', 'like', "%{$search}%")
-                  ->orWhere('title', 'like', "%{$search}%")
-                  ->orWhere('alt_text', 'like', "%{$search}%");
+                    ->orWhere('title', 'like', "%{$search}%")
+                    ->orWhere('alt_text', 'like', "%{$search}%");
             });
         }
 
@@ -44,8 +45,8 @@ class MediaController extends Controller
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('original_name', 'like', "%{$search}%")
-                  ->orWhere('title', 'like', "%{$search}%")
-                  ->orWhere('alt_text', 'like', "%{$search}%");
+                    ->orWhere('title', 'like', "%{$search}%")
+                    ->orWhere('alt_text', 'like', "%{$search}%");
             });
         }
 
@@ -63,7 +64,7 @@ class MediaController extends Controller
                 'last_page' => $media->lastPage(),
                 'per_page' => $media->perPage(),
                 'total' => $media->total(),
-            ]
+            ],
         ]);
     }
 
@@ -78,19 +79,20 @@ class MediaController extends Controller
         // Try Imagick first (preferred — handles all formats including palette PNGs)
         if (class_exists(\Imagick::class)) {
             try {
-                $imagick = new \Imagick();
+                $imagick = new \Imagick;
                 $imagick->readImage($sourcePath);
                 $imagick->setImageFormat('webp');
                 $imagick->setImageCompressionQuality($quality);
                 $imagick->writeImage($destinationPath);
                 $imagick->clear();
                 $imagick->destroy();
+
                 return true;
             } catch (\Exception $e) {
                 // Log Imagick failure and fall through to GD
                 logger()->warning('Imagick WebP conversion failed, falling back to GD.', [
                     'source' => $sourcePath,
-                    'error'  => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -99,8 +101,9 @@ class MediaController extends Controller
         if (function_exists('imagewebp')) {
             try {
                 $info = @getimagesize($sourcePath);
-                if (!$info) {
+                if (! $info) {
                     logger()->warning('WebP conversion: getimagesize() failed.', ['source' => $sourcePath]);
+
                     return false;
                 }
 
@@ -121,17 +124,19 @@ class MediaController extends Controller
                         break;
                     default:
                         logger()->warning('WebP conversion: unsupported MIME type.', ['mime' => $mime, 'source' => $sourcePath]);
+
                         return false;
                 }
 
-                if (!$image) {
+                if (! $image) {
                     logger()->warning('WebP conversion: GD failed to load image.', ['source' => $sourcePath]);
+
                     return false;
                 }
 
                 // Convert palette/indexed images to truecolor.
                 // GD's imagewebp() only supports truecolor; palette images produce a 0-byte file.
-                if (!imageistruecolor($image)) {
+                if (! imageistruecolor($image)) {
                     imagepalettetotruecolor($image);
                 }
 
@@ -142,18 +147,20 @@ class MediaController extends Controller
                 $result = imagewebp($image, $destinationPath, $quality);
                 imagedestroy($image);
 
-                if (!$result) {
+                if (! $result) {
                     logger()->warning('WebP conversion: imagewebp() returned false.', ['source' => $sourcePath, 'dest' => $destinationPath]);
                 }
 
                 return (bool) $result;
             } catch (\Exception $e) {
                 logger()->error('WebP GD conversion exception.', ['source' => $sourcePath, 'error' => $e->getMessage()]);
+
                 return false;
             }
         }
 
         logger()->warning('WebP conversion: neither Imagick nor GD imagewebp() is available.');
+
         return false;
     }
 
@@ -172,7 +179,7 @@ class MediaController extends Controller
         }
 
         $previous = libxml_use_internal_errors(true);
-        $doc = new \DOMDocument();
+        $doc = new \DOMDocument;
         $doc->resolveExternals = false;
         $doc->substituteEntities = false;
         // LIBXML_NONET blocks network access for any external reference; combined
@@ -181,7 +188,7 @@ class MediaController extends Controller
         libxml_clear_errors();
         libxml_use_internal_errors($previous);
 
-        if (!$loaded || !$doc->documentElement || strtolower($doc->documentElement->localName ?? '') !== 'svg') {
+        if (! $loaded || ! $doc->documentElement || strtolower($doc->documentElement->localName ?? '') !== 'svg') {
             return null;
         }
 
@@ -228,13 +235,13 @@ class MediaController extends Controller
                 $nameWithoutExt = pathinfo($originalName, PATHINFO_FILENAME);
                 $safeName = preg_replace('/[^a-zA-Z0-9_\.-]/', '', $nameWithoutExt) ?? '';
                 $safeName = $safeName !== '' ? $safeName : 'upload';
-                
+
                 $originalExtension = strtolower($file->getClientOriginalExtension());
                 $mimeType = $file->getMimeType();
                 $fileSize = $file->getSize();
-                
-                $subFolder = 'media/' . now()->format('Y/m');
-                
+
+                $subFolder = 'media/'.now()->format('Y/m');
+
                 if ($mimeType === 'image/svg+xml' || $originalExtension === 'svg') {
                     // SVGs are stored on the public_root disk and served
                     // directly by the webserver at the site's own origin —
@@ -246,36 +253,36 @@ class MediaController extends Controller
                         continue;
                     }
 
-                    $filename = $safeName . '_' . uniqid() . '.svg';
+                    $filename = $safeName.'_'.uniqid().'.svg';
                     $fullSubFolder = public_path($subFolder);
 
-                    if (!file_exists($fullSubFolder)) {
+                    if (! file_exists($fullSubFolder)) {
                         mkdir($fullSubFolder, 0755, true);
                     }
 
-                    $destinationPath = $fullSubFolder . '/' . $filename;
+                    $destinationPath = $fullSubFolder.'/'.$filename;
                     file_put_contents($destinationPath, $sanitizedSvg);
-                    $path = $subFolder . '/' . $filename;
+                    $path = $subFolder.'/'.$filename;
                     $fileSize = @filesize($destinationPath) ?: $file->getSize();
                 } else {
-                    $filename = $safeName . '_' . uniqid() . '.webp';
+                    $filename = $safeName.'_'.uniqid().'.webp';
                     $tempPath = $file->getRealPath();
                     $fullSubFolder = public_path($subFolder);
-                    
-                    if (!file_exists($fullSubFolder)) {
+
+                    if (! file_exists($fullSubFolder)) {
                         mkdir($fullSubFolder, 0755, true);
                     }
-                    
-                    $destinationPath = $fullSubFolder . '/' . $filename;
+
+                    $destinationPath = $fullSubFolder.'/'.$filename;
                     $converted = self::convertToWebp($tempPath, $destinationPath, 85);
-                    
+
                     if ($converted) {
-                        $path = $subFolder . '/' . $filename;
+                        $path = $subFolder.'/'.$filename;
                         $fileSize = @filesize($destinationPath) ?: $file->getSize();
                         $mimeType = 'image/webp';
                     } else {
                         // Fallback
-                        $filename = $safeName . '_' . uniqid() . '.' . $originalExtension;
+                        $filename = $safeName.'_'.uniqid().'.'.$originalExtension;
                         $path = $file->storeAs($subFolder, $filename, 'public_root');
                     }
                 }
@@ -307,12 +314,12 @@ class MediaController extends Controller
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => count($uploaded) . ' file(s) uploaded successfully',
+                'message' => count($uploaded).' file(s) uploaded successfully',
                 'data' => $uploaded,
             ]);
         }
 
-        return redirect()->back()->with('success', count($uploaded) . ' file(s) uploaded successfully');
+        return redirect()->back()->with('success', count($uploaded).' file(s) uploaded successfully');
     }
 
     /**
@@ -356,7 +363,7 @@ class MediaController extends Controller
     {
         // Delete file from storage
         Storage::disk($media->disk)->delete($media->path);
-        
+
         $media->delete();
 
         if (request()->expectsJson()) {
@@ -389,11 +396,11 @@ class MediaController extends Controller
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => count($request->input('ids')) . ' file(s) deleted successfully',
+                'message' => count($request->input('ids')).' file(s) deleted successfully',
             ]);
         }
 
-        return redirect()->back()->with('success', count($request->input('ids')) . ' file(s) deleted successfully');
+        return redirect()->back()->with('success', count($request->input('ids')).' file(s) deleted successfully');
     }
 
     /**
@@ -409,10 +416,10 @@ class MediaController extends Controller
 
         return response()->json([
             'success' => true,
-            'items' => $mediaItems->map(fn($item) => [
+            'items' => $mediaItems->map(fn ($item) => [
                 'id' => $item->id,
-                'name' => $item->original_name ?: $item->filename
-            ])
+                'name' => $item->original_name ?: $item->filename,
+            ]),
         ]);
     }
 
@@ -422,7 +429,7 @@ class MediaController extends Controller
     public function singleConvertWebp(Request $request, Media $media)
     {
         $oldPath = $media->path;
-        
+
         // Get extension
         $originalExtension = strtolower(pathinfo($oldPath, PATHINFO_EXTENSION));
         if ($originalExtension === 'svg' || $originalExtension === 'webp' || $media->mime_type === 'image/webp') {
@@ -435,16 +442,16 @@ class MediaController extends Controller
         $nameWithoutExt = pathinfo($oldPath, PATHINFO_FILENAME);
         $safeName = preg_replace('/[^a-zA-Z0-9_\.-]/', '', $nameWithoutExt) ?? '';
         $safeName = $safeName !== '' ? $safeName : 'converted';
-        
+
         $subFolder = dirname($oldPath);
         $fullSubFolder = public_path($subFolder);
-        
-        // Use the same base name — just swap the extension to .webp (no uniqid suffix)
-        $newFilename = $safeName . '.webp';
-        $sourcePath = public_path($oldPath);
-        $destinationPath = $fullSubFolder . '/' . $newFilename;
 
-        if (!file_exists($sourcePath)) {
+        // Use the same base name — just swap the extension to .webp (no uniqid suffix)
+        $newFilename = $safeName.'.webp';
+        $sourcePath = public_path($oldPath);
+        $destinationPath = $fullSubFolder.'/'.$newFilename;
+
+        if (! file_exists($sourcePath)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Source file not found.',
@@ -454,9 +461,9 @@ class MediaController extends Controller
         $converted = self::convertToWebp($sourcePath, $destinationPath, 85);
 
         if ($converted) {
-            $newPath = $subFolder . '/' . $newFilename;
+            $newPath = $subFolder.'/'.$newFilename;
             $fileSize = @filesize($destinationPath) ?: $media->size;
-            
+
             // Get image dimensions
             $dimensions = @getimagesize($destinationPath);
             $width = $dimensions[0] ?? $media->width;
@@ -475,59 +482,59 @@ class MediaController extends Controller
             // Update all database tables references to avoid 404
             // Update product_images
             \DB::table('product_images')->where('image', $oldPath)->update(['image' => $newPath]);
-            \DB::table('product_images')->where('image', '/' . $oldPath)->update(['image' => '/' . $newPath]);
-            \DB::table('product_images')->where('image', 'storage/' . $oldPath)->update(['image' => 'storage/' . $newPath]);
-            \DB::table('product_images')->where('image', '/storage/' . $oldPath)->update(['image' => '/storage/' . $newPath]);
-            
+            \DB::table('product_images')->where('image', '/'.$oldPath)->update(['image' => '/'.$newPath]);
+            \DB::table('product_images')->where('image', 'storage/'.$oldPath)->update(['image' => 'storage/'.$newPath]);
+            \DB::table('product_images')->where('image', '/storage/'.$oldPath)->update(['image' => '/storage/'.$newPath]);
+
             // Update product_variants
             \DB::table('product_variants')->where('image', $oldPath)->update(['image' => $newPath]);
-            \DB::table('product_variants')->where('image', '/' . $oldPath)->update(['image' => '/' . $newPath]);
-            \DB::table('product_variants')->where('image', 'storage/' . $oldPath)->update(['image' => 'storage/' . $newPath]);
-            \DB::table('product_variants')->where('image', '/storage/' . $oldPath)->update(['image' => '/storage/' . $newPath]);
-            
+            \DB::table('product_variants')->where('image', '/'.$oldPath)->update(['image' => '/'.$newPath]);
+            \DB::table('product_variants')->where('image', 'storage/'.$oldPath)->update(['image' => 'storage/'.$newPath]);
+            \DB::table('product_variants')->where('image', '/storage/'.$oldPath)->update(['image' => '/storage/'.$newPath]);
+
             // Update product_attribute_values
             \DB::table('product_attribute_values')->where('image', $oldPath)->update(['image' => $newPath]);
-            \DB::table('product_attribute_values')->where('image', '/' . $oldPath)->update(['image' => '/' . $newPath]);
-            \DB::table('product_attribute_values')->where('image', 'storage/' . $oldPath)->update(['image' => 'storage/' . $newPath]);
-            \DB::table('product_attribute_values')->where('image', '/storage/' . $oldPath)->update(['image' => '/storage/' . $newPath]);
-            
+            \DB::table('product_attribute_values')->where('image', '/'.$oldPath)->update(['image' => '/'.$newPath]);
+            \DB::table('product_attribute_values')->where('image', 'storage/'.$oldPath)->update(['image' => 'storage/'.$newPath]);
+            \DB::table('product_attribute_values')->where('image', '/storage/'.$oldPath)->update(['image' => '/storage/'.$newPath]);
+
             // Update categories
             if (\Schema::hasTable('categories')) {
                 \DB::table('categories')->where('image', $oldPath)->update(['image' => $newPath]);
-                \DB::table('categories')->where('image', '/' . $oldPath)->update(['image' => '/' . $newPath]);
-                \DB::table('categories')->where('image', 'storage/' . $oldPath)->update(['image' => 'storage/' . $newPath]);
-                \DB::table('categories')->where('image', '/storage/' . $oldPath)->update(['image' => '/storage/' . $newPath]);
+                \DB::table('categories')->where('image', '/'.$oldPath)->update(['image' => '/'.$newPath]);
+                \DB::table('categories')->where('image', 'storage/'.$oldPath)->update(['image' => 'storage/'.$newPath]);
+                \DB::table('categories')->where('image', '/storage/'.$oldPath)->update(['image' => '/storage/'.$newPath]);
 
                 if (\Schema::hasColumn('categories', 'banner_image')) {
                     \DB::table('categories')->where('banner_image', $oldPath)->update(['banner_image' => $newPath]);
-                    \DB::table('categories')->where('banner_image', '/' . $oldPath)->update(['banner_image' => '/' . $newPath]);
-                    \DB::table('categories')->where('banner_image', 'storage/' . $oldPath)->update(['banner_image' => 'storage/' . $newPath]);
-                    \DB::table('categories')->where('banner_image', '/storage/' . $oldPath)->update(['banner_image' => '/storage/' . $newPath]);
+                    \DB::table('categories')->where('banner_image', '/'.$oldPath)->update(['banner_image' => '/'.$newPath]);
+                    \DB::table('categories')->where('banner_image', 'storage/'.$oldPath)->update(['banner_image' => 'storage/'.$newPath]);
+                    \DB::table('categories')->where('banner_image', '/storage/'.$oldPath)->update(['banner_image' => '/storage/'.$newPath]);
                 }
             }
-            
+
             // Update landing_pages
             if (\Schema::hasTable('landing_pages')) {
                 \DB::table('landing_pages')->where('banner_image', $oldPath)->update(['banner_image' => $newPath]);
-                \DB::table('landing_pages')->where('banner_image', '/' . $oldPath)->update(['banner_image' => '/' . $newPath]);
-                \DB::table('landing_pages')->where('banner_image', 'storage/' . $oldPath)->update(['banner_image' => 'storage/' . $newPath]);
-                \DB::table('landing_pages')->where('banner_image', '/storage/' . $oldPath)->update(['banner_image' => '/storage/' . $newPath]);
+                \DB::table('landing_pages')->where('banner_image', '/'.$oldPath)->update(['banner_image' => '/'.$newPath]);
+                \DB::table('landing_pages')->where('banner_image', 'storage/'.$oldPath)->update(['banner_image' => 'storage/'.$newPath]);
+                \DB::table('landing_pages')->where('banner_image', '/storage/'.$oldPath)->update(['banner_image' => '/storage/'.$newPath]);
             }
-            
+
             // Update flash_sales
             if (\Schema::hasTable('flash_sales')) {
                 \DB::table('flash_sales')->where('banner_image', $oldPath)->update(['banner_image' => $newPath]);
-                \DB::table('flash_sales')->where('banner_image', '/' . $oldPath)->update(['banner_image' => '/' . $newPath]);
-                \DB::table('flash_sales')->where('banner_image', 'storage/' . $oldPath)->update(['banner_image' => 'storage/' . $newPath]);
-                \DB::table('flash_sales')->where('banner_image', '/storage/' . $oldPath)->update(['banner_image' => '/storage/' . $newPath]);
+                \DB::table('flash_sales')->where('banner_image', '/'.$oldPath)->update(['banner_image' => '/'.$newPath]);
+                \DB::table('flash_sales')->where('banner_image', 'storage/'.$oldPath)->update(['banner_image' => 'storage/'.$newPath]);
+                \DB::table('flash_sales')->where('banner_image', '/storage/'.$oldPath)->update(['banner_image' => '/storage/'.$newPath]);
             }
 
             // Update settings
             \DB::table('settings')->where('value', $oldPath)->update(['value' => $newPath]);
-            \DB::table('settings')->where('value', '/' . $oldPath)->update(['value' => '/' . $newPath]);
-            \DB::table('settings')->where('value', 'storage/' . $oldPath)->update(['value' => 'storage/' . $newPath]);
-            \DB::table('settings')->where('value', '/storage/' . $oldPath)->update(['value' => '/storage/' . $newPath]);
-            
+            \DB::table('settings')->where('value', '/'.$oldPath)->update(['value' => '/'.$newPath]);
+            \DB::table('settings')->where('value', 'storage/'.$oldPath)->update(['value' => 'storage/'.$newPath]);
+            \DB::table('settings')->where('value', '/storage/'.$oldPath)->update(['value' => '/storage/'.$newPath]);
+
             // Update JSON arrays in settings
             $heroBannersSetting = \DB::table('settings')->where('group', 'hero')->where('key', 'banners')->first();
             if ($heroBannersSetting && $heroBannersSetting->value) {
@@ -535,9 +542,9 @@ class MediaController extends Controller
                 $value = str_replace(
                     [
                         json_encode($oldPath),
-                        json_encode('/' . $oldPath),
-                        json_encode('storage/' . $oldPath),
-                        json_encode('/storage/' . $oldPath)
+                        json_encode('/'.$oldPath),
+                        json_encode('storage/'.$oldPath),
+                        json_encode('/storage/'.$oldPath),
                     ],
                     json_encode($newPath),
                     $value
@@ -546,12 +553,12 @@ class MediaController extends Controller
             }
 
             // Update products text contents (descriptions)
-            \DB::statement("UPDATE products SET description = REPLACE(description, ?, ?)", [$oldPath, $newPath]);
-            \DB::statement("UPDATE products SET short_description = REPLACE(short_description, ?, ?)", [$oldPath, $newPath]);
+            \DB::statement('UPDATE products SET description = REPLACE(description, ?, ?)', [$oldPath, $newPath]);
+            \DB::statement('UPDATE products SET short_description = REPLACE(short_description, ?, ?)', [$oldPath, $newPath]);
 
             // Update pages text contents
             if (\Schema::hasTable('pages')) {
-                \DB::statement("UPDATE pages SET content = REPLACE(content, ?, ?)", [$oldPath, $newPath]);
+                \DB::statement('UPDATE pages SET content = REPLACE(content, ?, ?)', [$oldPath, $newPath]);
             }
 
             // Delete old file
@@ -560,9 +567,9 @@ class MediaController extends Controller
             }
 
             // Clear settings cache
-            \App\Models\Setting::clearCache('hero');
-            \App\Models\Setting::clearCache('general');
-            \App\Models\Setting::clearCache('invoice');
+            Setting::clearCache('hero');
+            Setting::clearCache('general');
+            Setting::clearCache('invoice');
 
             return response()->json([
                 'success' => true,

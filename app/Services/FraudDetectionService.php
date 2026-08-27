@@ -31,7 +31,7 @@ class FraudDetectionService
         $result = FraudBlock::checkOrder($phone, $email, $ip, $userAgent);
 
         return [
-            'blocked' => !empty($result['types']),
+            'blocked' => ! empty($result['types']),
             'types' => $result['types'],
             'message' => $result['message'],
         ];
@@ -45,7 +45,7 @@ class FraudDetectionService
      */
     public function checkVelocity(?string $phone, ?string $ip, ?string $userAgent): array
     {
-        if (!$this->settingBool('velocity_enabled', true)) {
+        if (! $this->settingBool('velocity_enabled', true)) {
             return ['exceeded' => false, 'violations' => []];
         }
 
@@ -86,7 +86,7 @@ class FraudDetectionService
         }
 
         return [
-            'exceeded' => !empty($violations),
+            'exceeded' => ! empty($violations),
             'violations' => $violations,
             'limit' => $limit,
             'window_minutes' => $windowMinutes,
@@ -117,7 +117,7 @@ class FraudDetectionService
      */
     public function evaluateRepeatOffender(Order $order): void
     {
-        if (!$this->settingBool('repeat_offender_enabled', true)) {
+        if (! $this->settingBool('repeat_offender_enabled', true)) {
             return;
         }
 
@@ -182,7 +182,7 @@ class FraudDetectionService
      */
     public function evaluateCourierHistoryForPhone(string $normalizedPhone, array $result, ?int $orderId = null): void
     {
-        if (!$this->settingBool('courier_check_enabled', false)) {
+        if (! $this->settingBool('courier_check_enabled', false)) {
             return;
         }
 
@@ -241,7 +241,7 @@ class FraudDetectionService
                 'reason' => $reason,
                 'source' => 'auto',
                 'is_active' => $isAutoBlock,
-                'needs_review' => !$isAutoBlock,
+                'needs_review' => ! $isAutoBlock,
                 'order_id' => $orderId,
                 'blocked_by' => null,
             ]

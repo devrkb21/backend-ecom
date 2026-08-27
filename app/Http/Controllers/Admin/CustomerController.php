@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Order;
 use App\Models\CustomerGroup;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -30,8 +30,8 @@ class CustomerController extends Controller
 
         if ($search) {
             $query->having('phone', 'like', "%{$search}%")
-                  ->orHaving('latest_name', 'like', "%{$search}%")
-                  ->orHaving('latest_email', 'like', "%{$search}%");
+                ->orHaving('latest_name', 'like', "%{$search}%")
+                ->orHaving('latest_email', 'like', "%{$search}%");
         }
 
         $limit = $request->input('per_page', 20);
@@ -40,6 +40,7 @@ class CustomerController extends Controller
         // Calculate their group on the fly for display
         $customers->getCollection()->transform(function ($customer) {
             $customer->group = CustomerGroup::getQualifyingGroup($customer->total_orders, $customer->total_spent, $customer->phone);
+
             return $customer;
         });
 
@@ -72,19 +73,19 @@ class CustomerController extends Controller
         // Extract unique addresses
         $addresses = [];
         foreach ($orders as $order) {
-            $addrKey = md5(strtolower($order->shipping_address . $order->shipping_city));
-            if (!isset($addresses[$addrKey]) && $order->shipping_address) {
+            $addrKey = md5(strtolower($order->shipping_address.$order->shipping_city));
+            if (! isset($addresses[$addrKey]) && $order->shipping_address) {
                 $addresses[$addrKey] = [
                     'address' => $order->shipping_address,
                     'city' => $order->shipping_city,
                     'last_used' => $order->created_at,
-                    'times_used' => 1
+                    'times_used' => 1,
                 ];
             } elseif (isset($addresses[$addrKey])) {
                 $addresses[$addrKey]['times_used']++;
             }
         }
-        
+
         $customer = (object) [
             'phone' => $phone,
             'name' => $latestName,
@@ -94,7 +95,7 @@ class CustomerController extends Controller
             'group' => $group,
             'first_order_date' => $orders->last()->created_at,
             'last_order_date' => $orders->first()->created_at,
-            'addresses' => array_values($addresses)
+            'addresses' => array_values($addresses),
         ];
 
         $groups = CustomerGroup::where('is_active', true)->orderBy('sort_order', 'asc')->get();
@@ -125,6 +126,7 @@ class CustomerController extends Controller
     public function destroy($phone)
     {
         Order::where('shipping_phone', $phone)->delete();
+
         return back()->with('success', 'Customer orders deleted successfully.');
     }
 
@@ -142,10 +144,10 @@ class CustomerController extends Controller
         foreach ($allGroups as $g) {
             if ($g->manual_numbers) {
                 $numbers = array_map('trim', explode(',', $g->manual_numbers));
-                $numbers = array_map(fn($num) => preg_replace('/[^0-9]/', '', $num), $numbers);
-                
+                $numbers = array_map(fn ($num) => preg_replace('/[^0-9]/', '', $num), $numbers);
+
                 if (in_array($cleanedPhone, $numbers)) {
-                    $numbers = array_filter($numbers, fn($n) => $n !== $cleanedPhone);
+                    $numbers = array_filter($numbers, fn ($n) => $n !== $cleanedPhone);
                     $g->manual_numbers = empty($numbers) ? null : implode(', ', $numbers);
                     $g->save();
                 }
@@ -159,6 +161,7 @@ class CustomerController extends Controller
             $numbers[] = $cleanedPhone;
             $group->manual_numbers = implode(', ', array_unique($numbers));
             $group->save();
+
             return back()->with('success', 'Customer assigned to group manually.');
         }
 

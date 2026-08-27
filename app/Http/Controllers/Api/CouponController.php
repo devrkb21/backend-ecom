@@ -32,10 +32,10 @@ class CouponController extends Controller
 
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             $result = $this->couponService->applyToGuestItems($request->code, $request->input('items', []));
 
-            if (!$result['success']) {
+            if (! $result['success']) {
                 return response()->json($result, 400);
             }
 
@@ -51,7 +51,7 @@ class CouponController extends Controller
 
         $cart = Cart::with(['items.product', 'items.variant.attributeValues.attribute'])->where('user_id', $user->id)->first();
 
-        if (!$cart || $cart->items->isEmpty()) {
+        if (! $cart || $cart->items->isEmpty()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Your cart is empty.',
@@ -60,7 +60,7 @@ class CouponController extends Controller
 
         $result = $this->couponService->applyToCart($cart, $request->code);
 
-        if (!$result['success']) {
+        if (! $result['success']) {
             return response()->json($result, 400);
         }
 
@@ -87,7 +87,7 @@ class CouponController extends Controller
         $user = $request->user();
         $cart = Cart::where('user_id', $user->id)->first();
 
-        if (!$cart) {
+        if (! $cart) {
             return response()->json([
                 'success' => false,
                 'message' => 'Cart not found.',
@@ -125,13 +125,13 @@ class CouponController extends Controller
         if ($orderTotal === null && $user) {
             $cart = Cart::with('items')->where('user_id', $user->id)->first();
             if ($cart) {
-                $orderTotal = $cart->items->sum(fn($item) => $item->price * $item->quantity);
+                $orderTotal = $cart->items->sum(fn ($item) => $item->price * $item->quantity);
             }
         }
 
         $result = $this->couponService->validate($request->code, $user, $orderTotal);
 
-        if (!$result['valid']) {
+        if (! $result['valid']) {
             return response()->json([
                 'valid' => false,
                 'message' => $result['message'],
@@ -153,10 +153,10 @@ class CouponController extends Controller
     public function available(Request $request): JsonResponse
     {
         $user = $request->user();
-        
+
         // Get cart total
         $cart = Cart::with('items')->where('user_id', $user->id)->first();
-        $cartTotal = $cart ? $cart->items->sum(fn($item) => $item->price * $item->quantity) : 0;
+        $cartTotal = $cart ? $cart->items->sum(fn ($item) => $item->price * $item->quantity) : 0;
 
         $coupons = $this->couponService->getApplicableCoupons($user, $cartTotal);
 
@@ -174,7 +174,7 @@ class CouponController extends Controller
      */
     protected function formatCartResponse(Cart $cart): array
     {
-        $subtotal = $cart->items->sum(fn($item) => $item->price * $item->quantity);
+        $subtotal = $cart->items->sum(fn ($item) => $item->price * $item->quantity);
         $discount = $cart->discount_amount ?? 0;
         $total = max(0, $subtotal - $discount);
 

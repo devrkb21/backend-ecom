@@ -29,18 +29,19 @@ class ExportOrders extends Command
         }
 
         if ($to = $this->option('to')) {
-            $query->where('created_at', '<=', $to . ' 23:59:59');
+            $query->where('created_at', '<=', $to.' 23:59:59');
         }
 
         $orders = $query->orderBy('created_at', 'desc')->get();
 
         if ($orders->isEmpty()) {
             $this->warn('No orders found matching the criteria.');
+
             return Command::SUCCESS;
         }
 
-        $filename = 'orders_' . now()->format('Y-m-d_His') . '.csv';
-        $path = $this->option('path') . '/' . $filename;
+        $filename = 'orders_'.now()->format('Y-m-d_His').'.csv';
+        $path = $this->option('path').'/'.$filename;
 
         $csvContent = $this->buildCsv($orders);
 
@@ -116,9 +117,9 @@ class ExportOrders extends Command
         // file is opened. Prefixing with a tab keeps it plain text without
         // changing the visible content.
         if (preg_match('/^[=+\-@]/', $value) === 1) {
-            $value = "\t" . $value;
+            $value = "\t".$value;
         }
 
-        return '"' . str_replace('"', '""', $value) . '"';
+        return '"'.str_replace('"', '""', $value).'"';
     }
 }

@@ -2,27 +2,27 @@
 
 namespace App\Services;
 
-use App\Models\Order;
-use App\Models\Product;
-use App\Models\ProductVariant;
-use App\Models\FlashSaleProduct;
-use App\Models\Coupon;
-use App\Models\Cart;
+use App\Models\AbandonedCart;
 use App\Models\Address;
 use App\Models\BdDistrict;
 use App\Models\BdDivision;
 use App\Models\BdUnion;
 use App\Models\BdUpazila;
+use App\Models\Cart;
+use App\Models\Coupon;
+use App\Models\CustomerGroup;
+use App\Models\FlashSaleProduct;
+use App\Models\Order;
 use App\Models\PaymentGateway;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\ShippingMethod;
-use App\Models\AbandonedCart;
 use App\Models\User;
 use App\Notifications\OrderConfirmation;
-use App\Notifications\OrderStatusUpdated;
 use App\Notifications\OrderShipped;
-use App\Services\BangladeshLocationResolver;
-use App\Repositories\Interfaces\OrderRepositoryInterface;
+use App\Notifications\OrderStatusUpdated;
 use App\Repositories\Interfaces\CartRepositoryInterface;
+use App\Repositories\Interfaces\OrderRepositoryInterface;
 use App\Repositories\Interfaces\ProductRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -57,8 +57,12 @@ class OrderService
         return $this->orderRepository->findByOrderNumber($orderNumber);
     }
 
-    public function getAllOrders(int $perPage = 15): LengthAwarePaginator
+    public function getAllOrders(int $perPage = 15, ?\DateTimeInterface $createdBefore = null): LengthAwarePaginator
     {
+        if ($createdBefore !== null) {
+            return $this->orderRepository->paginateCreatedBefore($createdBefore, $perPage);
+        }
+
         return $this->orderRepository->paginate($perPage);
     }
 
@@ -87,22 +91,22 @@ class OrderService
             } else {
                 $cart = $this->cartRepository->getByUserId($userId);
 
-                if (!$cart || $cart->items->isEmpty()) {
+                if (! $cart || $cart->items->isEmpty()) {
                     throw new \Exception('Cart is empty.');
                 }
 
                 $checkoutItems = $cart->items->map(function ($item) {
-                    if (!$item->product) {
+                    if (! $item->product) {
                         throw new \Exception('One or more cart items are no longer available.');
                     }
 
                     $variant = $item->variant;
 
-                    if ($item->product_variant_id !== null && !$variant) {
+                    if ($item->product_variant_id !== null && ! $variant) {
                         throw new \Exception('One or more cart item variants are no longer available.');
                     }
 
-                    if ($variant && !$variant->is_active) {
+                    if ($variant && ! $variant->is_active) {
                         throw new \Exception("Selected variant is unavailable for product: {$item->product->name}");
                     }
 
@@ -129,7 +133,7 @@ class OrderService
             $checkoutFields = $this->applyBillingFallbackToCheckoutFields($checkoutFields, $canonicalShipping, $shippingData);
             $orderOwner = $this->resolveOrderOwner($authenticatedUser, $canonicalShipping);
 
-            if (!$orderOwner && $isGuestCheckout) {
+            if (! $orderOwner && $isGuestCheckout) {
                 $orderOwner = $this->resolveGuestCheckoutUser();
             }
 
@@ -156,10 +160,10 @@ class OrderService
                     $quantity = (int) $item['quantity'];
 
                     if ($variant instanceof ProductVariant) {
-                        if (!$variant->hasStock($quantity)) {
+                        if (! $variant->hasStock($quantity)) {
                             throw new \Exception("Insufficient stock for variant of product: {$product->name}");
                         }
-                    } elseif (!$product->hasStock($quantity)) {
+                    } elseif (! $product->hasStock($quantity)) {
                         throw new \Exception("Insufficient stock for product: {$product->name}");
                     }
                 }
@@ -169,7 +173,7 @@ class OrderService
             $paymentMethod = $shippingData['payment_method'] ?? 'cod';
             $paymentGateway = PaymentGateway::findByCode($paymentMethod);
 
-            if (!$paymentGateway || !$paymentGateway->is_active) {
+            if (! $paymentGateway || ! $paymentGateway->is_active) {
                 throw new \Exception('Selected payment method is not available.');
             }
 
@@ -177,7 +181,7 @@ class OrderService
             $shippingMethodCode = $shippingData['shipping_method'] ?? 'standard';
             $shippingMethod = ShippingMethod::findByCode($shippingMethodCode);
 
-            if (!$shippingMethod || !$shippingMethod->is_active) {
+            if (! $shippingMethod || ! $shippingMethod->is_active) {
                 throw new \Exception('Selected shipping method is not available.');
             }
 
@@ -195,10 +199,10 @@ class OrderService
                 $shippingLocationText = trim((string) ($canonicalShipping['shipping_address'] ?? ''));
             }
 
-            $divisionId = !empty($canonicalShipping['shipping_division_id']) ? (int) $canonicalShipping['shipping_division_id'] : null;
-            $districtId = !empty($canonicalShipping['shipping_district_id']) ? (int) $canonicalShipping['shipping_district_id'] : null;
-            $upazilaId = !empty($canonicalShipping['shipping_upazila_id']) ? (int) $canonicalShipping['shipping_upazila_id'] : null;
-            $unionId = !empty($canonicalShipping['shipping_union_id']) ? (int) $canonicalShipping['shipping_union_id'] : null;
+            $divisionId = ! empty($canonicalShipping['shipping_division_id']) ? (int) $canonicalShipping['shipping_division_id'] : null;
+            $districtId = ! empty($canonicalShipping['shipping_district_id']) ? (int) $canonicalShipping['shipping_district_id'] : null;
+            $upazilaId = ! empty($canonicalShipping['shipping_upazila_id']) ? (int) $canonicalShipping['shipping_upazila_id'] : null;
+            $unionId = ! empty($canonicalShipping['shipping_union_id']) ? (int) $canonicalShipping['shipping_union_id'] : null;
 
             if ($shippingLocationText !== '') {
                 $resolved = $this->locationResolver->resolve(
@@ -209,10 +213,10 @@ class OrderService
                     $unionId
                 );
 
-                $divisionId = $divisionId ?? (!empty($resolved['division_id']) ? (int) $resolved['division_id'] : null);
-                $districtId = $districtId ?? (!empty($resolved['district_id']) ? (int) $resolved['district_id'] : null);
-                $upazilaId = $upazilaId ?? (!empty($resolved['upazila_id']) ? (int) $resolved['upazila_id'] : null);
-                $unionId = $unionId ?? (!empty($resolved['union_id']) ? (int) $resolved['union_id'] : null);
+                $divisionId = $divisionId ?? (! empty($resolved['division_id']) ? (int) $resolved['division_id'] : null);
+                $districtId = $districtId ?? (! empty($resolved['district_id']) ? (int) $resolved['district_id'] : null);
+                $upazilaId = $upazilaId ?? (! empty($resolved['upazila_id']) ? (int) $resolved['upazila_id'] : null);
+                $unionId = $unionId ?? (! empty($resolved['union_id']) ? (int) $resolved['union_id'] : null);
             }
 
             // Trust the most specific ID provided and enforce hierarchy consistency.
@@ -272,11 +276,11 @@ class OrderService
 
             // Check if shipping method is available for this order
             $hasResolvedLocationContext = $division?->id || $district?->id || $upazila?->id;
-            if (!$hasResolvedLocationContext && $shippingMethod->locationRules()->exists()) {
+            if (! $hasResolvedLocationContext && $shippingMethod->locationRules()->exists()) {
                 throw new \Exception('Unable to determine your shipping area from address. Please provide a more specific address.');
             }
 
-            if (!$shippingMethod->isAvailableFor(
+            if (! $shippingMethod->isAvailableFor(
                 $subtotal,
                 null,
                 'BD',
@@ -307,11 +311,11 @@ class OrderService
                 $val = trim((string) $candidate);
                 if ($val !== '' && stripos($baseShippingAddressLower, $val) === false) {
                     $shippingAddressParts[] = $val;
-                    $baseShippingAddressLower .= ', ' . strtolower($val);
+                    $baseShippingAddressLower .= ', '.strtolower($val);
                 }
             }
 
-            $normalizedShippingAddress = implode(', ', array_filter($shippingAddressParts, fn($p) => $p !== ''));
+            $normalizedShippingAddress = implode(', ', array_filter($shippingAddressParts, fn ($p) => $p !== ''));
 
             // Calculate payment gateway extra charge (e.g., COD fee)
             $paymentCharge = $this->calculatePaymentCharge($paymentGateway, $subtotal + $tax + $shipping - $discountAmount);
@@ -330,7 +334,7 @@ class OrderService
                 $totalOrdersCount = $orderStats->total_orders ?? 0;
                 $totalSpentAmount = (float) ($orderStats->total_spent ?? 0.0);
 
-                $qualifyingGroup = \App\Models\CustomerGroup::getQualifyingGroup($totalOrdersCount, $totalSpentAmount);
+                $qualifyingGroup = CustomerGroup::getQualifyingGroup($totalOrdersCount, $totalSpentAmount);
                 if ($qualifyingGroup) {
                     $customerGroupName = $qualifyingGroup->name;
                     $loyaltyDiscountAmount = round(($subtotal * (float) $qualifyingGroup->discount_percentage) / 100, 2);
@@ -340,7 +344,7 @@ class OrderService
             $total = max(0, $subtotal + $tax + $shipping - $discountAmount - $loyaltyDiscountAmount + $paymentCharge);
 
             // Check if order amount is within gateway limits
-            if (!$paymentGateway->isAvailableFor($total)) {
+            if (! $paymentGateway->isAvailableFor($total)) {
                 throw new \Exception("Order amount is not within the limits for {$paymentGateway->name}.");
             }
 
@@ -409,10 +413,10 @@ class OrderService
                 // unit can't both pass and both decrement.
                 if ($stockEnabled) {
                     if (($item['variant'] ?? null) instanceof ProductVariant) {
-                        if (!$item['variant']->decrementStockIfAvailable((int) $item['quantity'])) {
+                        if (! $item['variant']->decrementStockIfAvailable((int) $item['quantity'])) {
                             throw new \Exception("Insufficient stock for variant of product: {$item['product_name']}");
                         }
-                    } elseif (!$product->decrementStockIfAvailable((int) $item['quantity'])) {
+                    } elseif (! $product->decrementStockIfAvailable((int) $item['quantity'])) {
                         throw new \Exception("Insufficient stock for product: {$item['product_name']}");
                     }
                 }
@@ -495,7 +499,7 @@ class OrderService
 
     public function createRecoveredOrderFromAbandonedCart(AbandonedCart $abandonedCart): Order
     {
-        if (!in_array($abandonedCart->status, ['pending', 'follow_up'], true)) {
+        if (! in_array($abandonedCart->status, ['pending', 'follow_up'], true)) {
             throw new \Exception('Only incomplete checkouts can be marked as recovered.');
         }
 
@@ -520,7 +524,7 @@ class OrderService
                 })
                 ->filter(fn (array $item) => $item['product_id'] > 0 && $item['quantity'] > 0)
                 ->groupBy(function (array $item) {
-                    return $item['product_id'] . ':' . ($item['product_variant_id'] ?? 0);
+                    return $item['product_id'].':'.($item['product_variant_id'] ?? 0);
                 })
                 ->map(function (SupportCollection $items, string $identity) {
                     [$rawProductId, $rawVariantId] = array_pad(explode(':', $identity, 2), 2, '0');
@@ -564,11 +568,11 @@ class OrderService
 
                 /** @var Product|null $product */
                 $product = $products->get($productId);
-                if (!$product) {
+                if (! $product) {
                     throw new \Exception("Recovered checkout product is missing: {$productId}");
                 }
 
-                if (!$product->is_active) {
+                if (! $product->is_active) {
                     throw new \Exception("Recovered checkout product is inactive: {$product->name}");
                 }
 
@@ -577,18 +581,18 @@ class OrderService
                 if ($variantId !== null) {
                     $variant = $variants->get($variantId);
 
-                    if (!$variant || (int) $variant->product_id !== $product->id) {
+                    if (! $variant || (int) $variant->product_id !== $product->id) {
                         throw new \Exception("Recovered checkout variant is invalid for product: {$product->name}");
                     }
 
-                    if (!$variant->is_active) {
+                    if (! $variant->is_active) {
                         throw new \Exception("Recovered checkout variant is inactive for product: {$product->name}");
                     }
 
-                    if ($stockEnabled && !$variant->hasStock($quantity)) {
+                    if ($stockEnabled && ! $variant->hasStock($quantity)) {
                         throw new \Exception("Insufficient stock for recovered checkout variant: {$product->name}");
                     }
-                } elseif ($stockEnabled && !$product->hasStock($quantity)) {
+                } elseif ($stockEnabled && ! $product->hasStock($quantity)) {
                     throw new \Exception("Insufficient stock for recovered checkout product: {$product->name}");
                 }
 
@@ -636,7 +640,7 @@ class OrderService
             $shippingAmount = round(max(0, $total - $baseTotal), 2);
 
             $shippingEmail = strtolower(trim((string) ($abandonedCart->email ?? '')));
-            if ($shippingEmail === '' || !filter_var($shippingEmail, FILTER_VALIDATE_EMAIL)) {
+            if ($shippingEmail === '' || ! filter_var($shippingEmail, FILTER_VALIDATE_EMAIL)) {
                 $shippingEmail = 'customer@local.invalid';
             }
 
@@ -694,11 +698,11 @@ class OrderService
             }
 
             $recoveryNotes = [
-                'Recovered from abandoned cart #' . $abandonedCart->id,
+                'Recovered from abandoned cart #'.$abandonedCart->id,
             ];
 
             if ($this->nullableString($abandonedCart->admin_notes) !== null) {
-                $recoveryNotes[] = 'Admin notes: ' . $this->nullableString($abandonedCart->admin_notes);
+                $recoveryNotes[] = 'Admin notes: '.$this->nullableString($abandonedCart->admin_notes);
             }
 
             $checkoutPayload = array_filter([
@@ -749,9 +753,10 @@ class OrderService
                         /** @var ProductVariant|null $variant */
                         $variant = $variants->get((int) $variantId);
                         if ($variant) {
-                            if (!$variant->decrementStockIfAvailable((int) $item['quantity'])) {
+                            if (! $variant->decrementStockIfAvailable((int) $item['quantity'])) {
                                 throw new \Exception("Insufficient stock for recovered checkout variant: {$item['product_name']}");
                             }
+
                             continue;
                         }
                     }
@@ -759,7 +764,7 @@ class OrderService
                     /** @var Product|null $product */
                     $product = $products->get((int) $item['product_id']);
                     if ($product) {
-                        if (!$product->decrementStockIfAvailable((int) $item['quantity'])) {
+                        if (! $product->decrementStockIfAvailable((int) $item['quantity'])) {
                             throw new \Exception("Insufficient stock for recovered checkout product: {$item['product_name']}");
                         }
                     }
@@ -797,7 +802,7 @@ class OrderService
 
     protected function shouldPersistCheckoutAddressesForUser(?User $user): bool
     {
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -817,7 +822,7 @@ class OrderService
         ?BdUnion $union,
         array $shippingData
     ): void {
-        if (!$this->shouldPersistCheckoutAddressesForUser($orderOwner)) {
+        if (! $this->shouldPersistCheckoutAddressesForUser($orderOwner)) {
             return;
         }
 
@@ -848,7 +853,7 @@ class OrderService
 
         $useBillingAddress = $this->toBooleanFlag($shippingData['use_billing_address'] ?? false);
 
-        if (!$useBillingAddress && !$hasBillingInput) {
+        if (! $useBillingAddress && ! $hasBillingInput) {
             return;
         }
 
@@ -929,7 +934,7 @@ class OrderService
             $checkoutFields['billing_last_name'] ?? null,
         ]);
 
-        $billingFullName = trim($billingFirstName . ' ' . $billingLastName);
+        $billingFullName = trim($billingFirstName.' '.$billingLastName);
 
         return [
             'label' => 'Checkout Billing',
@@ -1111,8 +1116,9 @@ class OrderService
             $existingValue = trim((string) ($checkoutFields[$key] ?? ''));
 
             // If billing section is unchecked or empty, fully mirror shipping to billing.
-            if (!$useBillingAddress || !$hasBillingInput) {
+            if (! $useBillingAddress || ! $hasBillingInput) {
                 $checkoutFields[$key] = $normalizedFallback;
+
                 continue;
             }
 
@@ -1154,7 +1160,7 @@ class OrderService
     protected function resolveGuestCheckoutUser(): User
     {
         $email = trim((string) config('shop.guest_checkout_user_email', 'guest.checkout@innercollection.local'));
-        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $email = 'guest.checkout@innercollection.local';
         }
 
@@ -1180,7 +1186,7 @@ class OrderService
                 $updates['email_verified_at'] = now();
             }
 
-            if (!empty($updates)) {
+            if (! empty($updates)) {
                 $user->forceFill($updates)->save();
             }
 
@@ -1217,7 +1223,7 @@ class OrderService
                     ? (int) $item['variant_id']
                     : 0;
 
-                return $productId . ':' . $variantId;
+                return $productId.':'.$variantId;
             })
             ->map(function (SupportCollection $group, string $groupKey) {
                 [$rawProductId, $rawVariantId] = array_pad(explode(':', $groupKey, 2), 2, '0');
@@ -1248,7 +1254,7 @@ class OrderService
             /** @var Product|null $product */
             $product = $this->productRepository->find($productId);
 
-            if (!$product || !$product->is_active) {
+            if (! $product || ! $product->is_active) {
                 throw new \Exception("Selected product is unavailable: {$productId}");
             }
 
@@ -1256,21 +1262,21 @@ class OrderService
             if ($variantId !== null) {
                 $variant = $product->variants()->where('id', $variantId)->first();
 
-                if (!$variant) {
+                if (! $variant) {
                     throw new \Exception("Selected variant is invalid for product: {$product->name}");
                 }
 
-                if (!$variant->is_active) {
+                if (! $variant->is_active) {
                     throw new \Exception("Selected variant is unavailable for product: {$product->name}");
                 }
             }
 
             if ($stockEnabled) {
                 if ($variant instanceof ProductVariant) {
-                    if (!$variant->hasStock($quantity)) {
+                    if (! $variant->hasStock($quantity)) {
                         throw new \Exception("Insufficient stock for variant of product: {$product->name}");
                     }
-                } elseif (!$product->hasStock($quantity)) {
+                } elseif (! $product->hasStock($quantity)) {
                     throw new \Exception("Insufficient stock for product: {$product->name}");
                 }
             }
@@ -1303,15 +1309,15 @@ class OrderService
     {
         $coupon = Coupon::findByCode($couponCode);
 
-        if (!$coupon) {
+        if (! $coupon) {
             throw new \Exception('Invalid coupon code.');
         }
 
-        if (!$coupon->allow_guest_checkout) {
+        if (! $coupon->allow_guest_checkout) {
             throw new \Exception('Please login to use this coupon.');
         }
 
-        $previewCart = new Cart();
+        $previewCart = new Cart;
         $previewCart->setAttribute('user_id', null);
         $previewCart->setRelation('items', $checkoutItems->map(function (array $item) {
             return (object) [
@@ -1326,7 +1332,7 @@ class OrderService
         }));
 
         $errors = $coupon->validateForCart($previewCart);
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             throw new \Exception($errors[0]);
         }
 
@@ -1374,7 +1380,7 @@ class OrderService
         ];
 
         foreach ($legacyKeys as $key) {
-            if (array_key_exists($key, $payload) && !array_key_exists($key, $fields)) {
+            if (array_key_exists($key, $payload) && ! array_key_exists($key, $fields)) {
                 $fields[$key] = $payload[$key];
             }
         }
@@ -1411,7 +1417,7 @@ class OrderService
             $semantic['billing_last_name'] ?? null,
         ]);
 
-        $billingFullName = trim($billingFirstName . ' ' . $billingLastName);
+        $billingFullName = trim($billingFirstName.' '.$billingLastName);
 
         $shippingName = $this->findFirstNonEmptyValue([
             $checkoutFields['shipping_name'] ?? null,
@@ -1431,7 +1437,7 @@ class OrderService
             $fallbackEmail,
         ]);
 
-        if ($shippingEmail === '' || !filter_var($shippingEmail, FILTER_VALIDATE_EMAIL)) {
+        if ($shippingEmail === '' || ! filter_var($shippingEmail, FILTER_VALIDATE_EMAIL)) {
             $shippingEmail = $fallbackEmail !== '' ? $fallbackEmail : 'customer@local.invalid';
         }
 
@@ -1541,110 +1547,127 @@ class OrderService
 
         foreach ($enabledFields as $field) {
             $key = strtolower(trim((string) ($field['key'] ?? '')));
-            if ($key === '' || !array_key_exists($key, $checkoutFields)) {
+            if ($key === '' || ! array_key_exists($key, $checkoutFields)) {
                 continue;
             }
 
             $value = $checkoutFields[$key];
             $stringValue = trim((string) $value);
-            if ($stringValue === '' && !is_numeric($value)) {
+            if ($stringValue === '' && ! is_numeric($value)) {
                 continue;
             }
 
             $type = strtolower(trim((string) ($field['type'] ?? 'text')));
             $label = strtolower(trim((string) ($field['label'] ?? '')));
-            $descriptor = strtolower($key . ' ' . $label);
+            $descriptor = strtolower($key.' '.$label);
 
             if ($type === 'email' && empty($mapped['shipping_email'])) {
                 $mapped['shipping_email'] = $stringValue;
+
                 continue;
             }
 
             if ($type === 'tel' && empty($mapped['shipping_phone'])) {
                 $mapped['shipping_phone'] = $stringValue;
+
                 continue;
             }
 
             if ($type === 'country' && empty($mapped['shipping_country'])) {
                 $mapped['shipping_country'] = $stringValue;
+
                 continue;
             }
 
             if ($type === 'location_text' && empty($mapped['shipping_location_text'])) {
                 $mapped['shipping_location_text'] = $stringValue;
+
                 continue;
             }
 
             if ($type === 'location_division') {
                 $mapped['shipping_division_id'] = $value;
+
                 continue;
             }
 
             if ($type === 'location_district') {
                 $mapped['shipping_district_id'] = $value;
+
                 continue;
             }
 
             if ($type === 'location_upazila') {
                 $mapped['shipping_upazila_id'] = $value;
+
                 continue;
             }
 
             if ($type === 'location_union') {
                 $mapped['shipping_union_id'] = $value;
+
                 continue;
             }
 
             if ($this->containsAny($descriptor, ['first name', 'first_name', 'firstname'])) {
                 $firstName = $stringValue;
                 $mapped['billing_first_name'] = $stringValue;
+
                 continue;
             }
 
             if ($this->containsAny($descriptor, ['last name', 'last_name', 'lastname'])) {
                 $lastName = $stringValue;
                 $mapped['billing_last_name'] = $stringValue;
+
                 continue;
             }
 
             if ($this->containsAny($descriptor, ['name', 'receiver', 'customer']) && empty($mapped['shipping_name'])) {
                 $mapped['shipping_name'] = $stringValue;
+
                 continue;
             }
 
             if ($this->containsAny($descriptor, ['address 2', 'address_2', 'apartment', 'suite', 'area', 'neighborhood']) && empty($mapped['shipping_area'])) {
                 $mapped['shipping_area'] = $stringValue;
+
                 continue;
             }
 
             if ($this->containsAny($descriptor, ['address', 'street']) && empty($mapped['shipping_address'])) {
                 $mapped['shipping_address'] = $stringValue;
+
                 continue;
             }
 
             if ($this->containsAny($descriptor, ['city', 'town']) && empty($mapped['shipping_city'])) {
                 $mapped['shipping_city'] = $stringValue;
+
                 continue;
             }
 
             if ($this->containsAny($descriptor, ['state', 'county', 'province']) && empty($mapped['shipping_state'])) {
                 $mapped['shipping_state'] = $stringValue;
+
                 continue;
             }
 
             if ($this->containsAny($descriptor, ['zip', 'postal', 'postcode']) && empty($mapped['shipping_zip'])) {
                 $mapped['shipping_zip'] = $stringValue;
+
                 continue;
             }
 
             if ($this->containsAny($descriptor, ['note', 'instruction']) && empty($mapped['notes'])) {
                 $mapped['notes'] = $stringValue;
+
                 continue;
             }
         }
 
         if (empty($mapped['shipping_name'])) {
-            $combinedName = trim($firstName . ' ' . $lastName);
+            $combinedName = trim($firstName.' '.$lastName);
             if ($combinedName !== '') {
                 $mapped['shipping_name'] = $combinedName;
             }
@@ -1807,7 +1830,7 @@ class OrderService
             'cancelled' => [],
         ];
 
-        if (!in_array($status, $validTransitions[$order->status] ?? [])) {
+        if (! in_array($status, $validTransitions[$order->status] ?? [])) {
             throw new \Exception("Invalid status transition from {$order->status} to {$status}");
         }
 
@@ -1816,6 +1839,7 @@ class OrderService
             foreach ($order->items as $item) {
                 if ($item->variant) {
                     $item->variant->incrementStock((int) $item->quantity);
+
                     continue;
                 }
 
@@ -1861,7 +1885,7 @@ class OrderService
             throw new \Exception('Unauthorized to cancel this order.');
         }
 
-        if (!$order->canBeCancelled()) {
+        if (! $order->canBeCancelled()) {
             throw new \Exception('This order cannot be cancelled.');
         }
 
@@ -1895,7 +1919,7 @@ class OrderService
         $order = $this->getOrderById($orderId);
 
         $validStatuses = ['pending', 'awaiting', 'paid', 'failed', 'refunded'];
-        if (!in_array($status, $validStatuses)) {
+        if (! in_array($status, $validStatuses)) {
             throw new \Exception('Invalid payment status.');
         }
 
@@ -1909,5 +1933,4 @@ class OrderService
 
         return $order;
     }
-
 }

@@ -18,6 +18,7 @@ class CheckCourierPhone extends Command
 
         if ($normalizedPhone === null) {
             $this->error('Could not parse a phone number from that input.');
+
             return self::FAILURE;
         }
 
@@ -30,15 +31,16 @@ class CheckCourierPhone extends Command
             collect(['steadfast', 'pathao', 'redx', 'paperfly', 'carrybee'])->map(function ($key) use ($result) {
                 $row = $result->raw_result[$key] ?? null;
 
-                if (!is_array($row) || isset($row['error'])) {
+                if (! is_array($row) || isset($row['error'])) {
                     $message = $row['error'] ?? 'not checked';
-                    if (!empty($row['message']) && $row['message'] !== ($row['error'] ?? null)) {
-                        $message .= ' (' . $row['message'] . ')';
+                    if (! empty($row['message']) && $row['message'] !== ($row['error'] ?? null)) {
+                        $message .= ' ('.$row['message'].')';
                     }
+
                     return [$key, '-', '-', $message];
                 }
 
-                return [$key, $row['success'] ?? 0, $row['cancel'] ?? 0, ($row['success_ratio'] ?? 0) . '%'];
+                return [$key, $row['success'] ?? 0, $row['cancel'] ?? 0, ($row['success_ratio'] ?? 0).'%'];
             })
         );
 

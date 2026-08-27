@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('product_attribute_values', function (Blueprint $table) {
-            if (!Schema::hasColumn('product_attribute_values', 'image')) {
+            if (! Schema::hasColumn('product_attribute_values', 'image')) {
                 $table->string('image')->nullable()->after('color_code');
             }
         });

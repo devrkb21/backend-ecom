@@ -28,7 +28,7 @@ class CustomerGroup extends Model
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];
-    
+
     /**
      * Get the highest qualifying group for a given order count and spent amount.
      */
@@ -38,15 +38,15 @@ class CustomerGroup extends Model
             ->orderBy('sort_order', 'asc')
             ->orderBy('discount_percentage', 'desc')
             ->get();
-            
+
         $cleanedPhone = $phone ? preg_replace('/[^0-9]/', '', $phone) : null;
 
         foreach ($groups as $group) {
             // Check manual assignment first
             if ($cleanedPhone && $group->manual_numbers) {
                 $manualNumbers = array_map('trim', explode(',', $group->manual_numbers));
-                $manualNumbers = array_map(fn($num) => preg_replace('/[^0-9]/', '', $num), $manualNumbers);
-                
+                $manualNumbers = array_map(fn ($num) => preg_replace('/[^0-9]/', '', $num), $manualNumbers);
+
                 if (in_array($cleanedPhone, $manualNumbers)) {
                     return $group;
                 }

@@ -8,13 +8,13 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use App\Models\User;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function index(\Illuminate\Http\Request $request)
+    public function index(Request $request)
     {
         $range = $request->get('range', 'today');
         $startDate = now()->startOfDay();
@@ -118,6 +118,7 @@ class DashboardController extends Controller
             ->get()
             ->filter(function ($product) {
                 $totalStock = $product->variants->where('is_active', true)->sum('stock_quantity');
+
                 return $totalStock > 0 && $totalStock <= 10;
             })
             ->count();
@@ -150,8 +151,8 @@ class DashboardController extends Controller
         ];
 
         // Revenue change percentage
-        $revenueChange = $lastMonthStats['revenue'] > 0 
-            ? (($thisMonthStats['revenue'] - $lastMonthStats['revenue']) / $lastMonthStats['revenue']) * 100 
+        $revenueChange = $lastMonthStats['revenue'] > 0
+            ? (($thisMonthStats['revenue'] - $lastMonthStats['revenue']) / $lastMonthStats['revenue']) * 100
             : 0;
 
         // Sales data for last 30 days chart
@@ -187,9 +188,9 @@ class DashboardController extends Controller
 
         // Top products this month
         $topProducts = OrderItem::whereHas('order', function ($q) use ($thisMonth) {
-                $q->where('status', 'delivered')
-                  ->where('created_at', '>=', $thisMonth);
-            })
+            $q->where('status', 'delivered')
+                ->where('created_at', '>=', $thisMonth);
+        })
             ->select(
                 'product_id',
                 'product_name',

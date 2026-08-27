@@ -4,11 +4,10 @@ namespace App\Services;
 
 use App\Models\FlashSale;
 use App\Models\FlashSaleProduct;
-use App\Models\Product;
 use App\Models\OrderItem;
+use App\Models\Product;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\DB;
 
 class FlashSaleService
 {
@@ -75,7 +74,7 @@ class FlashSaleService
             ->with('flashSale')
             ->first();
 
-        if (!$flashSaleProduct) {
+        if (! $flashSaleProduct) {
             return null;
         }
 
@@ -124,7 +123,7 @@ class FlashSaleService
         ]);
 
         // Add products if provided
-        if (!empty($data['products'])) {
+        if (! empty($data['products'])) {
             $this->addProductsToFlashSale($flashSale, $data['products']);
         }
 
@@ -139,7 +138,7 @@ class FlashSaleService
         foreach ($products as $productData) {
             $product = Product::find($productData['product_id']);
 
-            if (!$product) {
+            if (! $product) {
                 continue;
             }
 
@@ -187,7 +186,7 @@ class FlashSaleService
             ->with('flashSale')
             ->first();
 
-        if (!$flashSaleProduct) {
+        if (! $flashSaleProduct) {
             return ['valid' => false, 'reason' => 'Product not in active flash sale'];
         }
 
@@ -221,7 +220,7 @@ class FlashSaleService
             })
             ->get();
 
-        $totalRevenue = $orderItems->sum(fn($item) => $item->price * $item->quantity);
+        $totalRevenue = $orderItems->sum(fn ($item) => $item->price * $item->quantity);
 
         return [
             'total_products' => $totalProducts,
@@ -240,6 +239,7 @@ class FlashSaleService
     public function endFlashSale(FlashSale $flashSale): FlashSale
     {
         $flashSale->update(['ends_at' => now()]);
+
         return $flashSale->refresh();
     }
 
@@ -249,6 +249,7 @@ class FlashSaleService
     public function extendFlashSale(FlashSale $flashSale, \DateTime $newEndDate): FlashSale
     {
         $flashSale->update(['ends_at' => $newEndDate]);
+
         return $flashSale->refresh();
     }
 
@@ -281,6 +282,7 @@ class FlashSaleService
             } else {
                 $product->flash_sale = null;
             }
+
             return $product;
         });
     }

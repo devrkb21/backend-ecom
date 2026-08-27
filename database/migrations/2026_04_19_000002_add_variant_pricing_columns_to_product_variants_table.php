@@ -17,15 +17,15 @@ return new class extends Migration
         }
 
         Schema::table('product_variants', function (Blueprint $table) use ($hasPurchasePrice, $hasRegularPrice, $hasDiscountedPrice) {
-            if (!$hasPurchasePrice) {
+            if (! $hasPurchasePrice) {
                 $table->decimal('purchase_price', 10, 2)->nullable();
             }
 
-            if (!$hasRegularPrice) {
+            if (! $hasRegularPrice) {
                 $table->decimal('regular_price', 10, 2)->nullable();
             }
 
-            if (!$hasDiscountedPrice) {
+            if (! $hasDiscountedPrice) {
                 $table->decimal('discounted_price', 10, 2)->nullable();
             }
         });

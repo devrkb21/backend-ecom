@@ -91,7 +91,7 @@ class AddressController extends Controller
 
         // Check if this is the first address (make it default)
         $hasAddresses = Address::where('user_id', $request->user()->id)->exists();
-        if (!$hasAddresses) {
+        if (! $hasAddresses) {
             $validated['is_default'] = true;
         }
 
@@ -280,14 +280,14 @@ class AddressController extends Controller
             ->default()
             ->first();
 
-        if (!$address) {
+        if (! $address) {
             // Fallback to any default address
             $address = Address::where('user_id', $request->user()->id)
                 ->default()
                 ->first();
         }
 
-        if (!$address) {
+        if (! $address) {
             return response()->json([
                 'success' => false,
                 'message' => 'No default shipping address found',
@@ -310,14 +310,14 @@ class AddressController extends Controller
             ->default()
             ->first();
 
-        if (!$address) {
+        if (! $address) {
             // Fallback to any default address
             $address = Address::where('user_id', $request->user()->id)
                 ->default()
                 ->first();
         }
 
-        if (!$address) {
+        if (! $address) {
             return response()->json([
                 'success' => false,
                 'message' => 'No default billing address found',
@@ -332,8 +332,8 @@ class AddressController extends Controller
 
     protected function applyBangladeshAddressMetadata(array $data): array
     {
-        $division = !empty($data['division_id']) ? BdDivision::find((int) $data['division_id']) : null;
-        $district = !empty($data['district_id']) ? BdDistrict::find((int) $data['district_id']) : null;
+        $division = ! empty($data['division_id']) ? BdDivision::find((int) $data['division_id']) : null;
+        $district = ! empty($data['district_id']) ? BdDistrict::find((int) $data['district_id']) : null;
 
         $data['city'] = $district?->name ?? ($data['city'] ?? null);
         $data['state'] = $division?->name ?? ($data['state'] ?? null);

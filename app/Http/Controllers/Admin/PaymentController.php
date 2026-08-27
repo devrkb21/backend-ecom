@@ -22,6 +22,7 @@ class PaymentController extends Controller
     public function show(Payment $payment)
     {
         $payment->load('order.user', 'order.items.product');
+
         return view('admin.payments.show', compact('payment'));
     }
 }

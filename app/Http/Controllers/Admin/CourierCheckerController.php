@@ -23,6 +23,7 @@ use Illuminate\Http\Request;
 class CourierCheckerController extends Controller
 {
     private const CREDENTIALS_GROUP = 'courier_check';
+
     private const AUTOMATION_GROUP = 'fraud_blocks';
 
     public function index(Request $request)
@@ -66,7 +67,7 @@ class CourierCheckerController extends Controller
         ]);
         $forceRefresh = $request->boolean('refresh');
 
-        if (!$courierHistoryCheckService->hasAnyCredentialsConfigured()) {
+        if (! $courierHistoryCheckService->hasAnyCredentialsConfigured()) {
             return response()->json([
                 'success' => false,
                 'message' => 'No courier credentials are configured yet.',
@@ -84,7 +85,7 @@ class CourierCheckerController extends Controller
         // No order to attach this to — but if a matching phone has an
         // existing fraud_block entry or recent order, the same risk
         // evaluation still applies via the generic phone-based path.
-        if (!$fromCache) {
+        if (! $fromCache) {
             $fraudDetectionService->evaluateCourierHistoryForPhone($normalizedPhone, [
                 'total_deliveries' => $courierCheckResult->total_deliveries,
                 'success_ratio' => (float) $courierCheckResult->success_ratio,

@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PaymentResource;
-use App\Services\PaymentService;
 use App\Services\OrderService;
+use App\Services\PaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -27,13 +27,13 @@ class PaymentController extends Controller
         $order = $this->orderService->getOrderById($orderId);
 
         // Users can only view payments for their own orders unless admin
-        if (!$request->user()->isAdmin() && $order->user_id !== $request->user()->id) {
+        if (! $request->user()->isAdmin() && $order->user_id !== $request->user()->id) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
         $payment = $this->paymentService->getPaymentByOrderId($orderId);
 
-        if (!$payment) {
+        if (! $payment) {
             return $this->errorResponse('Payment not found', 404);
         }
 

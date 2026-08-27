@@ -13,7 +13,7 @@ class OrderCustomerSyncService
     {
         $guestEmail = strtolower(trim((string) config('shop.guest_checkout_user_email', 'guest.checkout@innercollection.local')));
 
-        if (!$this->isEligibleCustomer($user, $guestEmail)) {
+        if (! $this->isEligibleCustomer($user, $guestEmail)) {
             return [
                 'matched_orders' => 0,
                 'updated_orders' => 0,
@@ -32,7 +32,7 @@ class OrderCustomerSyncService
 
         $hasUsablePhone = $normalizedUserPhone !== '';
 
-        if (!$hasUsableEmail && !$hasUsablePhone) {
+        if (! $hasUsableEmail && ! $hasUsablePhone) {
             return [
                 'matched_orders' => 0,
                 'updated_orders' => 0,
@@ -129,7 +129,7 @@ class OrderCustomerSyncService
             $guestEmail
         ) {
             if ($hasUsableEmail) {
-                $matchQuery->whereRaw($normalizedShippingEmailSql . ' = ?', [$normalizedUserEmail]);
+                $matchQuery->whereRaw($normalizedShippingEmailSql.' = ?', [$normalizedUserEmail]);
             }
 
             if ($hasUsablePhone) {
@@ -142,7 +142,7 @@ class OrderCustomerSyncService
                     $normalizedUserEmail
                 ) {
                     $phoneMatchQuery
-                        ->whereRaw($normalizedShippingPhoneSql . ' = ?', [$normalizedUserPhone])
+                        ->whereRaw($normalizedShippingPhoneSql.' = ?', [$normalizedUserPhone])
                         // Phone numbers get reassigned/reused (family members, a
                         // reissued SIM) — matching purely on phone with no other
                         // identity signal is safest limited to orders placed
@@ -159,13 +159,13 @@ class OrderCustomerSyncService
                             // Phone matching is restricted to orders with blank/placeholder emails
                             // to avoid stealing orders that clearly belong to a different email identity.
                             $phoneEmailFallbackQuery
-                                ->whereRaw($normalizedShippingEmailSql . " = ''")
-                                ->orWhereRaw($normalizedShippingEmailSql . ' = ?', ['customer@local.invalid'])
-                                ->orWhereRaw($normalizedShippingEmailSql . ' = ?', ['guest@local.invalid'])
-                                ->orWhereRaw($normalizedShippingEmailSql . ' = ?', [$guestEmail]);
+                                ->whereRaw($normalizedShippingEmailSql." = ''")
+                                ->orWhereRaw($normalizedShippingEmailSql.' = ?', ['customer@local.invalid'])
+                                ->orWhereRaw($normalizedShippingEmailSql.' = ?', ['guest@local.invalid'])
+                                ->orWhereRaw($normalizedShippingEmailSql.' = ?', [$guestEmail]);
 
                             if ($hasUsableEmail) {
-                                $phoneEmailFallbackQuery->orWhereRaw($normalizedShippingEmailSql . ' = ?', [$normalizedUserEmail]);
+                                $phoneEmailFallbackQuery->orWhereRaw($normalizedShippingEmailSql.' = ?', [$normalizedUserEmail]);
                             }
                         });
                 };
@@ -213,7 +213,7 @@ class OrderCustomerSyncService
             ->orderByDesc('updated_at')
             ->first();
 
-        if (!$existingAddress) {
+        if (! $existingAddress) {
             $address = Address::query()->create(array_merge($payload, [
                 'user_id' => $user->id,
                 'type' => 'shipping',
@@ -239,11 +239,11 @@ class OrderCustomerSyncService
             }
         }
 
-        if (!$existingAddress->is_default) {
+        if (! $existingAddress->is_default) {
             $updates['is_default'] = true;
         }
 
-        if (!empty($updates)) {
+        if (! empty($updates)) {
             $existingAddress->fill($updates);
             $existingAddress->save();
 

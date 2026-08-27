@@ -12,13 +12,14 @@ class PageController extends Controller
     public function index(Request $request)
     {
         $query = Page::query();
-        
+
         if ($search = $request->input('search')) {
             $query->where('title', 'like', "%{$search}%")
-                  ->orWhere('slug', 'like', "%{$search}%");
+                ->orWhere('slug', 'like', "%{$search}%");
         }
-        
+
         $pages = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
+
         return view('admin.pages.index', compact('pages'));
     }
 
@@ -35,7 +36,7 @@ class PageController extends Controller
             'content' => 'nullable|string',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
         ]);
 
         $validated['slug'] = $validated['slug'] ? Str::slug($validated['slug']) : Str::slug($validated['title']);
@@ -64,11 +65,11 @@ class PageController extends Controller
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'slug' => 'nullable|string|max:255|unique:pages,slug,' . $page->id,
+            'slug' => 'nullable|string|max:255|unique:pages,slug,'.$page->id,
             'content' => 'nullable|string',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
         ]);
 
         $validated['slug'] = $validated['slug'] ? Str::slug($validated['slug']) : Str::slug($validated['title']);

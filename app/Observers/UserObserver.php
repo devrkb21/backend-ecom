@@ -18,7 +18,7 @@ class UserObserver
 
     public function updated(User $user): void
     {
-        if (!$user->wasChanged(['email', 'phone', 'role'])) {
+        if (! $user->wasChanged(['email', 'phone', 'role'])) {
             return;
         }
 

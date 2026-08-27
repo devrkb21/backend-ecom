@@ -112,6 +112,7 @@ class Review extends Model
     public function getUserVote(int $userId): ?bool
     {
         $vote = $this->votes()->where('user_id', $userId)->first();
+
         return $vote ? $vote->is_helpful : null;
     }
 
@@ -124,6 +125,7 @@ class Review extends Model
         if ($total === 0) {
             return null;
         }
+
         return round(($this->helpful_count / $total) * 100, 1);
     }
 

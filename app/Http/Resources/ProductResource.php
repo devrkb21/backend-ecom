@@ -38,7 +38,7 @@ class ProductResource extends JsonResource
             }
         }
 
-        $quantityOnePrice = !empty($dynamicDiscountTiers)
+        $quantityOnePrice = ! empty($dynamicDiscountTiers)
             ? $this->getPriceForQuantity(1)
             : (float) ($pricing['current_price'] ?? 0);
 
@@ -57,7 +57,7 @@ class ProductResource extends JsonResource
             'current_price' => (float) ($pricing['current_price'] ?? 0),
             'dynamic_price_for_quantity_1' => (float) $quantityOnePrice,
             'is_on_sale' => (bool) ($pricing['is_on_sale'] ?? false),
-            'has_dynamic_discount' => !empty($dynamicDiscountTiers),
+            'has_dynamic_discount' => ! empty($dynamicDiscountTiers),
             'dynamic_discount_tiers' => $dynamicDiscountTiers,
             'default_variant_id' => $pricing['default_variant_id'] ?? null,
             'has_price_range' => (bool) ($pricing['has_price_range'] ?? false),

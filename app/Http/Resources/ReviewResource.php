@@ -30,7 +30,7 @@ class ReviewResource extends JsonResource
                     return asset($normalized);
                 }
 
-                return asset('storage/' . $normalized);
+                return asset('storage/'.$normalized);
             }, $this->images) : [],
             'is_verified_purchase' => $this->is_verified_purchase,
             'is_approved' => $this->is_approved,

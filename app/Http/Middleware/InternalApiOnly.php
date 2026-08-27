@@ -14,7 +14,7 @@ class InternalApiOnly
         $configuredSecret = (string) config('shop.internal_api_secret', '');
         $providedSecret = (string) $request->header('X-Internal-Secret', '');
 
-        if ($configuredSecret === '' || $providedSecret === '' || !hash_equals($configuredSecret, $providedSecret)) {
+        if ($configuredSecret === '' || $providedSecret === '' || ! hash_equals($configuredSecret, $providedSecret)) {
             return new JsonResponse([
                 'success' => false,
                 'message' => 'Forbidden',

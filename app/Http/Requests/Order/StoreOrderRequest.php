@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Order;
 
+use App\Models\LandingPage;
 use App\Models\PaymentGateway;
 use App\Models\ShippingMethod;
 use App\Services\CheckoutAddressConfigService;
@@ -11,6 +12,7 @@ use Illuminate\Validation\Rule;
 class StoreOrderRequest extends FormRequest
 {
     protected ?array $cachedCheckoutConfig = null;
+
     protected ?array $cachedEnabledFields = null;
 
     public function authorize(): bool
@@ -21,7 +23,7 @@ class StoreOrderRequest extends FormRequest
     public function rules(): array
     {
         $enabledFields = $this->enabledCheckoutFields();
-        $isGuestCheckout = !$this->user('sanctum') && !$this->user();
+        $isGuestCheckout = ! $this->user('sanctum') && ! $this->user();
         $useBillingAddress = $this->toBoolean($this->input('use_billing_address', false));
 
         $rules = [
@@ -34,13 +36,13 @@ class StoreOrderRequest extends FormRequest
             'coupon_code' => ['nullable', 'string', 'max:50'],
             'shipping_method' => ['required', 'string', function ($attribute, $value, $fail) {
                 $method = ShippingMethod::findByCode($value);
-                if (!$method || !$method->is_active) {
+                if (! $method || ! $method->is_active) {
                     $fail('The selected shipping method is not available.');
                 }
             }],
             'payment_method' => ['required', 'string', function ($attribute, $value, $fail) {
                 $gateway = PaymentGateway::findByCode($value);
-                if (!$gateway || !$gateway->is_active) {
+                if (! $gateway || ! $gateway->is_active) {
                     $fail('The selected payment method is not available.');
                 }
             }],
@@ -52,8 +54,8 @@ class StoreOrderRequest extends FormRequest
         $landingPageSlug = $this->input('landing_page_slug');
         $showLocation = true;
         if ($landingPageSlug) {
-            $lp = \App\Models\LandingPage::where('slug', $landingPageSlug)->first();
-            if ($lp && !$lp->show_location) {
+            $lp = LandingPage::where('slug', $landingPageSlug)->first();
+            if ($lp && ! $lp->show_location) {
                 $showLocation = false;
             }
         }
@@ -64,7 +66,7 @@ class StoreOrderRequest extends FormRequest
                 continue;
             }
 
-            if (!$showLocation && in_array($field['type'] ?? '', ['location_division', 'location_district', 'location_upazila', 'location_union'], true)) {
+            if (! $showLocation && in_array($field['type'] ?? '', ['location_division', 'location_district', 'location_upazila', 'location_union'], true)) {
                 continue;
             }
 
@@ -94,7 +96,7 @@ class StoreOrderRequest extends FormRequest
         $enabledFields = $this->enabledCheckoutFields();
         $useBillingAddress = $this->toBoolean($this->input('use_billing_address', false));
         $incomingFields = $this->input('checkout_fields');
-        if (!is_array($incomingFields)) {
+        if (! is_array($incomingFields)) {
             $incomingFields = [];
         }
 
@@ -104,7 +106,7 @@ class StoreOrderRequest extends FormRequest
                 continue;
             }
 
-            if (!array_key_exists($key, $incomingFields) && $this->has($key)) {
+            if (! array_key_exists($key, $incomingFields) && $this->has($key)) {
                 $incomingFields[$key] = $this->input($key);
             }
         }
@@ -127,7 +129,7 @@ class StoreOrderRequest extends FormRequest
         }
 
         // Backward compatibility for legacy notes key.
-        if (!array_key_exists('order_notes', $incomingFields) && $this->filled('notes')) {
+        if (! array_key_exists('order_notes', $incomingFields) && $this->filled('notes')) {
             $incomingFields['order_notes'] = $this->input('notes');
         }
 
@@ -141,23 +143,23 @@ class StoreOrderRequest extends FormRequest
     {
         $validated = parent::validated($key, $default);
 
-        if (!is_array($validated)) {
+        if (! is_array($validated)) {
             return $validated;
         }
 
         $checkoutFields = $validated['checkout_fields'] ?? [];
-        if (!is_array($checkoutFields)) {
+        if (! is_array($checkoutFields)) {
             $checkoutFields = [];
         }
 
         // Keep legacy shape for service/controller compatibility.
         foreach ($checkoutFields as $fieldKey => $fieldValue) {
-            if (!array_key_exists($fieldKey, $validated)) {
+            if (! array_key_exists($fieldKey, $validated)) {
                 $validated[$fieldKey] = $fieldValue;
             }
         }
 
-        if (!array_key_exists('notes', $validated) && array_key_exists('order_notes', $checkoutFields)) {
+        if (! array_key_exists('notes', $validated) && array_key_exists('order_notes', $checkoutFields)) {
             $validated['notes'] = $checkoutFields['order_notes'];
         }
 
@@ -169,7 +171,7 @@ class StoreOrderRequest extends FormRequest
         $rules = [];
         $section = strtolower(trim((string) ($field['section'] ?? 'shipping')));
         $isBillingField = $section === 'billing';
-        $isRequired = !empty($field['required']) && (!$isBillingField || $useBillingAddress);
+        $isRequired = ! empty($field['required']) && (! $isBillingField || $useBillingAddress);
         $type = strtolower(trim((string) ($field['type'] ?? 'text')));
 
         $rules[] = $isRequired ? 'required' : 'nullable';
@@ -205,7 +207,7 @@ class StoreOrderRequest extends FormRequest
                     ->values()
                     ->all();
 
-                if (!empty($allowed)) {
+                if (! empty($allowed)) {
                     $rules[] = Rule::in($allowed);
                 }
                 break;
@@ -264,11 +266,13 @@ class StoreOrderRequest extends FormRequest
 
             if ($name === 'email') {
                 $rules[] = 'email';
+
                 continue;
             }
 
             if ($name === 'phone') {
                 $rules[] = 'regex:/^[0-9+\-\s()]{7,30}$/';
+
                 continue;
             }
 
@@ -292,12 +296,12 @@ class StoreOrderRequest extends FormRequest
         $enabled = [];
         foreach (['billing', 'shipping', 'additional'] as $section) {
             $fields = $schema[$section] ?? [];
-            if (!is_array($fields)) {
+            if (! is_array($fields)) {
                 continue;
             }
 
             foreach ($fields as $field) {
-                if (!is_array($field) || empty($field['enabled'])) {
+                if (! is_array($field) || empty($field['enabled'])) {
                     continue;
                 }
 
@@ -329,13 +333,13 @@ class StoreOrderRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             $config = $this->checkoutConfig();
-            $isGuestCheckout = !$this->user('sanctum') && !$this->user();
+            $isGuestCheckout = ! $this->user('sanctum') && ! $this->user();
 
-            if (!(bool) $config['checkout_form_enabled']) {
+            if (! (bool) $config['checkout_form_enabled']) {
                 $validator->errors()->add('checkout', 'Checkout is currently disabled by admin settings.');
             }
 
-            if ($isGuestCheckout && !(bool) ($config['enable_guest_checkout'] ?? true)) {
+            if ($isGuestCheckout && ! (bool) ($config['enable_guest_checkout'] ?? true)) {
                 $validator->errors()->add('checkout', 'Guest checkout is currently disabled. Please login to continue.');
             }
         });

@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AbandonedCart;
 use App\Models\Cart;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class AbandonedCartController extends Controller
 {
@@ -30,7 +30,7 @@ class AbandonedCartController extends Controller
     /**
      * Keep only safe scalar checkout field values for abandoned cart snapshots.
      *
-     * @param array<mixed> $checkoutFields
+     * @param  array<mixed>  $checkoutFields
      * @return array<string, string|int|float|bool>
      */
     private function sanitizeCheckoutFieldsPayload(array $checkoutFields): array
@@ -43,17 +43,19 @@ class AbandonedCartController extends Controller
             }
 
             $normalizedKey = strtolower(trim((string) $key));
-            if ($normalizedKey === '' || !preg_match('/^[a-z0-9_]{1,80}$/', $normalizedKey)) {
+            if ($normalizedKey === '' || ! preg_match('/^[a-z0-9_]{1,80}$/', $normalizedKey)) {
                 continue;
             }
 
             if (is_bool($value)) {
                 $sanitized[$normalizedKey] = $value;
+
                 continue;
             }
 
             if (is_int($value) || is_float($value)) {
                 $sanitized[$normalizedKey] = $value;
+
                 continue;
             }
 
@@ -272,7 +274,7 @@ class AbandonedCartController extends Controller
                     $query->where('session_id', $sessionId);
                 }
             })
-            ->pluck('id'));
+                ->pluck('id'));
         }
 
         $email = strtolower(trim((string) ($validated['email'] ?? '')));

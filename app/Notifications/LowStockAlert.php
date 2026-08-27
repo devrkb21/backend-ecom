@@ -24,15 +24,15 @@ class LowStockAlert extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Low Stock Alert - ' . $this->product->name)
+            ->subject('Low Stock Alert - '.$this->product->name)
             ->greeting('Stock Alert!')
             ->line('The following product is running low on stock:')
-            ->line('**Product:** ' . $this->product->name)
-            ->line('**SKU:** ' . $this->product->sku)
-            ->line('**Current Stock:** ' . $this->product->stock_quantity . ' units')
+            ->line('**Product:** '.$this->product->name)
+            ->line('**SKU:** '.$this->product->sku)
+            ->line('**Current Stock:** '.$this->product->stock_quantity.' units')
             ->line('')
             ->line('Please restock this product soon to avoid stockouts.')
-            ->action('View Product', url('/admin/products/' . $this->product->id . '/edit'));
+            ->action('View Product', url('/admin/products/'.$this->product->id.'/edit'));
     }
 
     public function toArray(object $notifiable): array

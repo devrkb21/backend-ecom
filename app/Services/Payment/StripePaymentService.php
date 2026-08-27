@@ -6,12 +6,14 @@ use App\Models\Order;
 use App\Models\PaymentGateway;
 use App\Models\SavedPaymentMethod;
 use App\Models\User;
-use Stripe\Stripe;
 use Stripe\Customer;
+use Stripe\Event;
+use Stripe\Exception\ApiErrorException;
 use Stripe\PaymentIntent;
 use Stripe\PaymentMethod as StripePaymentMethod;
 use Stripe\Refund;
-use Stripe\Exception\ApiErrorException;
+use Stripe\Stripe;
+use Stripe\Webhook;
 
 class StripePaymentService
 {
@@ -20,7 +22,7 @@ class StripePaymentService
     public function __construct()
     {
         $this->gateway = PaymentGateway::findByCode('stripe');
-        
+
         if ($this->gateway && $this->gateway->is_active) {
             $secretKey = $this->getModeSetting('secret_key');
             if ($secretKey) {
@@ -28,15 +30,18 @@ class StripePaymentService
             }
         }
     }
-    
+
     /**
      * Get a setting based on the current mode (test/live)
      */
     protected function getModeSetting(string $key): ?string
     {
-        if (!$this->gateway) return null;
+        if (! $this->gateway) {
+            return null;
+        }
         $mode = $this->gateway->getSetting('mode', 'test');
         $env = $mode === 'test' ? 'test' : 'live';
+
         return $this->gateway->getSetting("{$env}.{$key}");
     }
 
@@ -45,14 +50,14 @@ class StripePaymentService
      */
     public function isConfigured(): bool
     {
-        if (!$this->gateway || !$this->gateway->is_active) {
+        if (! $this->gateway || ! $this->gateway->is_active) {
             return false;
         }
 
         $secretKey = $this->getModeSetting('secret_key');
         $publicKey = $this->getModeSetting('public_key');
 
-        return !empty($secretKey) && !empty($publicKey);
+        return ! empty($secretKey) && ! empty($publicKey);
     }
 
     /**
@@ -76,7 +81,7 @@ class StripePaymentService
      */
     public function createPaymentIntent(Order $order, array $options = []): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             throw new \Exception('Stripe is not properly configured.');
         }
 
@@ -98,11 +103,11 @@ class StripePaymentService
                 ],
             ];
 
-            if (!empty($options['customer_id'])) {
+            if (! empty($options['customer_id'])) {
                 $payload['customer'] = (string) $options['customer_id'];
             }
 
-            if (!empty($options['setup_future_usage'])) {
+            if (! empty($options['setup_future_usage'])) {
                 $payload['setup_future_usage'] = (string) $options['setup_future_usage'];
             }
 
@@ -115,13 +120,13 @@ class StripePaymentService
                 'currency' => strtoupper($options['currency'] ?? 'BDT'),
             ];
         } catch (ApiErrorException $e) {
-            throw new \Exception('Stripe Error: ' . $e->getMessage());
+            throw new \Exception('Stripe Error: '.$e->getMessage());
         }
     }
 
     public function getOrCreateCustomerForUser(User $user): string
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             throw new \Exception('Stripe is not properly configured.');
         }
 
@@ -154,13 +159,13 @@ class StripePaymentService
 
             return $customer->id;
         } catch (ApiErrorException $e) {
-            throw new \Exception('Stripe Error: ' . $e->getMessage());
+            throw new \Exception('Stripe Error: '.$e->getMessage());
         }
     }
 
     public function savePaymentMethodForUser(User $user, string $paymentMethodId, bool $makeDefault = false): SavedPaymentMethod
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             throw new \Exception('Stripe is not properly configured.');
         }
 
@@ -182,13 +187,13 @@ class StripePaymentService
                 ->where('is_default', true)
                 ->exists();
 
-            if ($makeDefault || !$hasDefault) {
+            if ($makeDefault || ! $hasDefault) {
                 $this->setDefaultSavedPaymentMethod($user, $savedMethod);
             }
 
             return $savedMethod->fresh();
         } catch (ApiErrorException $e) {
-            throw new \Exception('Stripe Error: ' . $e->getMessage());
+            throw new \Exception('Stripe Error: '.$e->getMessage());
         }
     }
 
@@ -218,7 +223,7 @@ class StripePaymentService
                 'is_active' => true,
             ]);
         } catch (ApiErrorException $e) {
-            throw new \Exception('Stripe Error: ' . $e->getMessage());
+            throw new \Exception('Stripe Error: '.$e->getMessage());
         }
     }
 
@@ -233,8 +238,8 @@ class StripePaymentService
             $paymentMethod->detach();
         } catch (ApiErrorException $e) {
             // Ignore detach failures when Stripe method is already removed remotely.
-            if (!str_contains(strtolower($e->getMessage()), 'no such payment_method')) {
-                throw new \Exception('Stripe Error: ' . $e->getMessage());
+            if (! str_contains(strtolower($e->getMessage()), 'no such payment_method')) {
+                throw new \Exception('Stripe Error: '.$e->getMessage());
             }
         }
 
@@ -250,13 +255,14 @@ class StripePaymentService
             ->first();
 
         if ($nextDefault) {
-            if ($wasDefault || !$nextDefault->is_default) {
+            if ($wasDefault || ! $nextDefault->is_default) {
                 $this->setDefaultSavedPaymentMethod($user, $nextDefault);
             }
+
             return;
         }
 
-        if (!empty($user->stripe_customer_id)) {
+        if (! empty($user->stripe_customer_id)) {
             try {
                 Customer::update($user->stripe_customer_id, [
                     'invoice_settings' => [
@@ -283,7 +289,7 @@ class StripePaymentService
      */
     public function confirmPayment(string $paymentIntentId): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             throw new \Exception('Stripe is not properly configured.');
         }
 
@@ -299,7 +305,7 @@ class StripePaymentService
                 'succeeded' => $paymentIntent->status === 'succeeded',
             ];
         } catch (ApiErrorException $e) {
-            throw new \Exception('Stripe Error: ' . $e->getMessage());
+            throw new \Exception('Stripe Error: '.$e->getMessage());
         }
     }
 
@@ -308,7 +314,7 @@ class StripePaymentService
      */
     public function refund(string $paymentIntentId, ?float $amount = null): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             throw new \Exception('Stripe is not properly configured.');
         }
 
@@ -330,7 +336,7 @@ class StripePaymentService
                 'currency' => strtoupper($refund->currency),
             ];
         } catch (ApiErrorException $e) {
-            throw new \Exception('Stripe Refund Error: ' . $e->getMessage());
+            throw new \Exception('Stripe Refund Error: '.$e->getMessage());
         }
     }
 
@@ -349,7 +355,7 @@ class StripePaymentService
                 'succeeded' => $paymentIntent->status === 'succeeded',
             ];
         } catch (ApiErrorException $e) {
-            throw new \Exception('Stripe Error: ' . $e->getMessage());
+            throw new \Exception('Stripe Error: '.$e->getMessage());
         }
     }
 
@@ -364,15 +370,15 @@ class StripePaymentService
     /**
      * Verify webhook signature
      */
-    public function verifyWebhookSignature(string $payload, string $sigHeader): \Stripe\Event
+    public function verifyWebhookSignature(string $payload, string $sigHeader): Event
     {
         $webhookSecret = $this->getModeSetting('webhook_secret');
-        
-        if (!$webhookSecret) {
+
+        if (! $webhookSecret) {
             throw new \Exception('Webhook secret not configured.');
         }
 
-        return \Stripe\Webhook::constructEvent($payload, $sigHeader, $webhookSecret);
+        return Webhook::constructEvent($payload, $sigHeader, $webhookSecret);
     }
 
     protected function syncSavedPaymentMethodFromStripe(User $user, string $customerId, string $paymentMethodId): SavedPaymentMethod

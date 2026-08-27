@@ -55,7 +55,7 @@ class ApiSecurityTest extends TestCase
         foreach (app('router')->getRoutes() as $route) {
             $uri = $route->uri();
 
-            if (!Str::startsWith($uri, 'api/v1/')) {
+            if (! Str::startsWith($uri, 'api/v1/')) {
                 continue;
             }
 
@@ -77,7 +77,7 @@ class ApiSecurityTest extends TestCase
 
                 // Non-whitelisted v1 routes must be protected by either sanctum auth
                 // or internal.api shared-secret middleware.
-                if (!$hasSanctumAuth && !$hasInternalGuard) {
+                if (! $hasSanctumAuth && ! $hasInternalGuard) {
                     $unexpectedPublicRoutes[] = sprintf('%s [%s]', $signature, implode(', ', $middleware));
                 }
             }
@@ -85,7 +85,7 @@ class ApiSecurityTest extends TestCase
 
         $this->assertEmpty(
             $unexpectedPublicRoutes,
-            "Unexpected public /api/v1 routes detected:\n" . implode("\n", $unexpectedPublicRoutes)
+            "Unexpected public /api/v1 routes detected:\n".implode("\n", $unexpectedPublicRoutes)
         );
     }
 
@@ -96,7 +96,7 @@ class ApiSecurityTest extends TestCase
         foreach (app('router')->getRoutes() as $route) {
             $uri = $route->uri();
 
-            if (!Str::startsWith($uri, 'api/v1/admin/')) {
+            if (! Str::startsWith($uri, 'api/v1/admin/')) {
                 continue;
             }
 
@@ -105,7 +105,7 @@ class ApiSecurityTest extends TestCase
                 return $entry === 'is_admin' || str_contains($entry, 'IsAdmin');
             });
 
-            if (!$hasAdminGuard) {
+            if (! $hasAdminGuard) {
                 $methods = implode('|', array_values(array_diff($route->methods(), ['HEAD'])));
                 $routesMissingAdminGuard[] = sprintf('%s %s [%s]', $methods, $uri, implode(', ', $middleware));
             }
@@ -113,7 +113,7 @@ class ApiSecurityTest extends TestCase
 
         $this->assertEmpty(
             $routesMissingAdminGuard,
-            "Admin utility routes missing is_admin middleware:\n" . implode("\n", $routesMissingAdminGuard)
+            "Admin utility routes missing is_admin middleware:\n".implode("\n", $routesMissingAdminGuard)
         );
     }
 }

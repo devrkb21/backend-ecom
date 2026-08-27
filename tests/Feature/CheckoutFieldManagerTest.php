@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use App\Models\Setting;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -23,7 +23,7 @@ class CheckoutFieldManagerTest extends TestCase
             'password' => bcrypt('password'),
             'role' => 'admin',
         ]);
-        
+
         // Seed default checkout fields if necessary, or let SiteSettingController handle it
     }
 
@@ -55,10 +55,10 @@ class CheckoutFieldManagerTest extends TestCase
                     'required' => true,
                     'enabled' => true,
                     'sort_order' => 1,
-                ]
+                ],
             ],
             'shipping' => [],
-            'additional' => []
+            'additional' => [],
         ];
 
         $response = $this->actingAs($this->admin, 'web')
@@ -68,11 +68,11 @@ class CheckoutFieldManagerTest extends TestCase
                     'tax_enabled' => '1',
                     'tax_percentage' => '7.5',
                     'checkout_fields_schema' => json_encode($dummyFields),
-                ]
+                ],
             ]);
 
         $response->assertRedirect();
-        
+
         // Assert the values are stored in the database
         $this->assertDatabaseHas('settings', [
             'group' => 'checkout',

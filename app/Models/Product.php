@@ -2,18 +2,18 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
-use App\Traits\Auditable;
 
 class Product extends Model
 {
-    use HasFactory, SoftDeletes, Auditable;
+    use Auditable, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'category_id',
@@ -58,13 +58,13 @@ class Product extends Model
             if (empty($product->slug)) {
                 $product->slug = Str::slug($product->name);
             }
-            if (empty($product->sku) && !request()->boolean('is_sku_optional')) {
+            if (empty($product->sku) && ! request()->boolean('is_sku_optional')) {
                 $product->sku = self::generateUniqueRandomSku();
             }
         });
 
         static::updating(function ($product) {
-            if (empty($product->sku) && !request()->boolean('is_sku_optional')) {
+            if (empty($product->sku) && ! request()->boolean('is_sku_optional')) {
                 $product->sku = self::generateUniqueRandomSku();
             }
         });
@@ -81,14 +81,14 @@ class Product extends Model
         for ($attempt = 0; $attempt < 10; $attempt++) {
             $candidate = (string) random_int(10000000, 99999999);
 
-            if (!self::query()->where('sku', $candidate)->exists()) {
+            if (! self::query()->where('sku', $candidate)->exists()) {
                 return $candidate;
             }
         }
 
         // Astronomically unlikely to be reached (10 collisions in a row out
         // of 90M possible values) — fall back to a value guaranteed unique.
-        return 'SKU-' . Str::random(12);
+        return 'SKU-'.Str::random(12);
     }
 
     public function category(): BelongsTo
@@ -122,6 +122,7 @@ class Product extends Model
     public function getAverageRatingAttribute(): ?float
     {
         $avg = $this->approvedReviews()->avg('rating');
+
         return $avg ? round($avg, 1) : null;
     }
 
@@ -145,8 +146,10 @@ class Product extends Model
     {
         if ($this->relationLoaded('images') && $this->images->isNotEmpty()) {
             $primary = $this->images->firstWhere('is_primary', true);
+
             return $primary ? $primary->image : $this->images->first()->image;
         }
+
         return null;
     }
 
@@ -157,8 +160,10 @@ class Product extends Model
     {
         if ($this->relationLoaded('images') && $this->images->isNotEmpty()) {
             $primary = $this->images->firstWhere('is_primary', true);
+
             return $primary ? $primary->url : $this->images->first()->url;
         }
+
         return null;
     }
 
@@ -208,14 +213,14 @@ class Product extends Model
     {
         $tiers = data_get($this->meta_data, 'quantity_pricing', []);
 
-        if (!is_array($tiers)) {
+        if (! is_array($tiers)) {
             return [];
         }
 
         $normalized = [];
 
         foreach ($tiers as $tier) {
-            if (!is_array($tier)) {
+            if (! is_array($tier)) {
                 continue;
             }
 
@@ -264,10 +269,11 @@ class Product extends Model
      */
     public function getProfitAttribute(): ?float
     {
-        if (!$this->buy_price) {
+        if (! $this->buy_price) {
             return null;
         }
         $sellPrice = $this->sale_price ?? $this->regular_price;
+
         return $sellPrice - $this->buy_price;
     }
 
@@ -276,13 +282,14 @@ class Product extends Model
      */
     public function getProfitMarginAttribute(): ?float
     {
-        if (!$this->buy_price) {
+        if (! $this->buy_price) {
             return null;
         }
         $sellPrice = $this->sale_price ?? $this->regular_price;
         if ($sellPrice <= 0) {
             return 0;
         }
+
         return (($sellPrice - $this->buy_price) / $sellPrice) * 100;
     }
 
@@ -316,7 +323,7 @@ class Product extends Model
 
     public function scopeInStock($query)
     {
-        if (!self::isStockEnabled()) {
+        if (! self::isStockEnabled()) {
             return $query;
         }
 
@@ -455,7 +462,7 @@ class Product extends Model
 
     public function hasStock(int $quantity = 1): bool
     {
-        if (!self::isStockEnabled()) {
+        if (! self::isStockEnabled()) {
             return true;
         }
 
@@ -470,7 +477,7 @@ class Product extends Model
 
     public function decrementStock(int $quantity): void
     {
-        if (!self::isStockEnabled()) {
+        if (! self::isStockEnabled()) {
             return;
         }
 
@@ -490,7 +497,7 @@ class Product extends Model
      */
     public function decrementStockIfAvailable(int $quantity): bool
     {
-        if (!self::isStockEnabled() || $this->hasActiveVariants()) {
+        if (! self::isStockEnabled() || $this->hasActiveVariants()) {
             return true;
         }
 
@@ -508,7 +515,7 @@ class Product extends Model
 
     public function incrementStock(int $quantity): void
     {
-        if (!self::isStockEnabled()) {
+        if (! self::isStockEnabled()) {
             return;
         }
 

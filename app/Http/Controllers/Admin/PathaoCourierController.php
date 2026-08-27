@@ -3,15 +3,17 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use App\Models\Setting;
+use devrkb21\PathaoLaravel\APIBase\PathaoAuth;
+use devrkb21\PathaoLaravel\Commands\PathaoSyncLocationsCommand;
+use devrkb21\PathaoLaravel\Facades\PathaoLaravel;
+use devrkb21\PathaoLaravel\Requests\PathaoStoreRequest;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use devrkb21\PathaoLaravel\APIBase\PathaoAuth;
-use devrkb21\PathaoLaravel\Facades\PathaoLaravel;
-use devrkb21\PathaoLaravel\Requests\PathaoStoreRequest;
 
 class PathaoCourierController extends Controller
 {
@@ -26,12 +28,12 @@ class PathaoCourierController extends Controller
             ->get()
             ->keyBy('key');
 
-        $sentToCourierCount = \App\Models\Order::where('carrier', 'pathao')->count();
-        $pendingSendCount = \App\Models\Order::whereIn('status', ['pending', 'processing'])
-                                 ->where(function($q) {
-                                     $q->whereNull('carrier')->orWhere('carrier', '!=', 'pathao');
-                                 })
-                                 ->count();
+        $sentToCourierCount = Order::where('carrier', 'pathao')->count();
+        $pendingSendCount = Order::whereIn('status', ['pending', 'processing'])
+            ->where(function ($q) {
+                $q->whereNull('carrier')->orWhere('carrier', '!=', 'pathao');
+            })
+            ->count();
 
         // Try to fetch stores list if authenticated
         $stores = [];
@@ -39,14 +41,14 @@ class PathaoCourierController extends Controller
         $connectionMessage = '';
 
         if ($settings->get('pathao_enabled')?->value == '1' &&
-            !empty($settings->get('pathao_client_id')?->value) &&
-            !empty($settings->get('pathao_client_secret')?->value)) {
-            
+            ! empty($settings->get('pathao_client_id')?->value) &&
+            ! empty($settings->get('pathao_client_secret')?->value)) {
+
             try {
                 $this->initializePathao();
-                
+
                 $response = PathaoLaravel::GET_STORES();
-                
+
                 if (isset($response['status']) && $response['status'] == 200) {
                     $stores = $response['data']['data'] ?? [];
                     $connectionSuccess = true;
@@ -91,18 +93,18 @@ class PathaoCourierController extends Controller
             ->pluck('value', 'key')
             ->all();
 
-        $clientId = trim((string)$request->input('pathao_client_id'));
-        $clientSecret = trim((string)$request->input('pathao_client_secret'));
+        $clientId = trim((string) $request->input('pathao_client_id'));
+        $clientSecret = trim((string) $request->input('pathao_client_secret'));
         $sandbox = $request->boolean('pathao_sandbox') ? '1' : '0';
         $enabled = $request->boolean('pathao_enabled') ? '1' : '0';
-        $storeId = trim((string)$request->input('pathao_store_id'));
+        $storeId = trim((string) $request->input('pathao_store_id'));
 
         // If credentials changed or enabled, let's request token programmatically
         $secretToken = $currentValues['pathao_secret_token'] ?? '';
-        
-        if ($enabled === '1' && 
-            (!empty($clientId) && !empty($clientSecret)) &&
-            ($clientId !== ($currentValues['pathao_client_id'] ?? '') || 
+
+        if ($enabled === '1' &&
+            (! empty($clientId) && ! empty($clientSecret)) &&
+            ($clientId !== ($currentValues['pathao_client_id'] ?? '') ||
              $clientSecret !== ($currentValues['pathao_client_secret'] ?? '') ||
              $sandbox !== ($currentValues['pathao_sandbox'] ?? '0') ||
              empty($secretToken))
@@ -115,7 +117,7 @@ class PathaoCourierController extends Controller
                     'pathao.pathao_db_table_name' => 'pathao-courier',
                 ]);
 
-                $auth = new PathaoAuth();
+                $auth = new PathaoAuth;
                 $cred = [
                     'client_id' => $clientId,
                     'client_secret' => $clientSecret,
@@ -124,27 +126,29 @@ class PathaoCourierController extends Controller
                 $response = $auth->getAccessToken($cred);
                 $data = $response->getData();
 
-                if ($response->isSuccess() && !empty($data['secret_token'])) {
+                if ($response->isSuccess() && ! empty($data['secret_token'])) {
                     $secretToken = $data['secret_token'];
                 } else {
                     $errorMsg = $response->getMessage() ?: 'Invalid credentials or connection error.';
+
                     return back()
                         ->withInput()
-                        ->with('error', 'Pathao Authentication Failed: ' . $errorMsg);
+                        ->with('error', 'Pathao Authentication Failed: '.$errorMsg);
                 }
             } catch (\Exception $e) {
-                Log::error('Pathao config token fetch error: ' . $e->getMessage());
+                Log::error('Pathao config token fetch error: '.$e->getMessage());
+
                 return back()
                     ->withInput()
-                    ->with('error', 'Pathao Authentication Exception: ' . $e->getMessage());
+                    ->with('error', 'Pathao Authentication Exception: '.$e->getMessage());
             }
         }
 
         $definitions = $this->definitions();
-        
+
         foreach ($definitions as $index => $definition) {
             $key = $definition['key'];
-            
+
             if ($key === 'pathao_enabled') {
                 $value = $enabled;
             } elseif ($key === 'pathao_sandbox') {
@@ -152,9 +156,9 @@ class PathaoCourierController extends Controller
             } elseif ($key === 'pathao_secret_token') {
                 $value = $secretToken;
             } elseif (array_key_exists($key, $validated)) {
-                $value = trim((string)($validated[$key] ?? ''));
+                $value = trim((string) ($validated[$key] ?? ''));
             } else {
-                $value = (string)($currentValues[$key] ?? ($definition['default'] ?? ''));
+                $value = (string) ($currentValues[$key] ?? ($definition['default'] ?? ''));
             }
 
             Setting::setValue(self::GROUP, $key, $value, [
@@ -177,21 +181,22 @@ class PathaoCourierController extends Controller
     {
         try {
             $this->initializePathao();
-            
+
             // Register command manually since it's restricted to console in the package
-            app(\Illuminate\Contracts\Console\Kernel::class)->registerCommand(app(\devrkb21\PathaoLaravel\Commands\PathaoSyncLocationsCommand::class));
-            
+            app(Kernel::class)->registerCommand(app(PathaoSyncLocationsCommand::class));
+
             // Run pathao sync locations command
             Artisan::call('pathao:sync-locations');
-            
+
             return redirect()
                 ->route('admin.settings.couriers.pathao')
                 ->with('success', 'Locations synced successfully from Pathao API.');
         } catch (\Exception $e) {
-            Log::error('Pathao locations sync error: ' . $e->getMessage());
+            Log::error('Pathao locations sync error: '.$e->getMessage());
+
             return redirect()
                 ->route('admin.settings.couriers.pathao')
-                ->with('error', 'An error occurred during location sync: ' . $e->getMessage());
+                ->with('error', 'An error occurred during location sync: '.$e->getMessage());
         }
     }
 
@@ -212,15 +217,15 @@ class PathaoCourierController extends Controller
         try {
             $this->initializePathao();
 
-            $storeRequest = new PathaoStoreRequest();
+            $storeRequest = new PathaoStoreRequest;
             $storeRequest->replace([
                 'name' => $request->name,
                 'contact_name' => $request->contact_name,
                 'contact_number' => $request->contact_number,
                 'address' => $request->address,
-                'city_id' => (int)$request->city_id,
-                'zone_id' => (int)$request->zone_id,
-                'area_id' => (int)$request->area_id,
+                'city_id' => (int) $request->city_id,
+                'zone_id' => (int) $request->zone_id,
+                'area_id' => (int) $request->area_id,
             ]);
 
             $response = PathaoLaravel::CREATE_STORE($storeRequest);
@@ -228,29 +233,31 @@ class PathaoCourierController extends Controller
             if (isset($response['status']) && $response['status'] == 200) {
                 $storeName = $response['data']['data']['store_name'] ?? $request->name;
                 $storeId = $response['data']['data']['store_id'] ?? null;
-                
+
                 $message = "Store '{$storeName}' created successfully in Pathao.";
                 if ($storeId) {
                     $message .= " Store ID: {$storeId}.";
                 }
-                
+
                 return redirect()
                     ->route('admin.settings.couriers.pathao')
                     ->with('success', $message);
             } else {
                 $errorMsg = $response['message'] ?? 'Unknown API error';
                 if (isset($response['data']) && is_array($response['data'])) {
-                    $errorMsg .= ' - ' . json_encode($response['data']);
+                    $errorMsg .= ' - '.json_encode($response['data']);
                 }
+
                 return back()
                     ->withInput()
-                    ->with('error', 'Pathao API Error: ' . $errorMsg);
+                    ->with('error', 'Pathao API Error: '.$errorMsg);
             }
         } catch (\Exception $e) {
-            Log::error('Pathao Store Creation Error: ' . $e->getMessage());
+            Log::error('Pathao Store Creation Error: '.$e->getMessage());
+
             return back()
                 ->withInput()
-                ->with('error', 'Pathao Store Creation Error: ' . $e->getMessage());
+                ->with('error', 'Pathao Store Creation Error: '.$e->getMessage());
         }
     }
 
@@ -260,11 +267,11 @@ class PathaoCourierController extends Controller
             $this->initializePathao();
 
             $response = PathaoLaravel::GET_MERCHANT_INFO();
-            
+
             if (isset($response['status']) && $response['status'] == 200) {
                 $data = $response['data']['data'] ?? $response['data'] ?? [];
-                
-                if (!empty($data['merchant_name'])) {
+
+                if (! empty($data['merchant_name'])) {
                     // Update cache in database setting
                     Setting::setValue(self::GROUP, 'pathao_merchant_info', $data, [
                         'type' => 'json',
@@ -283,17 +290,19 @@ class PathaoCourierController extends Controller
 
             $errorMsg = $response['message'] ?? 'Invalid response format from Pathao API.';
             if (isset($response['data']) && is_array($response['data'])) {
-                $errorMsg .= ' - ' . json_encode($response['data']);
+                $errorMsg .= ' - '.json_encode($response['data']);
             }
+
             return redirect()
                 ->route('admin.settings.couriers.pathao')
-                ->with('error', 'Pathao Connection Failed: ' . $errorMsg);
+                ->with('error', 'Pathao Connection Failed: '.$errorMsg);
 
         } catch (\Exception $e) {
-            Log::error('Pathao Test Connection Error: ' . $e->getMessage());
+            Log::error('Pathao Test Connection Error: '.$e->getMessage());
+
             return redirect()
                 ->route('admin.settings.couriers.pathao')
-                ->with('error', 'Pathao Connection Error: ' . $e->getMessage());
+                ->with('error', 'Pathao Connection Error: '.$e->getMessage());
         }
     }
 

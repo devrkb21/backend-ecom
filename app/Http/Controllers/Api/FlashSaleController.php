@@ -23,7 +23,7 @@ class FlashSaleController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $flashSales->map(fn($sale) => $this->formatFlashSale($sale)),
+            'data' => $flashSales->map(fn ($sale) => $this->formatFlashSale($sale)),
         ]);
     }
 
@@ -34,7 +34,7 @@ class FlashSaleController extends Controller
     {
         $flashSale = $this->flashSaleService->getFeaturedFlashSale();
 
-        if (!$flashSale) {
+        if (! $flashSale) {
             return response()->json([
                 'success' => true,
                 'data' => null,
@@ -56,7 +56,7 @@ class FlashSaleController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $flashSales->map(fn($sale) => [
+            'data' => $flashSales->map(fn ($sale) => [
                 'id' => $sale->id,
                 'name' => $sale->name,
                 'slug' => $sale->slug,
@@ -75,7 +75,7 @@ class FlashSaleController extends Controller
     {
         $flashSale = $this->flashSaleService->getFlashSaleBySlug($slug);
 
-        if (!$flashSale) {
+        if (! $flashSale) {
             return response()->json([
                 'success' => false,
                 'message' => 'Flash sale not found',
@@ -144,7 +144,7 @@ class FlashSaleController extends Controller
         ];
 
         if ($includeProducts && $sale->relationLoaded('flashSaleProducts')) {
-            $data['products'] = $sale->flashSaleProducts->map(fn($fsp) => [
+            $data['products'] = $sale->flashSaleProducts->map(fn ($fsp) => [
                 'id' => $fsp->product->id,
                 'name' => $fsp->product->name,
                 'slug' => $fsp->product->slug,
@@ -160,7 +160,7 @@ class FlashSaleController extends Controller
                 'per_user_limit' => $fsp->per_user_limit,
             ]);
         } elseif ($includeProducts && $sale->relationLoaded('products')) {
-            $data['products'] = $sale->products->map(fn($product) => [
+            $data['products'] = $sale->products->map(fn ($product) => [
                 'id' => $product->id,
                 'name' => $product->name,
                 'slug' => $product->slug,

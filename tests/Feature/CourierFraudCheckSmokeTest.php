@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\CourierCheckResult;
 use App\Models\Order;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class CourierFraudCheckSmokeTest extends TestCase
@@ -13,6 +15,7 @@ class CourierFraudCheckSmokeTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private Order $order;
 
     protected function setUp(): void
@@ -27,7 +30,7 @@ class CourierFraudCheckSmokeTest extends TestCase
         ]);
 
         $this->order = Order::create([
-            'order_number' => 'SMOKE-' . uniqid(),
+            'order_number' => 'SMOKE-'.uniqid(),
             'status' => 'pending',
             'order_source' => 'web',
             'subtotal' => 100,
@@ -68,9 +71,9 @@ class CourierFraudCheckSmokeTest extends TestCase
         Setting::setValue('courier_check', 'pathao_passwords', 'fakepass');
         Setting::clearCache('courier_check');
 
-        \Illuminate\Support\Facades\Http::fake([
-            'merchant.pathao.com/api/v1/login' => \Illuminate\Support\Facades\Http::response(['access_token' => 'tok'], 200),
-            'merchant.pathao.com/api/v1/user/success' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            'merchant.pathao.com/api/v1/login' => Http::response(['access_token' => 'tok'], 200),
+            'merchant.pathao.com/api/v1/user/success' => Http::response([
                 'data' => ['customer' => ['successful_delivery' => 8, 'total_delivery' => 10]],
             ], 200),
         ]);
@@ -115,9 +118,9 @@ class CourierFraudCheckSmokeTest extends TestCase
         Setting::setValue('courier_check', 'pathao_passwords', 'fakepass');
         Setting::clearCache('courier_check');
 
-        \Illuminate\Support\Facades\Http::fake([
-            'merchant.pathao.com/api/v1/login' => \Illuminate\Support\Facades\Http::response(['access_token' => 'tok'], 200),
-            'merchant.pathao.com/api/v1/user/success' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            'merchant.pathao.com/api/v1/login' => Http::response(['access_token' => 'tok'], 200),
+            'merchant.pathao.com/api/v1/user/success' => Http::response([
                 'data' => ['customer' => ['successful_delivery' => 3, 'total_delivery' => 10]],
             ], 200),
         ]);
@@ -227,7 +230,7 @@ class CourierFraudCheckSmokeTest extends TestCase
 
     public function test_recent_check_can_be_viewed_from_cache_without_a_live_courier_call(): void
     {
-        $cached = \App\Models\CourierCheckResult::create([
+        $cached = CourierCheckResult::create([
             'normalized_phone' => '01755512345',
             'raw_result' => [
                 'steadfast' => ['success' => 4, 'cancel' => 6, 'total' => 10, 'success_ratio' => 40],
@@ -273,11 +276,11 @@ class CourierFraudCheckSmokeTest extends TestCase
         Setting::setValue('courier_check', 'carrybee_passwords', 'carrybeepass');
         Setting::clearCache('courier_check');
 
-        \Illuminate\Support\Facades\Http::fake([
-            'merchant.carrybee.com/api/auth/csrf' => \Illuminate\Support\Facades\Http::response(['csrfToken' => 'tok'], 200),
-            'merchant.carrybee.com/api/auth/callback/login' => \Illuminate\Support\Facades\Http::response('', 200),
-            'merchant.carrybee.com/api/auth/session' => \Illuminate\Support\Facades\Http::response(['accessToken' => 'atok', 'user' => ['selectedBusinessId' => 'biz1']], 200),
-            'api-merchant.carrybee.com/*' => \Illuminate\Support\Facades\Http::response(['error' => 'Not found'], 404),
+        Http::fake([
+            'merchant.carrybee.com/api/auth/csrf' => Http::response(['csrfToken' => 'tok'], 200),
+            'merchant.carrybee.com/api/auth/callback/login' => Http::response('', 200),
+            'merchant.carrybee.com/api/auth/session' => Http::response(['accessToken' => 'atok', 'user' => ['selectedBusinessId' => 'biz1']], 200),
+            'api-merchant.carrybee.com/*' => Http::response(['error' => 'Not found'], 404),
         ]);
 
         $response = $this->actingAs($this->admin, 'web')
@@ -288,7 +291,7 @@ class CourierFraudCheckSmokeTest extends TestCase
         $this->assertStringContainsString('New customer', $html);
         $this->assertStringNotContainsString('Failed to fetch from Carrybee', $html);
 
-        $cached = \App\Models\CourierCheckResult::where('normalized_phone', '01799999998')->first();
+        $cached = CourierCheckResult::where('normalized_phone', '01799999998')->first();
         $this->assertNotNull($cached);
         $this->assertArrayNotHasKey('error', $cached->raw_result['carrybee']);
         $this->assertTrue($cached->raw_result['carrybee']['new_customer'] ?? false);
@@ -302,9 +305,9 @@ class CourierFraudCheckSmokeTest extends TestCase
         Setting::setValue('courier_check', 'pathao_passwords', 'fakepass');
         Setting::clearCache('courier_check');
 
-        \Illuminate\Support\Facades\Http::fake([
-            'merchant.pathao.com/api/v1/login' => \Illuminate\Support\Facades\Http::response(['access_token' => 'tok'], 200),
-            'merchant.pathao.com/api/v1/user/success' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            'merchant.pathao.com/api/v1/login' => Http::response(['access_token' => 'tok'], 200),
+            'merchant.pathao.com/api/v1/user/success' => Http::response([
                 'data' => [
                     'customer' => ['successful_delivery' => 8, 'total_delivery' => 10],
                     'customer_rating' => 'excellent_customer',
@@ -327,7 +330,7 @@ class CourierFraudCheckSmokeTest extends TestCase
         Setting::setValue('courier_check', 'pathao_passwords', 'fakepass');
         Setting::clearCache('courier_check');
 
-        \App\Models\CourierCheckResult::create([
+        CourierCheckResult::create([
             'normalized_phone' => '01755500001',
             'raw_result' => ['pathao' => ['success' => 5, 'cancel' => 1, 'total' => 6, 'success_ratio' => 83.33]],
             'total_success' => 5,
@@ -339,14 +342,14 @@ class CourierFraudCheckSmokeTest extends TestCase
             'checked_at' => now()->subHours(2),
         ]);
 
-        \Illuminate\Support\Facades\Http::fake();
+        Http::fake();
 
         $response = $this->actingAs($this->admin, 'web')
             ->postJson('/admin/orders/courier-checker/search', ['phone' => '01755500001']);
 
         $response->assertOk();
         $response->assertJson(['success' => true, 'from_cache' => true]);
-        \Illuminate\Support\Facades\Http::assertNothingSent();
+        Http::assertNothingSent();
         $this->assertStringContainsString('Cached', $response->json('html'));
     }
 
@@ -356,7 +359,7 @@ class CourierFraudCheckSmokeTest extends TestCase
         Setting::setValue('courier_check', 'pathao_passwords', 'fakepass');
         Setting::clearCache('courier_check');
 
-        \App\Models\CourierCheckResult::create([
+        CourierCheckResult::create([
             'normalized_phone' => '01755500002',
             'raw_result' => ['pathao' => ['success' => 5, 'cancel' => 1, 'total' => 6, 'success_ratio' => 83.33]],
             'total_success' => 5,
@@ -368,9 +371,9 @@ class CourierFraudCheckSmokeTest extends TestCase
             'checked_at' => now()->subHours(2),
         ]);
 
-        \Illuminate\Support\Facades\Http::fake([
-            'merchant.pathao.com/api/v1/login' => \Illuminate\Support\Facades\Http::response(['access_token' => 'tok'], 200),
-            'merchant.pathao.com/api/v1/user/success' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            'merchant.pathao.com/api/v1/login' => Http::response(['access_token' => 'tok'], 200),
+            'merchant.pathao.com/api/v1/user/success' => Http::response([
                 'data' => ['customer' => ['successful_delivery' => 9, 'total_delivery' => 10]],
             ], 200),
         ]);
@@ -380,7 +383,7 @@ class CourierFraudCheckSmokeTest extends TestCase
 
         $response->assertOk();
         $response->assertJson(['success' => true, 'from_cache' => false]);
-        \Illuminate\Support\Facades\Http::assertSent(function ($request) {
+        Http::assertSent(function ($request) {
             return str_contains($request->url(), 'merchant.pathao.com/api/v1/login');
         });
         $this->assertStringContainsString('Fresh', $response->json('html'));
@@ -392,7 +395,7 @@ class CourierFraudCheckSmokeTest extends TestCase
         Setting::setValue('courier_check', 'pathao_passwords', 'fakepass');
         Setting::clearCache('courier_check');
 
-        \App\Models\CourierCheckResult::create([
+        CourierCheckResult::create([
             'normalized_phone' => '01755500003',
             'raw_result' => ['pathao' => ['success' => 5, 'cancel' => 1, 'total' => 6, 'success_ratio' => 83.33]],
             'total_success' => 5,
@@ -404,9 +407,9 @@ class CourierFraudCheckSmokeTest extends TestCase
             'checked_at' => now()->subHours(7),
         ]);
 
-        \Illuminate\Support\Facades\Http::fake([
-            'merchant.pathao.com/api/v1/login' => \Illuminate\Support\Facades\Http::response(['access_token' => 'tok'], 200),
-            'merchant.pathao.com/api/v1/user/success' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            'merchant.pathao.com/api/v1/login' => Http::response(['access_token' => 'tok'], 200),
+            'merchant.pathao.com/api/v1/user/success' => Http::response([
                 'data' => ['customer' => ['successful_delivery' => 9, 'total_delivery' => 10]],
             ], 200),
         ]);
@@ -416,7 +419,7 @@ class CourierFraudCheckSmokeTest extends TestCase
 
         $response->assertOk();
         $response->assertJson(['success' => true, 'from_cache' => false]);
-        \Illuminate\Support\Facades\Http::assertSent(function ($request) {
+        Http::assertSent(function ($request) {
             return str_contains($request->url(), 'merchant.pathao.com/api/v1/login');
         });
     }
@@ -427,7 +430,7 @@ class CourierFraudCheckSmokeTest extends TestCase
         Setting::setValue('courier_check', 'pathao_passwords', 'fakepass');
         Setting::clearCache('courier_check');
 
-        \App\Models\CourierCheckResult::create([
+        CourierCheckResult::create([
             'normalized_phone' => $this->order->normalized_phone,
             'raw_result' => ['pathao' => ['success' => 5, 'cancel' => 1, 'total' => 6, 'success_ratio' => 83.33]],
             'total_success' => 5,
@@ -440,18 +443,18 @@ class CourierFraudCheckSmokeTest extends TestCase
             'last_order_id' => $this->order->id,
         ]);
 
-        \Illuminate\Support\Facades\Http::fake();
+        Http::fake();
 
         $cachedResponse = $this->actingAs($this->admin, 'web')
             ->postJson("/admin/orders/{$this->order->id}/courier-history-check", ['refresh' => false]);
 
         $cachedResponse->assertOk();
         $cachedResponse->assertJson(['success' => true, 'from_cache' => true]);
-        \Illuminate\Support\Facades\Http::assertNothingSent();
+        Http::assertNothingSent();
 
-        \Illuminate\Support\Facades\Http::fake([
-            'merchant.pathao.com/api/v1/login' => \Illuminate\Support\Facades\Http::response(['access_token' => 'tok'], 200),
-            'merchant.pathao.com/api/v1/user/success' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            'merchant.pathao.com/api/v1/login' => Http::response(['access_token' => 'tok'], 200),
+            'merchant.pathao.com/api/v1/user/success' => Http::response([
                 'data' => ['customer' => ['successful_delivery' => 9, 'total_delivery' => 10]],
             ], 200),
         ]);
@@ -461,7 +464,7 @@ class CourierFraudCheckSmokeTest extends TestCase
 
         $refreshResponse->assertOk();
         $refreshResponse->assertJson(['success' => true, 'from_cache' => false]);
-        \Illuminate\Support\Facades\Http::assertSent(function ($request) {
+        Http::assertSent(function ($request) {
             return str_contains($request->url(), 'merchant.pathao.com/api/v1/login');
         });
     }

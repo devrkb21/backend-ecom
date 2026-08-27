@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 class CategoryService
 {
     protected const CACHE_KEY = 'categories';
+
     protected const CACHE_TTL = 3600; // 1 hour
 
     public function __construct(
@@ -18,21 +19,21 @@ class CategoryService
 
     public function getAllCategories(): Collection
     {
-        return Cache::remember(self::CACHE_KEY . '.all', self::CACHE_TTL, function () {
+        return Cache::remember(self::CACHE_KEY.'.all', self::CACHE_TTL, function () {
             return $this->categoryRepository->getActiveOrdered();
         });
     }
 
     public function getMenuCategories(): Collection
     {
-        return Cache::remember(self::CACHE_KEY . '.menu', self::CACHE_TTL, function () {
+        return Cache::remember(self::CACHE_KEY.'.menu', self::CACHE_TTL, function () {
             return $this->categoryRepository->getMenuCategories();
         });
     }
 
     public function getParentCategories(): Collection
     {
-        return Cache::remember(self::CACHE_KEY . '.parents', self::CACHE_TTL, function () {
+        return Cache::remember(self::CACHE_KEY.'.parents', self::CACHE_TTL, function () {
             return $this->categoryRepository->getParentCategories();
         });
     }
@@ -49,7 +50,7 @@ class CategoryService
 
     public function getChildCategories(int $parentId): Collection
     {
-        return Cache::remember(self::CACHE_KEY . ".children.{$parentId}", self::CACHE_TTL, function () use ($parentId) {
+        return Cache::remember(self::CACHE_KEY.".children.{$parentId}", self::CACHE_TTL, function () use ($parentId) {
             return $this->categoryRepository->getChildCategories($parentId);
         });
     }
@@ -58,6 +59,7 @@ class CategoryService
     {
         $category = $this->categoryRepository->create($data);
         $this->clearCache();
+
         return $category;
     }
 
@@ -65,6 +67,7 @@ class CategoryService
     {
         $category = $this->categoryRepository->update($id, $data);
         $this->clearCache();
+
         return $category;
     }
 
@@ -72,18 +75,19 @@ class CategoryService
     {
         $result = $this->categoryRepository->delete($id);
         $this->clearCache();
+
         return $result;
     }
 
     protected function clearCache(): void
     {
-        Cache::forget(self::CACHE_KEY . '.all');
-        Cache::forget(self::CACHE_KEY . '.menu');
-        Cache::forget(self::CACHE_KEY . '.parents');
+        Cache::forget(self::CACHE_KEY.'.all');
+        Cache::forget(self::CACHE_KEY.'.menu');
+        Cache::forget(self::CACHE_KEY.'.parents');
         // Clear child category caches
         $categories = $this->categoryRepository->all();
         foreach ($categories as $category) {
-            Cache::forget(self::CACHE_KEY . ".children.{$category->id}");
+            Cache::forget(self::CACHE_KEY.".children.{$category->id}");
         }
     }
 }

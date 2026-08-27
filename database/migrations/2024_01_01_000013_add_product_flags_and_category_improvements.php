@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         // Only add show_in_menu to categories (other columns already exist)
-        if (!Schema::hasColumn('categories', 'show_in_menu')) {
+        if (! Schema::hasColumn('categories', 'show_in_menu')) {
             Schema::table('categories', function (Blueprint $table) {
                 $table->boolean('show_in_menu')->default(true)->after('is_active');
             });

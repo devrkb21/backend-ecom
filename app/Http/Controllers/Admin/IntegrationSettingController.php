@@ -94,7 +94,7 @@ class IntegrationSettingController extends Controller
             } else {
                 $toggleKey = $fieldToggleMap[$key] ?? null;
 
-                if ($toggleKey && !$request->boolean($toggleKey)) {
+                if ($toggleKey && ! $request->boolean($toggleKey)) {
                     // Preserve existing value when the integration is disabled.
                     $value = (string) ($currentValues[$key] ?? ($definition['default'] ?? ''));
                 } elseif (array_key_exists($key, $validated)) {
@@ -472,14 +472,14 @@ class IntegrationSettingController extends Controller
         $normalized = [];
 
         foreach ($entries as $entry) {
-            if (!is_array($entry)) {
+            if (! is_array($entry)) {
                 continue;
             }
 
             $provider = strtolower(trim((string) ($entry['provider'] ?? '')));
             $code = trim((string) ($entry['code'] ?? ''));
 
-            if (!in_array($provider, $allowedProviders, true) || $code === '') {
+            if (! in_array($provider, $allowedProviders, true) || $code === '') {
                 continue;
             }
 

@@ -10,7 +10,6 @@ use App\Models\Review;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Validation\Rule;
 
 class ReviewController extends Controller
 {
@@ -71,10 +70,10 @@ class ReviewController extends Controller
         $product = Product::findOrFail($productId);
 
         $reviews = Review::where('product_id', $productId)->approved();
-        
+
         $totalReviews = $reviews->count();
         $averageRating = $reviews->avg('rating') ?? 0;
-        
+
         // Rating distribution
         $distribution = [];
         for ($i = 5; $i >= 1; $i--) {
@@ -171,7 +170,7 @@ class ReviewController extends Controller
             })
             ->exists();
 
-        if (!$hasPurchased) {
+        if (! $hasPurchased) {
             return response()->json([
                 'success' => false,
                 'message' => 'You can only review products you have purchased and received.',

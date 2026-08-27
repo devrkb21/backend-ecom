@@ -11,9 +11,6 @@ class PaymentGatewayController extends Controller
 {
     /**
      * Get all active payment gateways for checkout
-     * 
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -21,24 +18,24 @@ class PaymentGatewayController extends Controller
         $currency = $request->query('currency', 'BDT');
 
         $gateways = PaymentGateway::getActive();
-        
+
         // Only filter by amount/currency if amount is provided
         if ($amount !== null && $amount > 0) {
-            $gateways = $gateways->filter(fn(PaymentGateway $gateway) => $gateway->isAvailableFor((float) $amount, $currency));
+            $gateways = $gateways->filter(fn (PaymentGateway $gateway) => $gateway->isAvailableFor((float) $amount, $currency));
         }
-        
-        $gateways = $gateways->map(fn(PaymentGateway $gateway) => [
-                'code' => $gateway->code,
-                'name' => $gateway->name,
-                'description' => $gateway->description,
-                'instructions' => $gateway->instructions,
-                'icon' => $gateway->icon,
-                'requires_redirect' => $gateway->requiresRedirect(),
-                'is_pay_on_delivery' => $gateway->isPayOnDelivery(),
-                'min_amount' => $gateway->min_amount,
-                'max_amount' => $gateway->max_amount,
-                'extra_charge' => $amount ? $this->calculateExtraCharge($gateway, (float) $amount) : null,
-            ])
+
+        $gateways = $gateways->map(fn (PaymentGateway $gateway) => [
+            'code' => $gateway->code,
+            'name' => $gateway->name,
+            'description' => $gateway->description,
+            'instructions' => $gateway->instructions,
+            'icon' => $gateway->icon,
+            'requires_redirect' => $gateway->requiresRedirect(),
+            'is_pay_on_delivery' => $gateway->isPayOnDelivery(),
+            'min_amount' => $gateway->min_amount,
+            'max_amount' => $gateway->max_amount,
+            'extra_charge' => $amount ? $this->calculateExtraCharge($gateway, (float) $amount) : null,
+        ])
             ->values();
 
         return response()->json([
@@ -49,15 +46,12 @@ class PaymentGatewayController extends Controller
 
     /**
      * Get a specific payment gateway details
-     * 
-     * @param string $code
-     * @return JsonResponse
      */
     public function show(string $code): JsonResponse
     {
         $gateway = PaymentGateway::findByCode($code);
 
-        if (!$gateway || !$gateway->is_active) {
+        if (! $gateway || ! $gateway->is_active) {
             return response()->json([
                 'success' => false,
                 'message' => 'Payment gateway not found or inactive',

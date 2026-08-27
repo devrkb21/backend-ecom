@@ -4,8 +4,8 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\OrderStatus;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 
 class UpdateOrderStatusRequest extends FormRequest
 {

@@ -10,6 +10,7 @@ use Illuminate\Console\Command;
 class CheckLowStock extends Command
 {
     protected $signature = 'inventory:check-low-stock {--threshold=5 : Stock level threshold}';
+
     protected $description = 'Check for products with low stock and notify admins';
 
     public function handle(): int
@@ -23,6 +24,7 @@ class CheckLowStock extends Command
 
         if ($lowStockProducts->isEmpty()) {
             $this->info('No low stock products found.');
+
             return Command::SUCCESS;
         }
 

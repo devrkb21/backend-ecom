@@ -26,7 +26,7 @@ class ReconcileOrderUsersAndAddresses extends Command
             ->value('id');
 
         $this->info('Reconciling existing orders and customer addresses...');
-        $this->line('Mode: ' . ($dryRun ? 'dry-run (no writes)' : 'write'));
+        $this->line('Mode: '.($dryRun ? 'dry-run (no writes)' : 'write'));
 
         $inspectedOrders = 0;
         $matchedOrders = 0;
@@ -62,7 +62,7 @@ class ReconcileOrderUsersAndAddresses extends Command
                 $phone = (string) $order->shipping_phone;
 
                 $matchedUser = $this->findExistingUserByContact($email, $phone, $guestEmail);
-                if (!$matchedUser) {
+                if (! $matchedUser) {
                     continue;
                 }
 
@@ -112,7 +112,7 @@ class ReconcileOrderUsersAndAddresses extends Command
                     ->orderByDesc('id')
                     ->first();
 
-                if (!$latestOrder) {
+                if (! $latestOrder) {
                     continue;
                 }
 
@@ -166,7 +166,7 @@ class ReconcileOrderUsersAndAddresses extends Command
 
         $matchedCustomerByPhone = User::query()
             ->where('role', User::ROLE_CUSTOMER)
-            ->whereRaw($normalizedPhoneSql . ' = ?', [$normalizedPhone])
+            ->whereRaw($normalizedPhoneSql.' = ?', [$normalizedPhone])
             ->orderByDesc('id')
             ->first();
 
@@ -175,7 +175,7 @@ class ReconcileOrderUsersAndAddresses extends Command
         }
 
         return User::query()
-            ->whereRaw($normalizedPhoneSql . ' = ?', [$normalizedPhone])
+            ->whereRaw($normalizedPhoneSql.' = ?', [$normalizedPhone])
             ->orderByDesc('id')
             ->first();
     }

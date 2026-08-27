@@ -48,7 +48,7 @@ class OrderActivityLog extends Model
             'type' => $type,
             'title' => $title,
             'description' => $description,
-            'metadata' => !empty($metadata) ? $metadata : null,
+            'metadata' => ! empty($metadata) ? $metadata : null,
         ]);
     }
 }

@@ -48,6 +48,7 @@ class UpdateCategoryRequest extends FormRequest
             while ($ancestorId && $depth < 100) {
                 if ($ancestorId === $categoryId) {
                     $validator->errors()->add('parent_id', 'This parent would create a category loop.');
+
                     return;
                 }
 

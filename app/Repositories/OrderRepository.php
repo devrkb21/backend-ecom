@@ -34,6 +34,14 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
             ->paginate($perPage);
     }
 
+    public function paginateCreatedBefore(\DateTimeInterface $before, int $perPage = 15): LengthAwarePaginator
+    {
+        return $this->model
+            ->where('created_at', '<=', $before)
+            ->orderByDesc('created_at')
+            ->paginate($perPage);
+    }
+
     public function findByOrderNumber(string $orderNumber): ?Order
     {
         $normalized = strtolower(trim($orderNumber));
@@ -57,6 +65,7 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
     {
         $order = $this->findOrFail($orderId);
         $order->update(['status' => $status]);
+
         return $order->fresh(['items.product', 'items.variant.attributeValues.attribute', 'payment']);
     }
 

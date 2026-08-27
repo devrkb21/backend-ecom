@@ -15,7 +15,7 @@ class PaymentGatewayController extends Controller
     public function index()
     {
         $gateways = PaymentGateway::orderBy('sort_order')->get();
-        
+
         return view('admin.settings.payment-gateways', compact('gateways'));
     }
 
@@ -25,13 +25,14 @@ class PaymentGatewayController extends Controller
     public function toggle(PaymentGateway $gateway)
     {
         // For gateways that require configuration, check if they're configured
-        if (!$gateway->is_active && $this->requiresConfiguration($gateway)) {
+        if (! $gateway->is_active && $this->requiresConfiguration($gateway)) {
             return back()->with('error', "Please configure {$gateway->name} settings before enabling.");
         }
 
-        $gateway->update(['is_active' => !$gateway->is_active]);
+        $gateway->update(['is_active' => ! $gateway->is_active]);
 
         $status = $gateway->is_active ? 'enabled' : 'disabled';
+
         return back()->with('success', "{$gateway->name} has been {$status}.");
     }
 
@@ -68,11 +69,11 @@ class PaymentGatewayController extends Controller
         $settings['extra_charge'] = (float) $request->input('settings.extra_charge', 0);
         $settings['extra_charge_type'] = $request->input('settings.extra_charge_type', 'fixed');
         $settings['extra_charge_label'] = trim((string) $request->input('settings.extra_charge_label', ''));
-        
+
         switch ($gateway->code) {
             case 'cod':
                 break;
-                
+
             case 'stripe':
                 $settings['mode'] = $request->input('settings.mode', 'test');
                 $settings['test'] = [
@@ -86,7 +87,7 @@ class PaymentGatewayController extends Controller
                     'webhook_secret' => $request->input('settings.live.webhook_secret', ''),
                 ];
                 break;
-                
+
             case 'bkash':
                 $settings['mode'] = $request->input('settings.mode', 'sandbox');
                 $settings['sandbox'] = [
@@ -137,13 +138,15 @@ class PaymentGatewayController extends Controller
     private function requiresConfiguration(PaymentGateway $gateway): bool
     {
         $mode = $gateway->getSetting('mode', 'test');
-        
+
         switch ($gateway->code) {
             case 'stripe':
                 $env = $mode === 'test' ? 'test' : 'live';
+
                 return empty($gateway->getSetting("{$env}.public_key")) || empty($gateway->getSetting("{$env}.secret_key"));
             case 'bkash':
                 $env = $mode === 'sandbox' ? 'sandbox' : 'live';
+
                 return empty($gateway->getSetting("{$env}.app_key")) || empty($gateway->getSetting("{$env}.app_secret"));
             default:
                 return false;

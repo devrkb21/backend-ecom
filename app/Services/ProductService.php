@@ -11,7 +11,9 @@ use Illuminate\Support\Facades\Cache;
 class ProductService
 {
     protected const CACHE_KEY = 'products.v2';
+
     protected const CACHE_VERSION_KEY = 'products.v2.version';
+
     protected const CACHE_TTL = 3600; // 1 hour
 
     public function __construct(
@@ -20,8 +22,8 @@ class ProductService
 
     public function getAllProducts(int $perPage = 15): LengthAwarePaginator
     {
-        $cacheKey = $this->versionedKey("page.{$perPage}." . request()->get('page', 1));
-        
+        $cacheKey = $this->versionedKey("page.{$perPage}.".request()->get('page', 1));
+
         return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($perPage) {
             return $this->productRepository->getActivePaginated($perPage);
         });
@@ -67,7 +69,7 @@ class ProductService
     {
         $page = request()->get('page', 1);
         $cacheKey = $this->versionedKey("category.{$categoryId}.{$perPage}.{$page}");
-        
+
         return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($categoryId, $perPage) {
             return $this->productRepository->getByCategoryPaginated($categoryId, $perPage);
         });
@@ -82,6 +84,7 @@ class ProductService
     {
         $product = $this->productRepository->create($data);
         $this->clearCache();
+
         return $product;
     }
 
@@ -89,6 +92,7 @@ class ProductService
     {
         $product = $this->productRepository->update($id, $data);
         $this->clearCache();
+
         return $product;
     }
 
@@ -96,6 +100,7 @@ class ProductService
     {
         $result = $this->productRepository->delete($id);
         $this->clearCache();
+
         return $result;
     }
 
@@ -104,6 +109,7 @@ class ProductService
         $product = $this->getProductById($id);
         $product->update(['stock_quantity' => $quantity]);
         $this->clearCache();
+
         return $product->fresh();
     }
 
@@ -116,6 +122,7 @@ class ProductService
     {
         if (Cache::has(self::CACHE_VERSION_KEY)) {
             Cache::increment(self::CACHE_VERSION_KEY);
+
             return;
         }
 
@@ -126,6 +133,6 @@ class ProductService
     {
         $version = (int) Cache::get(self::CACHE_VERSION_KEY, 1);
 
-        return self::CACHE_KEY . ".v{$version}.{$suffix}";
+        return self::CACHE_KEY.".v{$version}.{$suffix}";
     }
 }

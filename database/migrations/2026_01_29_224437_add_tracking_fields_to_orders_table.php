@@ -15,7 +15,7 @@ return new class extends Migration
             $table->timestamp('shipped_at')->nullable()->after('carrier_tracking_url');
             $table->timestamp('estimated_delivery_at')->nullable()->after('shipped_at');
             $table->timestamp('delivered_at')->nullable()->after('estimated_delivery_at');
-            
+
             $table->index('tracking_number');
         });
     }

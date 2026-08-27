@@ -12,7 +12,7 @@ class EnsureAdminPermission
     {
         $user = $request->user();
 
-        if (!$user || !$user->canAccessAdminPanel()) {
+        if (! $user || ! $user->canAccessAdminPanel()) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
@@ -37,7 +37,7 @@ class EnsureAdminPermission
             return redirect()->route('admin.dashboard')->with('error', 'You do not have permission to access this section.');
         }
 
-        if ($resolvedPermission && !$user->hasAdminPermission($resolvedPermission)) {
+        if ($resolvedPermission && ! $user->hasAdminPermission($resolvedPermission)) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'Permission denied.',
@@ -83,6 +83,7 @@ class EnsureAdminPermission
         $exact = [
             'admin.dashboard' => 'dashboard.view',
             'admin.global-search' => 'dashboard.view',
+            'admin.license' => 'settings.manage',
         ];
 
         if (isset($exact[$routeName])) {
@@ -115,6 +116,7 @@ class EnsureAdminPermission
             'admin.bi.' => 'analytics.view',
             'admin.users.' => 'users.manage',
             'admin.settings.' => 'settings.manage',
+            'admin.license.' => 'settings.manage',
         ];
 
         foreach ($map as $prefix => $permission) {

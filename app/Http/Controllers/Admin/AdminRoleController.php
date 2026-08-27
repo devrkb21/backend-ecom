@@ -55,7 +55,7 @@ class AdminRoleController extends Controller
             $permissions = $this->ensureDashboardPermission($permissions);
         }
 
-        if (!$canAccessAdminPanel && $permissions !== ['*']) {
+        if (! $canAccessAdminPanel && $permissions !== ['*']) {
             $permissions = [];
         }
 
@@ -100,7 +100,7 @@ class AdminRoleController extends Controller
             ? $role->key
             : $this->makeRoleKey($validated['key'] ?? $validated['name']);
 
-        if (!$role->is_system && AdminRole::query()->where('key', $newKey)->where('id', '!=', $role->id)->exists()) {
+        if (! $role->is_system && AdminRole::query()->where('key', $newKey)->where('id', '!=', $role->id)->exists()) {
             return back()->withErrors([
                 'key' => 'Role key already exists. Choose a different key.',
             ])->withInput();
@@ -120,7 +120,7 @@ class AdminRoleController extends Controller
             $permissions = $this->ensureDashboardPermission($permissions);
         }
 
-        if (!$canAccessAdminPanel && $permissions !== ['*']) {
+        if (! $canAccessAdminPanel && $permissions !== ['*']) {
             $permissions = [];
         }
 
@@ -163,7 +163,7 @@ class AdminRoleController extends Controller
             ->value();
 
         if ($normalized === '') {
-            $normalized = 'role_' . Str::lower(Str::random(6));
+            $normalized = 'role_'.Str::lower(Str::random(6));
         }
 
         return $normalized;
@@ -171,7 +171,7 @@ class AdminRoleController extends Controller
 
     private function ensureDashboardPermission(array $permissions): array
     {
-        if (!in_array('dashboard.view', $permissions, true)) {
+        if (! in_array('dashboard.view', $permissions, true)) {
             $permissions[] = 'dashboard.view';
         }
 

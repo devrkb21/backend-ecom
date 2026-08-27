@@ -2,10 +2,9 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Carbon\Carbon;
 
 class Coupon extends Model
 {
@@ -68,7 +67,7 @@ class Coupon extends Model
     public function isValid(): bool
     {
         // Check if active
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return false;
         }
 
@@ -95,11 +94,11 @@ class Coupon extends Model
      */
     public function isValidForUser(?User $user): bool
     {
-        if (!$this->isValid()) {
+        if (! $this->isValid()) {
             return false;
         }
 
-        if (!$user) {
+        if (! $user) {
             return $this->allow_guest_checkout;
         }
 
@@ -121,13 +120,15 @@ class Coupon extends Model
     {
         $errors = [];
 
-        if (!$cart->user_id && !$this->allow_guest_checkout) {
+        if (! $cart->user_id && ! $this->allow_guest_checkout) {
             $errors[] = 'Please login to use this coupon.';
+
             return $errors;
         }
 
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             $errors[] = 'This coupon is no longer active.';
+
             return $errors;
         }
 
@@ -144,7 +145,7 @@ class Coupon extends Model
         }
 
         // Check minimum order amount
-        $cartTotal = $cart->items->sum(fn($item) => $item->price * $item->quantity);
+        $cartTotal = $cart->items->sum(fn ($item) => $item->price * $item->quantity);
         if ($this->minimum_order_amount && $cartTotal < $this->minimum_order_amount) {
             $errors[] = "Minimum order amount of ৳{$this->minimum_order_amount} required.";
         }
@@ -158,7 +159,7 @@ class Coupon extends Model
                     break;
                 }
             }
-            if (!$hasApplicableItem) {
+            if (! $hasApplicableItem) {
                 $errors[] = 'This coupon is not valid for the items in your cart.';
             }
         }
@@ -225,7 +226,7 @@ class Coupon extends Model
             $discount = min($this->value, $applicableTotal);
         } else { // percentage
             $discount = $applicableTotal * ($this->value / 100);
-            
+
             // Apply maximum discount cap if set
             if ($this->maximum_discount && $discount > $this->maximum_discount) {
                 $discount = $this->maximum_discount;
@@ -250,7 +251,7 @@ class Coupon extends Model
             $discount = min($this->value, $amount);
         } else { // percentage
             $discount = $amount * ($this->value / 100);
-            
+
             if ($this->maximum_discount && $discount > $this->maximum_discount) {
                 $discount = $this->maximum_discount;
             }
@@ -312,7 +313,7 @@ class Coupon extends Model
      */
     public function getStatusAttribute(): string
     {
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return 'inactive';
         }
 
@@ -337,9 +338,10 @@ class Coupon extends Model
     public function getFormattedValueAttribute(): string
     {
         if ($this->type === 'percentage') {
-            return $this->value . '%';
+            return $this->value.'%';
         }
-        return '৳' . number_format((float) $this->value, 2);
+
+        return '৳'.number_format((float) $this->value, 2);
     }
 
     /**

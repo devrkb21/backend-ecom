@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -18,7 +19,7 @@ return new class extends Migration
         });
 
         // Seed existing data
-        \Illuminate\Support\Facades\DB::statement('
+        DB::statement('
             INSERT INTO category_product (category_id, product_id)
             SELECT category_id, id FROM products WHERE category_id IS NOT NULL
         ');

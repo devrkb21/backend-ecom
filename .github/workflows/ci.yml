@@ -1,0 +1,152 @@
+name: CI
+
+on:
+  push:
+    branches: [dev, pub, main, master]
+  pull_request:
+    branches: [dev, pub, main, master]
+
+# Cancel superseded runs on the same branch/PR so pushes don't queue up stale checks.
+concurrency:
+  group: ci-backend-ecom-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Matches what the vendored coderzonebd/licensing-sdk package + LicenseService
+  # require; kept in one place so every job below stays in sync.
+  PHP_EXTENSIONS: mbstring, bcmath, curl, sodium, pdo, pdo_sqlite, pdo_mysql, gd, zip, dom, fileinfo, exif, intl
+
+jobs:
+  test:
+    name: Test (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 8.2 is the composer.json floor ("php": "^8.2"); 8.3 is current stable.
+        php: ['8.2', '8.3']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          coverage: none
+
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ matrix.php }}-${{ hashFiles('**/composer.lock') }}
+          restore-keys: composer-${{ matrix.php }}-
+
+      - name: Validate composer.json/composer.lock
+        run: composer validate
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --ansi
+
+      - name: Fix storage/cache permissions
+        run: chmod -R 775 storage bootstrap/cache
+
+      - name: PHP syntax lint
+        run: find app config database routes tests -name "*.php" -print0 | xargs -0 -n1 -P4 php -l
+
+      - name: Run test suite
+        run: vendor/bin/phpunit --configuration phpunit.xml.dist --colors=always
+
+  # The codebase was brought to a clean `pint --test` baseline in a dedicated
+  # formatting commit, so this is a real gate now, not just visibility.
+  style:
+    name: Code style (Pint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run Pint
+        run: vendor/bin/pint --test
+
+  # The full test suite runs against sqlite (fast, no service container). This
+  # job separately proves the migrations themselves are valid against the real
+  # engine this app actually deploys on (config/database.php default is mysql)
+  # — a migration can pass on sqlite's lenient dialect and still fail on MySQL.
+  migrations-mysql:
+    name: Migrations (real MySQL)
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: backend_ecom_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -uroot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --ansi
+
+      - name: Run migrations against MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: backend_ecom_ci
+          DB_USERNAME: root
+          DB_PASSWORD: ''
+          # A couple of migrations (e.g. checkout-fields-schema setting)
+          # write a Setting row and call Setting::clearCache(), which hits
+          # the configured cache store — CACHE_DRIVER defaults to redis
+          # (.env.example) and there's no Redis service in this job, only
+          # MySQL. This job is only validating schema/migration correctness
+          # against the real engine, not caching, so array is the same
+          # no-external-dependency choice the test suite (phpunit.xml.dist)
+          # already makes.
+          CACHE_DRIVER: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+        run: php artisan migrate --force

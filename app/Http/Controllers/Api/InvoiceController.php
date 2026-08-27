@@ -14,7 +14,7 @@ class InvoiceController extends Controller
         $order = Order::with(['user', 'items', 'payment', 'coupon'])->findOrFail($orderId);
 
         // Users can only view their own invoices unless admin
-        if (!$request->user()->isAdmin() && $order->user_id !== $request->user()->id) {
+        if (! $request->user()->isAdmin() && $order->user_id !== $request->user()->id) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
@@ -26,7 +26,7 @@ class InvoiceController extends Controller
     private function generateInvoiceData(Order $order): array
     {
         return [
-            'invoice_number' => 'INV-' . $order->order_number,
+            'invoice_number' => 'INV-'.$order->order_number,
             'invoice_date' => $order->created_at->format('Y-m-d'),
             'due_date' => $order->created_at->format('Y-m-d'),
 

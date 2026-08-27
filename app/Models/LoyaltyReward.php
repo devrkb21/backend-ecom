@@ -37,9 +37,13 @@ class LoyaltyReward extends Model
 
     // Reward types
     const TYPE_DISCOUNT_PERCENTAGE = 'discount_percentage';
+
     const TYPE_DISCOUNT_FIXED = 'discount_fixed';
+
     const TYPE_FREE_SHIPPING = 'free_shipping';
+
     const TYPE_FREE_PRODUCT = 'free_product';
+
     const TYPE_COUPON = 'coupon';
 
     public function product(): BelongsTo
@@ -72,7 +76,7 @@ class LoyaltyReward extends Model
     // Accessors
     public function getIsAvailableAttribute(): bool
     {
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return false;
         }
 
@@ -103,7 +107,7 @@ class LoyaltyReward extends Model
     // Methods
     public function canRedeem(User $user): array
     {
-        if (!$this->is_available) {
+        if (! $this->is_available) {
             return ['allowed' => false, 'reason' => 'This reward is not available'];
         }
 
@@ -131,8 +135,8 @@ class LoyaltyReward extends Model
         return match ($this->reward_type) {
             self::TYPE_DISCOUNT_PERCENTAGE => "{$this->reward_value}% off your order",
             self::TYPE_DISCOUNT_FIXED => "৳{$this->reward_value} off your order",
-            self::TYPE_FREE_SHIPPING => "Free shipping on your order",
-            self::TYPE_FREE_PRODUCT => "Free product: " . ($this->product?->name ?? 'Selected item'),
+            self::TYPE_FREE_SHIPPING => 'Free shipping on your order',
+            self::TYPE_FREE_PRODUCT => 'Free product: '.($this->product?->name ?? 'Selected item'),
             self::TYPE_COUPON => "Special coupon worth ৳{$this->reward_value}",
             default => $this->description,
         };

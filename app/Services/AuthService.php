@@ -29,14 +29,14 @@ class AuthService
         $data['role'] = 'customer';
 
         $user = $this->userRepository->create($data);
-        if (!$user instanceof User) {
+        if (! $user instanceof User) {
             throw new \RuntimeException('Failed to create user.');
         }
 
         $token = $user->createToken('auth-token')->plainTextToken;
 
         // Send welcome notification
-        $user->notify(new WelcomeNotification());
+        $user->notify(new WelcomeNotification);
 
         // Send email verification
         $this->sendVerificationEmail($user);
@@ -51,7 +51,7 @@ class AuthService
     {
         $user = $this->userRepository->findByEmail($credentials['email']);
 
-        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             return null;
         }
 
@@ -77,7 +77,7 @@ class AuthService
     {
         $user = $this->userRepository->findByEmail($email);
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -95,10 +95,10 @@ class AuthService
         $otp = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
         Cache::put($this->otpCacheKey($email), Hash::make($otp), now()->addMinutes(self::RESET_OTP_TTL_MINUTES));
 
-        if (!empty($user->phone)) {
+        if (! empty($user->phone)) {
             $smsResult = $this->smsService->sendOtp($user->phone, $otp);
 
-            if (!$smsResult['success']) {
+            if (! $smsResult['success']) {
                 Log::warning('Failed to send password reset OTP SMS.', [
                     'email' => $email,
                     'phone' => $user->phone,
@@ -119,7 +119,7 @@ class AuthService
             ->where('email', $data['email'])
             ->first();
 
-        if (!$record) {
+        if (! $record) {
             return false;
         }
 
@@ -127,24 +127,25 @@ class AuthService
         if (now()->diffInMinutes($record->created_at) > 60) {
             DB::table('password_reset_tokens')->where('email', $data['email'])->delete();
             Cache::forget($this->otpCacheKey($data['email']));
+
             return false;
         }
 
         $otp = trim((string) ($data['otp'] ?? ''));
 
         if ($otp !== '') {
-            if (!$this->verifyOtp($data['email'], $otp)) {
+            if (! $this->verifyOtp($data['email'], $otp)) {
                 return false;
             }
         } else {
-            if (!isset($data['token']) || !Hash::check($data['token'], $record->token)) {
+            if (! isset($data['token']) || ! Hash::check($data['token'], $record->token)) {
                 return false;
             }
         }
 
         $user = $this->userRepository->findByEmail($data['email']);
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -164,14 +165,14 @@ class AuthService
 
     private function otpCacheKey(string $email): string
     {
-        return 'password_reset_otp:' . strtolower(trim($email));
+        return 'password_reset_otp:'.strtolower(trim($email));
     }
 
     private function verifyOtp(string $email, string $otp): bool
     {
         $otpHash = Cache::get($this->otpCacheKey($email));
 
-        if (!is_string($otpHash) || $otpHash === '') {
+        if (! is_string($otpHash) || $otpHash === '') {
             return false;
         }
 

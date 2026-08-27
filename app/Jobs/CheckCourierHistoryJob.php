@@ -28,6 +28,7 @@ class CheckCourierHistoryJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 2;
+
     public int $backoff = 30;
 
     // Logging into up to 5 courier portals (with multi-account failover on
@@ -43,12 +44,12 @@ class CheckCourierHistoryJob implements ShouldQueue
 
     public function handle(CourierHistoryCheckService $courierHistoryCheckService, FraudDetectionService $fraudDetectionService): void
     {
-        if (!filter_var(Setting::getValue('fraud_blocks', 'courier_check_enabled', '0'), FILTER_VALIDATE_BOOLEAN)) {
+        if (! filter_var(Setting::getValue('fraud_blocks', 'courier_check_enabled', '0'), FILTER_VALIDATE_BOOLEAN)) {
             return;
         }
 
         $order = Order::find($this->orderId);
-        if (!$order) {
+        if (! $order) {
             return;
         }
 
@@ -60,7 +61,7 @@ class CheckCourierHistoryJob implements ShouldQueue
         $freshnessDays = max(1, (int) Setting::getValue('fraud_blocks', 'courier_check_freshness_days', 7));
         $existing = CourierCheckResult::where('normalized_phone', $normalizedPhone)->first();
 
-        if (!$this->force && $existing && $existing->isFresh($freshnessDays)) {
+        if (! $this->force && $existing && $existing->isFresh($freshnessDays)) {
             return;
         }
 

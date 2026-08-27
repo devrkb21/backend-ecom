@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\RelatedProduct;
-use App\Models\OrderItem;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class RelatedProductService
 {

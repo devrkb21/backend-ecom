@@ -26,7 +26,7 @@ class ProductAttributeValue extends Model
 
     public function getImageUrlAttribute(): ?string
     {
-        if (!$this->image) {
+        if (! $this->image) {
             return null;
         }
 
@@ -40,6 +40,6 @@ class ProductAttributeValue extends Model
             return asset($normalized);
         }
 
-        return asset('storage/' . $normalized);
+        return asset('storage/'.$normalized);
     }
 }

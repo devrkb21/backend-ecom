@@ -27,13 +27,13 @@ class ContactController extends Controller
         // Send email to support
         try {
             $supportEmail = Setting::getValue('general', 'contact_email');
-            
+
             if ($supportEmail) {
                 Mail::to($supportEmail)->send(new ContactFormMail($contactMessage));
             }
         } catch (\Exception $e) {
             // Log the error but don't fail the request
-            \Log::error('Failed to send contact email: ' . $e->getMessage());
+            \Log::error('Failed to send contact email: '.$e->getMessage());
         }
 
         return response()->json([

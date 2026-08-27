@@ -125,7 +125,7 @@ class AbandonedCart extends Model
     {
         return $query->where(function ($q) {
             $q->whereNotNull('email')
-              ->orWhereNotNull('phone');
+                ->orWhereNotNull('phone');
         });
     }
 
@@ -215,9 +215,10 @@ class AbandonedCart extends Model
 
     public function getItemCountAttribute(): int
     {
-        if (!$this->cart_items) {
+        if (! $this->cart_items) {
             return 0;
         }
+
         return collect($this->cart_items)->sum('quantity');
     }
 
@@ -253,8 +254,8 @@ class AbandonedCart extends Model
 
     public function getTimeSinceAbandonedAttribute(): string
     {
-        return $this->last_activity_at 
-            ? $this->last_activity_at->diffForHumans() 
+        return $this->last_activity_at
+            ? $this->last_activity_at->diffForHumans()
             : $this->created_at->diffForHumans();
     }
 
@@ -264,7 +265,7 @@ class AbandonedCart extends Model
             return 'low';
         }
 
-        $hasContact = !empty($this->email) || !empty($this->phone);
+        $hasContact = ! empty($this->email) || ! empty($this->phone);
         $total = (float) $this->total;
 
         if ($total >= 10000 || ($this->checkout_step === 'payment' && $hasContact)) {
@@ -392,8 +393,8 @@ class AbandonedCart extends Model
             ->where('created_at', '>=', now()->subDays(7))
             ->first();
 
-        if (!$abandonedCart) {
-            $abandonedCart = new self();
+        if (! $abandonedCart) {
+            $abandonedCart = new self;
         }
 
         $wasFollowUp = $abandonedCart->exists && $abandonedCart->status === 'follow_up';
@@ -449,7 +450,7 @@ class AbandonedCart extends Model
     public static function getPotentialRevenue(?string $status = null): float
     {
         $query = self::query();
-        
+
         if ($status) {
             $query->where('status', $status);
         } else {
@@ -465,7 +466,7 @@ class AbandonedCart extends Model
     public static function getRecoveryRate(int $days = 30): float
     {
         $total = self::where('created_at', '>=', now()->subDays($days))->count();
-        
+
         if ($total === 0) {
             return 0;
         }

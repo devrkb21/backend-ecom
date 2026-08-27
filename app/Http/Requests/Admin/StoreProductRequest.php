@@ -15,12 +15,12 @@ class StoreProductRequest extends FormRequest
     public function rules(): array
     {
         $hasSubmittedVariants = is_array($this->input('variants'))
-            && !empty($this->input('variants'));
+            && ! empty($this->input('variants'));
         $isVariableProduct = $this->boolean('is_variable') || $hasSubmittedVariants;
 
         $stockRules = ['nullable', 'integer', 'min:0'];
 
-        if (Product::isStockEnabled() && !$isVariableProduct) {
+        if (Product::isStockEnabled() && ! $isVariableProduct) {
             $stockRules[0] = 'required';
         }
 
@@ -29,7 +29,7 @@ class StoreProductRequest extends FormRequest
             : ['required', 'numeric', 'min:0.01'];
 
         $salePriceRules = ['nullable', 'numeric', 'min:0'];
-        if (!$isVariableProduct) {
+        if (! $isVariableProduct) {
             $salePriceRules[] = 'lt:regular_price';
         }
 

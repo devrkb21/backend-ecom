@@ -1,5 +1,11 @@
 <?php
 
+use App\Http\Middleware\EnsureAdminPermission;
+use App\Http\Middleware\EnsureLicenseAllowsCreation;
+use App\Http\Middleware\EnsureOrderNotLicenseLocked;
+use App\Http\Middleware\InternalApiOnly;
+use App\Http\Middleware\IsAdmin;
+use App\Http\Middleware\LogApiRequests;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -18,9 +24,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Register middleware aliases
         $middleware->alias([
-            'is_admin' => \App\Http\Middleware\IsAdmin::class,
-            'admin_permission' => \App\Http\Middleware\EnsureAdminPermission::class,
-            'internal.api' => \App\Http\Middleware\InternalApiOnly::class,
+            'is_admin' => IsAdmin::class,
+            'admin_permission' => EnsureAdminPermission::class,
+            'internal.api' => InternalApiOnly::class,
+            'license.create' => EnsureLicenseAllowsCreation::class,
+            'license.order-lock' => EnsureOrderNotLicenseLocked::class,
         ]);
 
         // Trust only known reverse proxies, not every client — trusting '*'
@@ -38,7 +46,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Append API request logging middleware
         $middleware->appendToGroup('api', [
-            \App\Http\Middleware\LogApiRequests::class,
+            LogApiRequests::class,
         ]);
     })
     ->withSchedule(function (Schedule $schedule) {
@@ -58,6 +66,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Prune Sanctum expired tokens weekly
         $schedule->command('sanctum:prune-expired --hours=24')
             ->weekly();
+
+        // Re-check license status with the licensing server
+        $schedule->command('license:verify')
+            ->everyThirtyMinutes()
+            ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->shouldRenderJsonWhen(function ($request, $e) {
