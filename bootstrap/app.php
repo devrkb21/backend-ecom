@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'is_admin' => \App\Http\Middleware\IsAdmin::class,
             'admin_permission' => \App\Http\Middleware\EnsureAdminPermission::class,
             'internal.api' => \App\Http\Middleware\InternalApiOnly::class,
+            'license.create' => \App\Http\Middleware\EnsureLicenseAllowsCreation::class,
         ]);
 
         // Trust only known reverse proxies, not every client — trusting '*'

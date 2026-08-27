@@ -200,7 +200,7 @@ Route::prefix('v1')->group(function () {
         // Users
         Route::middleware('admin_permission:users.manage')->group(function () {
             Route::get('/users', [UserController::class, 'index']);
-            Route::post('/users', [UserController::class, 'store']);
+            Route::post('/users', [UserController::class, 'store'])->middleware('license.create');
             Route::delete('/users/{id}', [UserController::class, 'destroy'])->where('id', '[0-9]+');
             Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->where('id', '[0-9]+');
         });
@@ -209,14 +209,14 @@ Route::prefix('v1')->group(function () {
 
         // Categories (admin catalog permission required for CUD)
         Route::middleware('admin_permission:catalog.manage')->group(function () {
-            Route::post('/categories', [CategoryController::class, 'store']);
+            Route::post('/categories', [CategoryController::class, 'store'])->middleware('license.create');
             Route::put('/categories/{id}', [CategoryController::class, 'update'])->where('id', '[0-9]+');
             Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->where('id', '[0-9]+');
         });
 
         // Products (admin catalog permission required for CUD)
         Route::middleware('admin_permission:catalog.manage')->group(function () {
-            Route::post('/products', [ProductController::class, 'store']);
+            Route::post('/products', [ProductController::class, 'store'])->middleware('license.create');
             Route::put('/products/{id}', [ProductController::class, 'update'])->where('id', '[0-9]+');
             Route::delete('/products/{id}', [ProductController::class, 'destroy'])->where('id', '[0-9]+');
             Route::post('/products/bulk-action', [ProductController::class, 'bulkAction']);
@@ -365,6 +365,13 @@ Route::prefix('v1')->group(function () {
             Route::middleware('admin_permission:audit.view')->group(function () {
                 Route::get('/audit-logs', [AuditLogController::class, 'index']);
                 Route::get('/audit-logs/{id}', [AuditLogController::class, 'show'])->where('id', '[0-9]+');
+            });
+
+            // License status: any admin/staff can check it (e.g. a dashboard
+            // banner); only settings.manage can change the key.
+            Route::get('/license', [\App\Http\Controllers\Api\Admin\LicenseController::class, 'show']);
+            Route::middleware('admin_permission:settings.manage')->group(function () {
+                Route::put('/license', [\App\Http\Controllers\Api\Admin\LicenseController::class, 'update']);
             });
         });
     });

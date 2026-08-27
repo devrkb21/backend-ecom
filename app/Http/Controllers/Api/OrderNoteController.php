@@ -5,11 +5,15 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderNote;
+use App\Services\LicenseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class OrderNoteController extends Controller
 {
+    public function __construct(protected LicenseService $licenseService) {}
+
+
     public function index(Request $request, int $orderId): JsonResponse
     {
         $order = Order::findOrFail($orderId);
@@ -49,6 +53,13 @@ class OrderNoteController extends Controller
 
         $order = Order::findOrFail($orderId);
 
+        if ($this->licenseService->isOrderLocked($order)) {
+            return $this->errorResponse(
+                'This order was placed after your license expired. Renew your license to manage new orders.',
+                403,
+            );
+        }
+
         $note = $order->notes()->create([
             'user_id' => $request->user()->id,
             'note' => $request->note,
@@ -68,6 +79,14 @@ class OrderNoteController extends Controller
         }
 
         $note = OrderNote::where('order_id', $orderId)->findOrFail($noteId);
+
+        if ($this->licenseService->isOrderLocked(Order::findOrFail($orderId))) {
+            return $this->errorResponse(
+                'This order was placed after your license expired. Renew your license to manage new orders.',
+                403,
+            );
+        }
+
         $note->delete();
 
         return $this->successResponse(null, 'Note deleted successfully');

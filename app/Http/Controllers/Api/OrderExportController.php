@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Services\LicenseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class OrderExportController extends Controller
 {
+    public function __construct(protected LicenseService $licenseService) {}
+
     public function export(Request $request): JsonResponse
     {
         if (!$request->user()->isAdmin()) {
@@ -34,6 +37,10 @@ class OrderExportController extends Controller
 
         if ($request->has('to')) {
             $query->where('created_at', '<=', $request->to . ' 23:59:59');
+        }
+
+        if ($cutoff = $this->licenseService->expiredSince()) {
+            $query->where('created_at', '<=', $cutoff);
         }
 
         $orders = $query->orderBy('created_at', 'desc')->get();

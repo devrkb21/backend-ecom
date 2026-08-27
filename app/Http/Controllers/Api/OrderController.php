@@ -9,6 +9,7 @@ use App\Http\Resources\OrderResource;
 use App\Jobs\CheckCourierHistoryJob;
 use App\Models\Order;
 use App\Services\FraudDetectionService;
+use App\Services\LicenseService;
 use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,13 +19,24 @@ class OrderController extends Controller
 {
     public function __construct(
         protected OrderService $orderService,
-        protected FraudDetectionService $fraudDetectionService
+        protected FraudDetectionService $fraudDetectionService,
+        protected LicenseService $licenseService
     ) {}
+
+    protected function licenseExpiredResponse(): JsonResponse
+    {
+        return $this->errorResponse(
+            'This order was placed after your license expired. Renew your license to manage new orders.',
+            403,
+        );
+    }
 
     public function index(Request $request): JsonResponse
     {
         if ($request->user()->isAdmin()) {
-            $orders = $this->orderService->getAllOrders($this->perPage());
+            // Orders placed after the license expired stay invisible to
+            // admin (storefront checkout is unaffected) until renewal.
+            $orders = $this->orderService->getAllOrders($this->perPage(), $this->licenseService->expiredSince());
         } else {
             $orders = $this->orderService->getUserOrders($request->user()->id, $this->perPage());
         }
@@ -35,10 +47,15 @@ class OrderController extends Controller
     public function show(Request $request, int $id): JsonResponse
     {
         $order = $this->orderService->getOrderById($id);
+        $isAdmin = $request->user()->isAdmin();
 
         // Users can only view their own orders unless admin
-        if (!$request->user()->isAdmin() && $order->user_id !== $request->user()->id) {
+        if (!$isAdmin && $order->user_id !== $request->user()->id) {
             return $this->errorResponse('Unauthorized', 403);
+        }
+
+        if ($isAdmin && $this->licenseService->isOrderLocked($order)) {
+            return $this->licenseExpiredResponse();
         }
 
         $order->loadMissing([
@@ -232,6 +249,10 @@ class OrderController extends Controller
             return $this->errorResponse('Unauthorized', 403);
         }
 
+        if ($this->licenseService->isOrderLocked($this->orderService->getOrderById($id))) {
+            return $this->licenseExpiredResponse();
+        }
+
         try {
             $order = $this->orderService->updateOrderStatus($id, $request->status);
 
@@ -258,7 +279,9 @@ class OrderController extends Controller
             return $this->errorResponse('Unauthorized', 403);
         }
 
-        $orders = $this->orderService->getOrdersByStatus($status);
+        $orders = $this->orderService->getOrdersByStatus($status)
+            ->reject(fn (Order $order) => $this->licenseService->isOrderLocked($order))
+            ->values();
 
         return $this->successResponse(OrderResource::collection($orders));
     }

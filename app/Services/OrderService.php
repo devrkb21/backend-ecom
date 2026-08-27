@@ -57,8 +57,12 @@ class OrderService
         return $this->orderRepository->findByOrderNumber($orderNumber);
     }
 
-    public function getAllOrders(int $perPage = 15): LengthAwarePaginator
+    public function getAllOrders(int $perPage = 15, ?\DateTimeInterface $createdBefore = null): LengthAwarePaginator
     {
+        if ($createdBefore !== null) {
+            return $this->orderRepository->paginateCreatedBefore($createdBefore, $perPage);
+        }
+
         return $this->orderRepository->paginate($perPage);
     }
 

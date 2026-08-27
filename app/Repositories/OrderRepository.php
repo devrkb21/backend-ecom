@@ -34,6 +34,14 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
             ->paginate($perPage);
     }
 
+    public function paginateCreatedBefore(\DateTimeInterface $before, int $perPage = 15): LengthAwarePaginator
+    {
+        return $this->model
+            ->where('created_at', '<=', $before)
+            ->orderByDesc('created_at')
+            ->paginate($perPage);
+    }
+
     public function findByOrderNumber(string $orderNumber): ?Order
     {
         $normalized = strtolower(trim($orderNumber));
