@@ -83,6 +83,7 @@ class EnsureAdminPermission
         $exact = [
             'admin.dashboard' => 'dashboard.view',
             'admin.global-search' => 'dashboard.view',
+            'admin.license' => 'settings.manage',
         ];
 
         if (isset($exact[$routeName])) {
@@ -115,6 +116,7 @@ class EnsureAdminPermission
             'admin.bi.' => 'analytics.view',
             'admin.users.' => 'users.manage',
             'admin.settings.' => 'settings.manage',
+            'admin.license.' => 'settings.manage',
         ];
 
         foreach ($map as $prefix => $permission) {

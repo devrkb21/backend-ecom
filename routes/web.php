@@ -56,7 +56,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/global-search', [\App\Http\Controllers\Admin\GlobalSearchController::class, 'search'])->name('global-search');
 
         // Categories CRUD
-        Route::resource('categories', CategoryController::class)->except(['show']);
+        Route::resource('categories', CategoryController::class)->except(['show', 'create', 'store']);
+        Route::get('categories/create', [CategoryController::class, 'create'])->name('categories.create')->middleware('license.create');
+        Route::post('categories', [CategoryController::class, 'store'])->name('categories.store')->middleware('license.create');
 
         // Pages CRUD
         Route::resource('pages', PageController::class)->except(['show']);
@@ -90,7 +92,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Products CRUD
         Route::get('products/export', [ProductController::class, 'export'])->name('products.export');
-        Route::resource('products', ProductController::class);
+        // Must be registered before the resource's products/{product} (show)
+        // route, or "create" gets swallowed as if it were a product ID.
+        Route::get('products/create', [ProductController::class, 'create'])->name('products.create')->middleware('license.create');
+        Route::post('products', [ProductController::class, 'store'])->name('products.store')->middleware('license.create');
+        Route::resource('products', ProductController::class)->except(['create', 'store']);
 
         // Product Variants
         Route::post('products/{product}/variants', [ProductController::class, 'storeVariant'])->name('products.variants.store');
@@ -112,8 +118,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Orders (Read + Status Update)
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
-        Route::get('orders/create', [OrderController::class, 'create'])->name('orders.create');
-        Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
+        Route::get('orders/create', [OrderController::class, 'create'])->name('orders.create')->middleware('license.create');
+        Route::post('orders', [OrderController::class, 'store'])->name('orders.store')->middleware('license.create');
         Route::get('orders/search-products', [OrderController::class, 'searchProducts'])->name('orders.search-products');
         Route::get('orders/district-shipping-rate', [OrderController::class, 'getDistrictShippingRate'])->name('orders.district-shipping-rate');
         Route::get('orders/export', [OrderController::class, 'export'])->name('orders.export');
@@ -129,32 +135,38 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('orders/courier-checker/search', [\App\Http\Controllers\Admin\CourierCheckerController::class, 'search'])->name('orders.courier-checker.search');
         Route::get('orders/courier-checker/history/{courierCheckResult}', [\App\Http\Controllers\Admin\CourierCheckerController::class, 'show'])->name('orders.courier-checker.show');
 
-        Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show')->withTrashed();
-        Route::get('orders/{order}/print', [OrderController::class, 'print'])->name('orders.print')->withTrashed();
-        Route::post('orders/{order}/restore', [OrderController::class, 'restore'])->name('orders.restore')->withTrashed();
-        Route::patch('orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
-        Route::patch('orders/{order}/source', [OrderController::class, 'updateSource'])->name('orders.update-source');
-        Route::post('orders/{order}/apply-discount', [OrderController::class, 'applyDiscount'])->name('orders.apply-discount');
-        Route::post('orders/{order}/remove-discount', [OrderController::class, 'removeDiscount'])->name('orders.remove-discount');
-        Route::post('orders/{order}/send-sms', [OrderController::class, 'sendSms'])->name('orders.send-sms');
-        Route::patch('orders/{order}/payment-status', [OrderController::class, 'updatePaymentStatus'])->name('orders.update-payment-status');
-        Route::post('orders/{order}/refund', [OrderController::class, 'refund'])->name('orders.refund');
-        Route::patch('orders/{order}/customer-info', [OrderController::class, 'updateCustomerInfo'])->name('orders.update-customer-info');
-        Route::post('orders/{order}/items', [OrderController::class, 'updateItems'])->name('orders.update-items');
-        Route::post('orders/{order}/courier-history-check', [OrderController::class, 'checkCourierHistory'])->name('orders.courier-history-check');
-        Route::post('orders/{order}/steadfast', [\App\Http\Controllers\Admin\SteadfastController::class, 'sendSingle'])->name('orders.steadfast.send');
+        // Every route below resolves a single {order} — wrapped so an order
+        // placed after the license expired can't be viewed or acted on from
+        // the admin panel, mirroring the API-side enforcement.
+        Route::middleware('license.order-lock')->group(function () {
+            Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show')->withTrashed();
+            Route::get('orders/{order}/print', [OrderController::class, 'print'])->name('orders.print')->withTrashed();
+            Route::post('orders/{order}/restore', [OrderController::class, 'restore'])->name('orders.restore')->withTrashed();
+            Route::patch('orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
+            Route::patch('orders/{order}/source', [OrderController::class, 'updateSource'])->name('orders.update-source');
+            Route::post('orders/{order}/apply-discount', [OrderController::class, 'applyDiscount'])->name('orders.apply-discount');
+            Route::post('orders/{order}/remove-discount', [OrderController::class, 'removeDiscount'])->name('orders.remove-discount');
+            Route::post('orders/{order}/send-sms', [OrderController::class, 'sendSms'])->name('orders.send-sms');
+            Route::patch('orders/{order}/payment-status', [OrderController::class, 'updatePaymentStatus'])->name('orders.update-payment-status');
+            Route::post('orders/{order}/refund', [OrderController::class, 'refund'])->name('orders.refund');
+            Route::patch('orders/{order}/customer-info', [OrderController::class, 'updateCustomerInfo'])->name('orders.update-customer-info');
+            Route::post('orders/{order}/items', [OrderController::class, 'updateItems'])->name('orders.update-items');
+            Route::post('orders/{order}/courier-history-check', [OrderController::class, 'checkCourierHistory'])->name('orders.courier-history-check');
+            Route::post('orders/{order}/steadfast', [\App\Http\Controllers\Admin\SteadfastController::class, 'sendSingle'])->name('orders.steadfast.send');
+            Route::post('orders/{order}/pathao', [\App\Http\Controllers\Admin\PathaoController::class, 'sendSingle'])->name('orders.pathao.send');
+
+            // Order Tracking
+            Route::get('orders/{order}/tracking', [OrderTrackingController::class, 'edit'])->name('orders.tracking.edit');
+            Route::put('orders/{order}/tracking', [OrderTrackingController::class, 'update'])->name('orders.tracking.update');
+            Route::post('orders/{order}/tracking/event', [OrderTrackingController::class, 'addEvent'])->name('orders.tracking.add-event');
+            Route::delete('orders/{order}/tracking/event/{eventId}', [OrderTrackingController::class, 'deleteEvent'])->name('orders.tracking.delete-event');
+            Route::post('orders/{order}/mark-delivered', [OrderTrackingController::class, 'markDelivered'])->name('orders.mark-delivered');
+        });
+
         Route::post('orders/steadfast/bulk', [\App\Http\Controllers\Admin\SteadfastController::class, 'sendBulk'])->name('orders.steadfast.bulk');
-        Route::post('orders/{order}/pathao', [\App\Http\Controllers\Admin\PathaoController::class, 'sendSingle'])->name('orders.pathao.send');
         Route::post('orders/pathao/bulk', [\App\Http\Controllers\Admin\PathaoController::class, 'sendBulk'])->name('orders.pathao.bulk');
         Route::get('pathao/zones', [\App\Http\Controllers\Admin\PathaoController::class, 'getZones'])->name('pathao.zones');
         Route::get('pathao/areas', [\App\Http\Controllers\Admin\PathaoController::class, 'getAreas'])->name('pathao.areas');
-
-        // Order Tracking
-        Route::get('orders/{order}/tracking', [OrderTrackingController::class, 'edit'])->name('orders.tracking.edit');
-        Route::put('orders/{order}/tracking', [OrderTrackingController::class, 'update'])->name('orders.tracking.update');
-        Route::post('orders/{order}/tracking/event', [OrderTrackingController::class, 'addEvent'])->name('orders.tracking.add-event');
-        Route::delete('orders/{order}/tracking/event/{eventId}', [OrderTrackingController::class, 'deleteEvent'])->name('orders.tracking.delete-event');
-        Route::post('orders/{order}/mark-delivered', [OrderTrackingController::class, 'markDelivered'])->name('orders.mark-delivered');
 
         // Payments (Read Only)
         Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
@@ -163,8 +175,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Users
         Route::get('users', [UserController::class, 'index'])->name('users.index');
-        Route::get('users/create', [UserController::class, 'create'])->name('users.create');
-        Route::post('users', [UserController::class, 'store'])->name('users.store');
+        Route::get('users/create', [UserController::class, 'create'])->name('users.create')->middleware('license.create');
+        Route::post('users', [UserController::class, 'store'])->name('users.store')->middleware('license.create');
         Route::patch('users/{id}/role', [UserController::class, 'updateRole'])->name('users.update-role');
         Route::patch('users/{id}/status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
         Route::get('users/{id}', [UserController::class, 'show'])->name('users.show');
@@ -189,6 +201,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('media/bulk-convert-webp', [MediaController::class, 'bulkConvertWebp'])->name('media.bulk-convert-webp');
         Route::post('media/{media}/convert-webp', [MediaController::class, 'singleConvertWebp'])->name('media.single-convert-webp');
 
+
+        // License (standalone top-level page, not a Settings tab)
+        Route::get('license', [\App\Http\Controllers\Admin\LicenseController::class, 'index'])->name('license');
+        Route::put('license', [\App\Http\Controllers\Admin\LicenseController::class, 'update'])->name('license.update');
+        Route::post('license/verify', [\App\Http\Controllers\Admin\LicenseController::class, 'verifyNow'])->name('license.verify');
 
         // Settings
         Route::prefix('settings')->name('settings.')->group(function () {

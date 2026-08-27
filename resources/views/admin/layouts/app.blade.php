@@ -710,6 +710,12 @@
             @endif
 
             <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.license*') ? 'active' : '' }}" href="{{ route('admin.license') }}">
+                    <i class="bi bi-patch-check"></i> License
+                </a>
+            </li>
+
+            <li class="nav-item">
                 <a class="nav-link {{ $isSettingsActive ? 'active' : '' }}" href="{{ route('admin.settings.system.index') }}">
                     <i class="bi bi-gear"></i> Settings
                 </a>

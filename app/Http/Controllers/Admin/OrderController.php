@@ -16,6 +16,7 @@ use App\Models\ShippingMethodDistrictRate;
 use App\Models\BdDistrict;
 use App\Services\CourierHistoryCheckService;
 use App\Services\FraudDetectionService;
+use App\Services\LicenseService;
 use App\Services\SmsService;
 use App\Support\FraudNormalizer;
 use Illuminate\Http\JsonResponse;
@@ -25,6 +26,8 @@ use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
+    public function __construct(protected LicenseService $licenseService) {}
+
     public function index(Request $request)
     {
         $statuses = OrderStatus::query()
@@ -55,6 +58,13 @@ class OrderController extends Controller
         $query = Order::with(['user', 'payment', 'statusConfig'])
             ->withCount('items')
             ->orderByDesc('created_at');
+
+        // Orders placed after the license expired stay invisible to admin
+        // (storefront checkout is unaffected) until renewal.
+        $licenseCutoff = $this->licenseService->expiredSince();
+        if ($licenseCutoff !== null) {
+            $query->where('created_at', '<=', $licenseCutoff);
+        }
 
         if ($view === 'trash') {
             $query->onlyTrashed();
@@ -123,11 +133,17 @@ class OrderController extends Controller
         $perPage = in_array((int) $request->input('per_page'), [20, 50, 100], true) ? (int) $request->input('per_page') : 20;
         $orders = $query->paginate($perPage)->withQueryString();
 
-        $filterCounts = ['all' => Order::query()->count()];
+        $countQuery = fn () => $licenseCutoff !== null
+            ? Order::query()->where('created_at', '<=', $licenseCutoff)
+            : Order::query();
+
+        $filterCounts = ['all' => $countQuery()->count()];
         foreach ($statusKeys as $statusKey) {
-            $filterCounts[$statusKey] = Order::query()->where('status', $statusKey)->count();
+            $filterCounts[$statusKey] = $countQuery()->where('status', $statusKey)->count();
         }
-        $filterCounts['trash'] = Order::onlyTrashed()->count();
+        $filterCounts['trash'] = $licenseCutoff !== null
+            ? Order::onlyTrashed()->where('created_at', '<=', $licenseCutoff)->count()
+            : Order::onlyTrashed()->count();
 
         if ($statuses->isEmpty()) {
             $statuses = collect($statusKeys)->map(static function (string $key, int $index) {
@@ -308,6 +324,10 @@ class OrderController extends Controller
 
         $query = Order::with(['user', 'payment', 'statusConfig', 'shippingDivision', 'shippingDistrict', 'items.product', 'items.variant'])
             ->orderByDesc('created_at');
+
+        if ($cutoff = $this->licenseService->expiredSince()) {
+            $query->where('created_at', '<=', $cutoff);
+        }
 
         if ($view === 'trash') {
             $query->onlyTrashed();
@@ -897,6 +917,14 @@ class OrderController extends Controller
 
         if ($orders->isEmpty()) {
             return back()->with('error', 'No valid orders were selected.');
+        }
+
+        // Orders placed after the license expired can't be bulk-acted-on
+        // from the admin panel until renewal.
+        $orders = $orders->reject(fn (Order $order) => $this->licenseService->isOrderLocked($order))->values();
+
+        if ($orders->isEmpty()) {
+            return back()->with('error', 'The selected order(s) were placed after your license expired. Renew your license to manage them.');
         }
 
         $updated = 0;

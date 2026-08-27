@@ -180,6 +180,11 @@ class PathaoController extends Controller
                 })
                 ->get();
 
+            // Orders placed after the license expired can't be dispatched
+            // from the admin panel until renewal.
+            $licenseService = app(\App\Services\LicenseService::class);
+            $orders = $orders->reject(fn (Order $order) => $licenseService->isOrderLocked($order))->values();
+
             if ($orders->isEmpty()) {
                 return back()->with('error', 'No eligible orders found to send to Pathao.');
             }
