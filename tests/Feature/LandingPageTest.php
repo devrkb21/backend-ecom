@@ -124,6 +124,7 @@ class LandingPageTest extends TestCase
         $response = $this->actingAs($this->admin, 'web')
             ->post('/admin/landing-pages', [
                 'product_id' => $this->product->id,
+                'product_ids' => [$this->product->id],
                 'title' => 'New Apparel Landing Page',
                 'slug' => 'apparel-page',
                 'template_type' => 'clothing',
@@ -150,6 +151,7 @@ class LandingPageTest extends TestCase
         $response = $this->actingAs($this->admin, 'web')
             ->put("/admin/landing-pages/{$this->landingPage->id}", [
                 'product_id' => $this->product->id,
+                'product_ids' => [$this->product->id],
                 'title' => 'Updated Mango Fest Title',
                 'slug' => 'mango-fest-updated',
                 'template_type' => 'am',

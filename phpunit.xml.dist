@@ -27,5 +27,6 @@
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
+        <env name="INTERNAL_API_SECRET" value="super_secret_key_123"/>
     </php>
 </phpunit>
