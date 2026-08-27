@@ -1,0 +1,22 @@
+{
+    "name": "coderzonebd/licensing-sdk",
+    "description": "Official PHP Client SDK for Coder Zone BD Licensing Engine",
+    "type": "library",
+    "version": "1.0.0",
+    "require": {
+        "ext-sodium": "*",
+        "ext-curl": "*",
+        "ext-json": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Coderzonebd\\LicensingSdk\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Rakib Uddin",
+            "email": "devrkb21@gmail.com"
+        }
+    ]
+}

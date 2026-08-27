@@ -58,6 +58,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Prune Sanctum expired tokens weekly
         $schedule->command('sanctum:prune-expired --hours=24')
             ->weekly();
+
+        // Re-check license status with the licensing server
+        $schedule->command('license:verify')
+            ->everyThirtyMinutes()
+            ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->shouldRenderJsonWhen(function ($request, $e) {

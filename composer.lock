@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b7cfa0e2c0060f4086603d925e8a9316",
+    "content-hash": "c02faa3bb7204d34c64fba62166e3a44",
     "packages": [
         {
             "name": "barryvdh/laravel-dompdf",
@@ -211,6 +211,36 @@
                 }
             ],
             "time": "2024-02-09T16:56:22+00:00"
+        },
+        {
+            "name": "coderzonebd/licensing-sdk",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "packages/coderzonebd/licensing-sdk",
+                "reference": "135af868450c6f287a949723d7c0cf3b48851d49"
+            },
+            "require": {
+                "ext-curl": "*",
+                "ext-json": "*",
+                "ext-sodium": "*"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Coderzonebd\\LicensingSdk\\": "src/"
+                }
+            },
+            "authors": [
+                {
+                    "name": "Rakib Uddin",
+                    "email": "devrkb21@gmail.com"
+                }
+            ],
+            "description": "Official PHP Client SDK for Coder Zone BD Licensing Engine",
+            "transport-options": {
+                "relative": true
+            }
         },
         {
             "name": "devrkb21/bkash-pgw-laravel",
@@ -9354,7 +9384,8 @@
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
-        "php": "^8.2"
+        "php": "^8.2",
+        "ext-sodium": "*"
     },
     "platform-dev": {},
     "plugin-api-version": "2.9.0"
