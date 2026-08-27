@@ -68,13 +68,11 @@ jobs:
       - name: Run test suite
         run: vendor/bin/phpunit --configuration phpunit.xml.dist --colors=always
 
-  # Style feedback only — this is a large pre-existing Windows-authored codebase
-  # with repo-wide line-ending/formatting drift unrelated to correctness, so
-  # this must never block merges. It's here for visibility, not enforcement.
+  # The codebase was brought to a clean `pint --test` baseline in a dedicated
+  # formatting commit, so this is a real gate now, not just visibility.
   style:
-    name: Code style (Pint, informational)
+    name: Code style (Pint)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -140,4 +138,15 @@ jobs:
           DB_DATABASE: backend_ecom_ci
           DB_USERNAME: root
           DB_PASSWORD: ''
+          # A couple of migrations (e.g. checkout-fields-schema setting)
+          # write a Setting row and call Setting::clearCache(), which hits
+          # the configured cache store — CACHE_DRIVER defaults to redis
+          # (.env.example) and there's no Redis service in this job, only
+          # MySQL. This job is only validating schema/migration correctness
+          # against the real engine, not caching, so array is the same
+          # no-external-dependency choice the test suite (phpunit.xml.dist)
+          # already makes.
+          CACHE_DRIVER: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
         run: php artisan migrate --force
