@@ -11,6 +11,7 @@ class CustomerGroupController extends Controller
     public function index()
     {
         $groups = CustomerGroup::orderBy('sort_order', 'asc')->get();
+
         return view('admin.customer-groups.index', compact('groups'));
     }
 
@@ -48,7 +49,7 @@ class CustomerGroupController extends Controller
     public function update(Request $request, CustomerGroup $customerGroup)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:customer_groups,name,' . $customerGroup->id,
+            'name' => 'required|string|max:255|unique:customer_groups,name,'.$customerGroup->id,
             'description' => 'nullable|string',
             'min_order_count' => 'required|integer|min:0',
             'min_total_spent' => 'required|numeric|min:0',
@@ -69,6 +70,7 @@ class CustomerGroupController extends Controller
     public function destroy(CustomerGroup $customerGroup)
     {
         $customerGroup->delete();
+
         return redirect()->route('admin.customer-groups.index')
             ->with('success', 'Customer Group deleted successfully.');
     }

@@ -23,8 +23,9 @@ class BusinessIntelligenceController extends Controller
     {
         fputcsv($file, array_map(static function ($value) {
             if (is_string($value) && preg_match('/^[=+\-@]/', $value) === 1) {
-                return "\t" . $value;
+                return "\t".$value;
             }
+
             return $value;
         }, $row));
     }
@@ -152,7 +153,7 @@ class BusinessIntelligenceController extends Controller
         $productId = $request->get('product_id');
         $days = $request->get('days', 30);
 
-        if (!$productId) {
+        if (! $productId) {
             return response()->json(['error' => 'Product ID required'], 400);
         }
 
@@ -168,7 +169,7 @@ class BusinessIntelligenceController extends Controller
     {
         $productId = $request->get('product_id');
 
-        if (!$productId) {
+        if (! $productId) {
             return response()->json(['error' => 'Product ID required'], 400);
         }
 
@@ -189,7 +190,7 @@ class BusinessIntelligenceController extends Controller
         $byCategory = $this->biService->getSalesByCategory($period, 50);
         $byPaymentMethod = $this->biService->getSalesByPaymentMethod($period);
 
-        $filename = 'sales_report_' . now()->format('Y-m-d_His') . '.csv';
+        $filename = 'sales_report_'.now()->format('Y-m-d_His').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',
@@ -202,9 +203,9 @@ class BusinessIntelligenceController extends Controller
             // Overview section
             self::csvRow($file, ['=== SALES OVERVIEW ===']);
             self::csvRow($file, ['Metric', 'Value', 'Growth %']);
-            self::csvRow($file, ['Revenue', $overview['revenue'], $overview['revenue_growth'] . '%']);
-            self::csvRow($file, ['Orders', $overview['orders'], $overview['orders_growth'] . '%']);
-            self::csvRow($file, ['Avg Order Value', $overview['average_order_value'], $overview['aov_growth'] . '%']);
+            self::csvRow($file, ['Revenue', $overview['revenue'], $overview['revenue_growth'].'%']);
+            self::csvRow($file, ['Orders', $overview['orders'], $overview['orders_growth'].'%']);
+            self::csvRow($file, ['Avg Order Value', $overview['average_order_value'], $overview['aov_growth'].'%']);
             self::csvRow($file, ['Refunds', $overview['refunds'], '']);
             self::csvRow($file, ['Net Revenue', $overview['net_revenue'], '']);
             self::csvRow($file, []);
@@ -241,7 +242,7 @@ class BusinessIntelligenceController extends Controller
         $outOfStock = $this->biService->getOutOfStockProducts();
         $valuation = $this->biService->getInventoryValuation();
 
-        $filename = 'inventory_report_' . now()->format('Y-m-d_His') . '.csv';
+        $filename = 'inventory_report_'.now()->format('Y-m-d_His').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',
@@ -257,7 +258,7 @@ class BusinessIntelligenceController extends Controller
             self::csvRow($file, ['Retail Value', $valuation['total_retail_value']]);
             self::csvRow($file, ['Cost Value', $valuation['total_cost_value']]);
             self::csvRow($file, ['Potential Profit', $valuation['potential_profit']]);
-            self::csvRow($file, ['Potential Profit %', $valuation['potential_profit_percentage'] . '%']);
+            self::csvRow($file, ['Potential Profit %', $valuation['potential_profit_percentage'].'%']);
             self::csvRow($file, []);
 
             // Low Stock
@@ -289,7 +290,7 @@ class BusinessIntelligenceController extends Controller
         $topCustomers = $this->biService->getTopCustomers(100);
         $segments = $this->biService->getCustomerSegments();
 
-        $filename = 'customer_report_' . now()->format('Y-m-d_His') . '.csv';
+        $filename = 'customer_report_'.now()->format('Y-m-d_His').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',

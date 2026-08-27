@@ -2,16 +2,18 @@
 
 namespace App\Services;
 
+use App\Http\Controllers\Admin\MediaController;
 use App\Models\Setting;
 use App\Repositories\Interfaces\SettingRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Http\UploadedFile;
 
 class SettingService
 {
     protected const CACHE_KEY = 'settings';
+
     protected const CACHE_TTL = 3600;
 
     public function __construct(
@@ -23,7 +25,7 @@ class SettingService
      */
     public function getAllPublicSettings(): array
     {
-        return Cache::remember(self::CACHE_KEY . '.public.all', self::CACHE_TTL, function () {
+        return Cache::remember(self::CACHE_KEY.'.public.all', self::CACHE_TTL, function () {
             return Setting::getAllPublic();
         });
     }
@@ -33,7 +35,7 @@ class SettingService
      */
     public function getPublicSettingsByGroup(string $group): array
     {
-        return Cache::remember(self::CACHE_KEY . ".public.{$group}", self::CACHE_TTL, function () use ($group) {
+        return Cache::remember(self::CACHE_KEY.".public.{$group}", self::CACHE_TTL, function () use ($group) {
             return Setting::getGroup($group, true);
         });
     }
@@ -43,7 +45,7 @@ class SettingService
      */
     public function getAllSettingsForAdmin(): Collection
     {
-        return Cache::remember(self::CACHE_KEY . '.admin.all', self::CACHE_TTL, function () {
+        return Cache::remember(self::CACHE_KEY.'.admin.all', self::CACHE_TTL, function () {
             return Setting::orderBy('group')->orderBy('sort_order')->get();
         });
     }
@@ -113,7 +115,7 @@ class SettingService
     public function deleteSetting(int $id): void
     {
         $setting = $this->settingRepository->findOrFail($id);
-        
+
         // Delete image if it's an image type
         if ($setting->type === 'image' && $setting->value) {
             Storage::disk('public')->delete($setting->value);
@@ -140,28 +142,28 @@ class SettingService
         $nameWithoutExt = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
         $safeName = preg_replace('/[^a-zA-Z0-9_\.-]/', '', $nameWithoutExt) ?? '';
         $safeName = $safeName !== '' ? $safeName : 'setting';
-        
+
         $originalExtension = strtolower($file->getClientOriginalExtension());
         $mimeType = $file->getMimeType();
-        
+
         $path = "settings/{$group}";
         $fullPath = storage_path("app/public/{$path}");
-        
-        if (!file_exists($fullPath)) {
+
+        if (! file_exists($fullPath)) {
             mkdir($fullPath, 0755, true);
         }
-        
+
         if ($mimeType === 'image/svg+xml' || $originalExtension === 'svg') {
-            $filename = $safeName . '_' . uniqid() . '.svg';
+            $filename = $safeName.'_'.uniqid().'.svg';
             $file->storeAs($path, $filename, 'public');
         } else {
-            $filename = $safeName . '_' . uniqid() . '.webp';
+            $filename = $safeName.'_'.uniqid().'.webp';
             $tempPath = $file->getRealPath();
-            $destinationPath = $fullPath . '/' . $filename;
-            
-            $converted = \App\Http\Controllers\Admin\MediaController::convertToWebp($tempPath, $destinationPath, 85);
-            if (!$converted) {
-                $filename = $safeName . '_' . uniqid() . '.' . $originalExtension;
+            $destinationPath = $fullPath.'/'.$filename;
+
+            $converted = MediaController::convertToWebp($tempPath, $destinationPath, 85);
+            if (! $converted) {
+                $filename = $safeName.'_'.uniqid().'.'.$originalExtension;
                 $file->storeAs($path, $filename, 'public');
             }
         }
@@ -259,11 +261,11 @@ class SettingService
     protected function clearCache(): void
     {
         Setting::clearCache();
-        Cache::forget(self::CACHE_KEY . '.public.all');
-        Cache::forget(self::CACHE_KEY . '.admin.all');
-        
+        Cache::forget(self::CACHE_KEY.'.public.all');
+        Cache::forget(self::CACHE_KEY.'.admin.all');
+
         foreach ($this->getGroups() as $group) {
-            Cache::forget(self::CACHE_KEY . ".public.{$group}");
+            Cache::forget(self::CACHE_KEY.".public.{$group}");
         }
     }
 }

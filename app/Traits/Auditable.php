@@ -54,7 +54,7 @@ trait Auditable
                     unset($changes[$field], $original[$field]);
                 }
 
-                if (!empty($changes)) {
+                if (! empty($changes)) {
                     AuditLog::log(
                         'updated',
                         get_class($model),

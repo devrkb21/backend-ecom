@@ -32,7 +32,7 @@ class Handler extends ExceptionHandler
             // the server-rendered admin panel) got forced into a JSON
             // response instead of Laravel's normal HTML error page/redirect,
             // and — when APP_DEBUG is on — leaked stack traces there too.
-            if (!$request->is('api/*') && !$request->expectsJson()) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
                 return null;
             }
 

@@ -27,10 +27,10 @@ class FraudNormalizer
         }
 
         if (str_starts_with($digits, '880') && strlen($digits) === 13) {
-            $digits = '0' . substr($digits, 3);
+            $digits = '0'.substr($digits, 3);
         } elseif (strlen($digits) === 10 && str_starts_with($digits, '1')) {
             // Missing leading 0, e.g. "1712345678"
-            $digits = '0' . $digits;
+            $digits = '0'.$digits;
         }
 
         return $digits;

@@ -79,7 +79,7 @@ class CourierHistoryCheckService
      */
     public function checkWithCache(string $normalizedPhone, bool $forceRefresh = false, ?int $orderId = null): array
     {
-        if (!$forceRefresh) {
+        if (! $forceRefresh) {
             $existing = CourierCheckResult::where('normalized_phone', $normalizedPhone)->first();
 
             if ($existing && $existing->isFreshWithinHours(self::SEARCH_CACHE_HOURS)) {
@@ -188,12 +188,12 @@ class CourierHistoryCheckService
      * courier with missing/misaligned credentials must not blow up the
      * whole check, it just reports itself as unconfigured.
      *
-     * @param class-string<CourierServiceInterface> $class
+     * @param  class-string<CourierServiceInterface>  $class
      */
     private function buildService(string $courier, string $class): CourierServiceInterface
     {
         try {
-            return new $class();
+            return new $class;
         } catch (\InvalidArgumentException $e) {
             Log::info("CourierHistoryCheckService: {$courier} not configured, skipping.", [
                 'message' => $e->getMessage(),

@@ -92,9 +92,9 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
         return $this->model->active()
             ->where(function ($q) use ($categoryId) {
                 $q->where('category_id', $categoryId)
-                  ->orWhereHas('categories', function ($q2) use ($categoryId) {
-                      $q2->where('categories.id', $categoryId);
-                  });
+                    ->orWhereHas('categories', function ($q2) use ($categoryId) {
+                        $q2->where('categories.id', $categoryId);
+                    });
             })
             ->with($this->listingRelations())
             ->withCount('variants')
@@ -107,9 +107,9 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
             ->active()
             ->where(function ($q) use ($categoryId) {
                 $q->where('category_id', $categoryId)
-                  ->orWhereHas('categories', function ($q2) use ($categoryId) {
-                      $q2->where('categories.id', $categoryId);
-                  });
+                    ->orWhereHas('categories', function ($q2) use ($categoryId) {
+                        $q2->where('categories.id', $categoryId);
+                    });
             })
             ->with($this->listingRelations())
             ->withCount('variants')

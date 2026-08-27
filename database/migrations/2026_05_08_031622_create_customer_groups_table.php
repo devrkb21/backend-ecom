@@ -15,13 +15,13 @@ return new class extends Migration
             $table->id();
             $table->string('name')->unique();
             $table->text('description')->nullable();
-            
+
             $table->integer('min_order_count')->default(0);
             $table->decimal('min_total_spent', 10, 2)->default(0);
-            
+
             $table->decimal('discount_percentage', 5, 2)->default(0);
             $table->text('custom_message')->nullable();
-            
+
             $table->boolean('is_active')->default(true);
             $table->integer('sort_order')->default(0); // Useful to sort overlapping rules
             $table->timestamps();

@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\Payment;
-use App\Repositories\Interfaces\PaymentRepositoryInterface;
 use App\Repositories\Interfaces\OrderRepositoryInterface;
+use App\Repositories\Interfaces\PaymentRepositoryInterface;
 
 /**
  * Read-only lookup for payment records created by the real gateway

@@ -36,7 +36,7 @@ return new class extends Migration
         Schema::table('orders', function (Blueprint $table) {
             $table->dropColumn(['payment_method', 'payment_status']);
         });
-        
+
         Schema::dropIfExists('payment_gateways');
     }
 };

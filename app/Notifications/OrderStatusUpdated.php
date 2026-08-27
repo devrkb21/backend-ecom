@@ -35,22 +35,22 @@ class OrderStatusUpdated extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $statusMessage = $this->statusMessages[$this->order->status] ?? 'Your order status has been updated.';
-        
+
         $mail = (new MailMessage)
-            ->subject('Order Update - #' . $this->order->order_number)
+            ->subject('Order Update - #'.$this->order->order_number)
             ->greeting('Order Status Update')
             ->line($statusMessage)
             ->line('')
-            ->line('**Order Number:** ' . $this->order->order_number)
-            ->line('**New Status:** ' . ucfirst($this->order->status))
-            ->line('**Total:** ৳' . number_format($this->order->total, 2));
+            ->line('**Order Number:** '.$this->order->order_number)
+            ->line('**New Status:** '.ucfirst($this->order->status))
+            ->line('**Total:** ৳'.number_format($this->order->total, 2));
 
         if ($this->order->status === 'shipped' && $this->order->tracking_number) {
-            $mail->line('**Tracking Number:** ' . $this->order->tracking_number);
+            $mail->line('**Tracking Number:** '.$this->order->tracking_number);
         }
 
         return $mail
-            ->action('View Order', url('/orders/' . $this->order->id))
+            ->action('View Order', url('/orders/'.$this->order->id))
             ->line('Thank you for shopping with us!');
     }
 
@@ -62,7 +62,7 @@ class OrderStatusUpdated extends Notification implements ShouldQueue
             'order_number' => $this->order->order_number,
             'old_status' => $this->oldStatus,
             'new_status' => $this->order->status,
-            'message' => 'Order #' . $this->order->order_number . ' status changed to ' . ucfirst($this->order->status),
+            'message' => 'Order #'.$this->order->order_number.' status changed to '.ucfirst($this->order->status),
         ];
     }
 }

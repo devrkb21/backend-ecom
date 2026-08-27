@@ -27,10 +27,15 @@ class LoyaltyTransaction extends Model
 
     // Transaction types
     const TYPE_EARNED = 'earned';
+
     const TYPE_REDEEMED = 'redeemed';
+
     const TYPE_EXPIRED = 'expired';
+
     const TYPE_ADJUSTED = 'adjusted';
+
     const TYPE_BONUS = 'bonus';
+
     const TYPE_REFERRAL = 'referral';
 
     public function user(): BelongsTo

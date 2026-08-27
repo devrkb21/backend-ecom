@@ -26,7 +26,7 @@ class ProductVariantResource extends JsonResource
             'in_stock' => $stockEnabled ? (int) $this->stock_quantity > 0 : true,
             'stock_enabled' => $stockEnabled,
             'is_active' => $this->is_active,
-            'name' => $this->relationLoaded('attributeValues') ? $this->name : ($this->sku ?? ('Variant-' . $this->id)),
+            'name' => $this->relationLoaded('attributeValues') ? $this->name : ($this->sku ?? ('Variant-'.$this->id)),
             'image' => $this->image,
             'image_url' => $this->image_url,
             'attributes' => $this->whenLoaded('attributeValues', function () {

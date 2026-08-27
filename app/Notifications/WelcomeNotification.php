@@ -2,7 +2,6 @@
 
 namespace App\Notifications;
 
-use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -24,11 +23,11 @@ class WelcomeNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $appName = config('app.name', 'Our Store');
-        
+
         $mail = (new MailMessage)
-            ->subject('Welcome to ' . $appName . '! 🎉')
-            ->greeting('Hello ' . $notifiable->name . '!')
-            ->line('Welcome to ' . $appName . '! We\'re thrilled to have you with us.')
+            ->subject('Welcome to '.$appName.'! 🎉')
+            ->greeting('Hello '.$notifiable->name.'!')
+            ->line('Welcome to '.$appName.'! We\'re thrilled to have you with us.')
             ->line('')
             ->line('Here\'s what you can do with your new account:')
             ->line('✅ Browse our extensive product catalog')
@@ -55,7 +54,7 @@ class WelcomeNotification extends Notification implements ShouldQueue
     {
         return [
             'type' => 'welcome',
-            'message' => 'Welcome to ' . config('app.name', 'Our Store') . '! Thank you for joining us.',
+            'message' => 'Welcome to '.config('app.name', 'Our Store').'! Thank you for joining us.',
         ];
     }
 }

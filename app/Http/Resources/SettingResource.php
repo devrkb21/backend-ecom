@@ -16,7 +16,7 @@ class SettingResource extends JsonResource
             $normalized = ltrim((string) $value, '/');
             $value = (str_starts_with($normalized, 'media/') || str_starts_with($normalized, 'storage/'))
                 ? asset($normalized)
-                : asset('storage/' . $normalized);
+                : asset('storage/'.$normalized);
         }
 
         // Cast value based on type

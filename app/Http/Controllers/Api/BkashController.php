@@ -6,11 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\PaymentGateway;
 use App\Models\User;
-use App\Services\Payment\BkashPaymentService;
 use App\Services\OrderService;
+use App\Services\Payment\BkashPaymentService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 class BkashController extends Controller
 {
@@ -26,11 +26,11 @@ class BkashController extends Controller
     {
         $gateway = PaymentGateway::findByCode('bkash');
 
-        if (!$gateway || !$gateway->is_active) {
+        if (! $gateway || ! $gateway->is_active) {
             return $this->errorResponse('bKash is not available.', 404);
         }
 
-        if (!$this->bkashService->isConfigured()) {
+        if (! $this->bkashService->isConfigured()) {
             return $this->errorResponse('bKash is not configured.', 503);
         }
 
@@ -56,7 +56,7 @@ class BkashController extends Controller
             $order = $this->orderService->getOrderById($request->order_id);
             $requestUser = $this->resolveApiUser($request);
 
-            if (!$this->canAccessOrder($order, $requestUser, $request->input('guest_token'))) {
+            if (! $this->canAccessOrder($order, $requestUser, $request->input('guest_token'))) {
                 return $this->errorResponse('Unauthorized.', 403);
             }
 
@@ -113,8 +113,8 @@ class BkashController extends Controller
         // Find order by transaction_id (which stores bkash paymentID)
         $order = Order::where('transaction_id', $paymentId)->first();
 
-        if (!$order) {
-            return redirect()->to(config('app.frontend_url', '/') . '/checkout/failed?error=order_not_found');
+        if (! $order) {
+            return redirect()->to(config('app.frontend_url', '/').'/checkout/failed?error=order_not_found');
         }
 
         // Resolve the correct frontend URL to redirect to
@@ -126,13 +126,13 @@ class BkashController extends Controller
 
                 if ($result['success']) {
                     $checkoutFields = $order->checkout_fields_payload ?? [];
-                    if (!empty($result['customer_msisdn'])) {
+                    if (! empty($result['customer_msisdn'])) {
                         $checkoutFields['bkash_customer_wallet'] = $result['customer_msisdn'];
                     }
-                    if (!empty($result['transaction_id'])) {
+                    if (! empty($result['transaction_id'])) {
                         $checkoutFields['bkash_transaction_id'] = $result['transaction_id'];
                     }
-                    if (!empty($result['payment_id'])) {
+                    if (! empty($result['payment_id'])) {
                         $checkoutFields['bkash_payment_id'] = $result['payment_id'];
                     }
                     $checkoutFields['bkash_payment_time'] = now()->timezone('Asia/Dhaka')->format('Y-m-d H:i:s');
@@ -149,21 +149,25 @@ class BkashController extends Controller
                         $order->update(['status' => 'processing']);
                     }
 
-                    return redirect()->to($frontendUrl . '/checkout/success?order=' . $order->order_number);
+                    return redirect()->to($frontendUrl.'/checkout/success?order='.$order->order_number);
                 }
 
                 $order->update(['payment_status' => 'failed']);
-                return redirect()->to($frontendUrl . '/checkout/failed?order=' . $order->order_number . '&error=' . urlencode($result['message']));
+
+                return redirect()->to($frontendUrl.'/checkout/failed?order='.$order->order_number.'&error='.urlencode($result['message']));
             } catch (\Exception $e) {
                 $order->update(['payment_status' => 'failed']);
-                return redirect()->to($frontendUrl . '/checkout/failed?order=' . $order->order_number . '&error=' . urlencode($e->getMessage()));
+
+                return redirect()->to($frontendUrl.'/checkout/failed?order='.$order->order_number.'&error='.urlencode($e->getMessage()));
             }
         } elseif ($status === 'cancel') {
             $order->update(['payment_status' => 'pending']);
-            return redirect()->to($frontendUrl . '/checkout/cancelled?order=' . $order->order_number);
+
+            return redirect()->to($frontendUrl.'/checkout/cancelled?order='.$order->order_number);
         } else {
             $order->update(['payment_status' => 'failed']);
-            return redirect()->to($frontendUrl . '/checkout/failed?order=' . $order->order_number);
+
+            return redirect()->to($frontendUrl.'/checkout/failed?order='.$order->order_number);
         }
     }
 
@@ -186,7 +190,7 @@ class BkashController extends Controller
 
             $paymentId = $order->bkash_payment_id ?: $order->transaction_id;
 
-            if (!$paymentId) {
+            if (! $paymentId) {
                 return $this->errorResponse('No payment initiated for this order.', 400);
             }
 
@@ -232,7 +236,7 @@ class BkashController extends Controller
      */
     protected function validateFrontendOrigin(?string $origin): ?string
     {
-        if (!$origin) {
+        if (! $origin) {
             return null;
         }
 
@@ -257,6 +261,7 @@ class BkashController extends Controller
             if ($origin === $defaultFrontendUrl) {
                 return $origin;
             }
+
             return null;
         }
 
@@ -295,7 +300,7 @@ class BkashController extends Controller
      */
     public function refund(Request $request): JsonResponse
     {
-        if (!$request->user()->isAdmin()) {
+        if (! $request->user()->isAdmin()) {
             return $this->errorResponse('Unauthorized.', 403);
         }
 
@@ -319,7 +324,7 @@ class BkashController extends Controller
             $paymentId = $order->bkash_payment_id;
             $transactionId = $order->transaction_id;
 
-            if (!$paymentId || !$transactionId) {
+            if (! $paymentId || ! $transactionId) {
                 return $this->errorResponse('Missing bKash payment or transaction ID for this order.', 400);
             }
 

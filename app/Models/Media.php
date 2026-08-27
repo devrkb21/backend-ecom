@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class Media extends Model
@@ -31,44 +32,44 @@ class Media extends Model
 
         static::deleting(function ($media) {
             $path = $media->path;
-            
+
             // Delete product images completely
-            \App\Models\ProductImage::where('image', $path)->delete();
+            ProductImage::where('image', $path)->delete();
 
             // Nullify references in other tables
-            if (\Illuminate\Support\Facades\Schema::hasColumn('categories', 'image')) {
-                \App\Models\Category::where('image', $path)->update(['image' => null]);
+            if (Schema::hasColumn('categories', 'image')) {
+                Category::where('image', $path)->update(['image' => null]);
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('categories', 'banner_image')) {
-                \App\Models\Category::where('banner_image', $path)->update(['banner_image' => null]);
+            if (Schema::hasColumn('categories', 'banner_image')) {
+                Category::where('banner_image', $path)->update(['banner_image' => null]);
             }
-            
-            \App\Models\ProductVariant::where('image', $path)->update(['image' => null]);
-            \App\Models\ProductAttributeValue::where('image', $path)->update(['image' => null]);
-            
-            \App\Models\LoyaltyReward::where('image', $path)->update(['image' => null]);
-            \App\Models\FlashSale::where('banner_image', $path)->update(['banner_image' => null]);
+
+            ProductVariant::where('image', $path)->update(['image' => null]);
+            ProductAttributeValue::where('image', $path)->update(['image' => null]);
+
+            LoyaltyReward::where('image', $path)->update(['image' => null]);
+            FlashSale::where('banner_image', $path)->update(['banner_image' => null]);
 
             // For settings, set the value to empty string if it matches the image
-            \App\Models\Setting::where('value', $path)->update(['value' => '']);
-            
+            Setting::where('value', $path)->update(['value' => '']);
+
             // Also handle cases where the full URL might be saved
             if ($media->disk) {
                 try {
-                    $url = \Illuminate\Support\Facades\Storage::disk($media->disk)->url($path);
-                    
-                    \App\Models\ProductImage::where('image', $url)->delete();
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('categories', 'image')) {
-                        \App\Models\Category::where('image', $url)->update(['image' => null]);
+                    $url = Storage::disk($media->disk)->url($path);
+
+                    ProductImage::where('image', $url)->delete();
+                    if (Schema::hasColumn('categories', 'image')) {
+                        Category::where('image', $url)->update(['image' => null]);
                     }
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('categories', 'banner_image')) {
-                        \App\Models\Category::where('banner_image', $url)->update(['banner_image' => null]);
+                    if (Schema::hasColumn('categories', 'banner_image')) {
+                        Category::where('banner_image', $url)->update(['banner_image' => null]);
                     }
-                    \App\Models\ProductVariant::where('image', $url)->update(['image' => null]);
-                    \App\Models\ProductAttributeValue::where('image', $url)->update(['image' => null]);
-                    \App\Models\LoyaltyReward::where('image', $url)->update(['image' => null]);
-                    \App\Models\FlashSale::where('banner_image', $url)->update(['banner_image' => null]);
-                    \App\Models\Setting::where('value', $url)->update(['value' => '']);
+                    ProductVariant::where('image', $url)->update(['image' => null]);
+                    ProductAttributeValue::where('image', $url)->update(['image' => null]);
+                    LoyaltyReward::where('image', $url)->update(['image' => null]);
+                    FlashSale::where('banner_image', $url)->update(['banner_image' => null]);
+                    Setting::where('value', $url)->update(['value' => '']);
                 } catch (\Exception $e) {
                     // Ignore URL generation errors
                 }
@@ -99,12 +100,12 @@ class Media extends Model
     {
         $bytes = $this->size;
         $units = ['B', 'KB', 'MB', 'GB'];
-        
+
         for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
             $bytes /= 1024;
         }
-        
-        return round($bytes, 2) . ' ' . $units[$i];
+
+        return round($bytes, 2).' '.$units[$i];
     }
 
     /**

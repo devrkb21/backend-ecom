@@ -34,7 +34,7 @@ class AuthController extends Controller
     {
         $result = $this->authService->login($request->validated());
 
-        if (!$result) {
+        if (! $result) {
             return $this->errorResponse('Invalid credentials', 401);
         }
 
@@ -67,7 +67,7 @@ class AuthController extends Controller
     {
         $result = $this->authService->resetPassword($request->validated());
 
-        if (!$result) {
+        if (! $result) {
             return $this->errorResponse('Invalid or expired reset token/OTP.', 400);
         }
 
@@ -84,7 +84,7 @@ class AuthController extends Controller
 
         $result = $this->authService->verifyEmail($user);
 
-        if (!$result) {
+        if (! $result) {
             return $this->successResponse(null, 'Email already verified.');
         }
 

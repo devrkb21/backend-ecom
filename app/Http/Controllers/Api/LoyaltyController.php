@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\LoyaltyReward;
 use App\Models\LoyaltyRedemption;
+use App\Models\LoyaltyReward;
+use App\Models\LoyaltyTier;
+use App\Models\User;
 use App\Services\LoyaltyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -57,7 +59,7 @@ class LoyaltyController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $rewards->map(fn($reward) => [
+            'data' => $rewards->map(fn ($reward) => [
                 'id' => $reward->id,
                 'name' => $reward->name,
                 'description' => $reward->description,
@@ -88,7 +90,7 @@ class LoyaltyController extends Controller
 
         $result = $this->loyaltyService->redeemReward($user, $reward);
 
-        if (!$result['success']) {
+        if (! $result['success']) {
             return response()->json([
                 'success' => false,
                 'message' => $result['error'],
@@ -117,7 +119,7 @@ class LoyaltyController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $redemptions->map(fn($r) => [
+            'data' => $redemptions->map(fn ($r) => [
                 'id' => $r->id,
                 'reward' => [
                     'name' => $r->reward->name,
@@ -147,7 +149,7 @@ class LoyaltyController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $redemptions->map(fn($r) => [
+            'data' => $redemptions->map(fn ($r) => [
                 'id' => $r->id,
                 'reward' => [
                     'name' => $r->reward->name,
@@ -208,7 +210,7 @@ class LoyaltyController extends Controller
             ->with('reward')
             ->first();
 
-        if (!$redemption) {
+        if (! $redemption) {
             return response()->json([
                 'success' => false,
                 'valid' => false,
@@ -233,11 +235,11 @@ class LoyaltyController extends Controller
      */
     public function tiers(): JsonResponse
     {
-        $tiers = \App\Models\LoyaltyTier::orderBy('min_points')->get();
+        $tiers = LoyaltyTier::orderBy('min_points')->get();
 
         return response()->json([
             'success' => true,
-            'data' => $tiers->map(fn($tier) => [
+            'data' => $tiers->map(fn ($tier) => [
                 'name' => $tier->name,
                 'slug' => $tier->slug,
                 'min_points' => $tier->min_points,
@@ -260,13 +262,13 @@ class LoyaltyController extends Controller
         $userRank = null;
 
         if ($user) {
-            $userRank = \App\Models\User::where('lifetime_points', '>', $user->lifetime_points)->count() + 1;
+            $userRank = User::where('lifetime_points', '>', $user->lifetime_points)->count() + 1;
         }
 
         return response()->json([
             'success' => true,
             'data' => [
-                'leaderboard' => $leaderboard->map(fn($u, $index) => [
+                'leaderboard' => $leaderboard->map(fn ($u, $index) => [
                     'rank' => $index + 1,
                     'name' => $u->name,
                     'lifetime_points' => $u->lifetime_points,

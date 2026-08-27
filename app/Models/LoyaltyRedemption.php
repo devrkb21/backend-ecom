@@ -24,8 +24,11 @@ class LoyaltyRedemption extends Model
 
     // Statuses
     const STATUS_PENDING = 'pending';
+
     const STATUS_APPLIED = 'applied';
+
     const STATUS_EXPIRED = 'expired';
+
     const STATUS_CANCELLED = 'cancelled';
 
     public function user(): BelongsTo

@@ -47,7 +47,7 @@ class LoyaltyTier extends Model
     {
         $nextTier = $this->getNextTier();
 
-        if (!$nextTier) {
+        if (! $nextTier) {
             return null; // Already at highest tier
         }
 
@@ -68,7 +68,7 @@ class LoyaltyTier extends Model
         }
 
         if ($this->free_shipping) {
-            $benefits[] = "Free shipping on all orders";
+            $benefits[] = 'Free shipping on all orders';
         }
 
         if ($this->exclusive_discount > 0) {

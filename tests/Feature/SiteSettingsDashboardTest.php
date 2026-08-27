@@ -2,8 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use App\Models\Setting;
+use App\Models\User;
+use Database\Seeders\SettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -24,7 +25,7 @@ class SiteSettingsDashboardTest extends TestCase
             'role' => 'admin',
         ]);
 
-        $this->seed(\Database\Seeders\SettingSeeder::class);
+        $this->seed(SettingSeeder::class);
     }
 
     public function test_admin_can_view_settings_dashboard(): void
@@ -36,10 +37,10 @@ class SiteSettingsDashboardTest extends TestCase
             ->assertSee('Hero Section')
             ->assertSee('Navigation Menu')
             ->assertSee('Appearance & Colors');
-            
+
         $systemResponse = $this->actingAs($this->admin, 'web')
             ->get('/admin/settings/system');
-            
+
         $systemResponse->assertOk()
             ->assertSee('General Settings')
             ->assertSee('Checkout Settings')
@@ -57,11 +58,11 @@ class SiteSettingsDashboardTest extends TestCase
                     'site_description' => 'A very fine store.',
                     'order_number_prefix' => 'IC',
                     'order_number_generation_mode' => 'timestamp_random',
-                ]
+                ],
             ]);
 
         $response->assertRedirect('/admin/settings/system?group=general');
-        
+
         $this->assertDatabaseHas('settings', [
             'group' => 'general',
             'key' => 'site_title',
@@ -85,11 +86,11 @@ class SiteSettingsDashboardTest extends TestCase
                 'settings' => [
                     'primary_color' => '#123456',
                     'primary_hover_color' => '#654321',
-                ]
+                ],
             ]);
 
         $response->assertRedirect('/admin/settings/site?group=appearance');
-        
+
         $this->assertDatabaseHas('settings', [
             'group' => 'appearance',
             'key' => 'primary_color',
@@ -114,19 +115,19 @@ class SiteSettingsDashboardTest extends TestCase
                 'url' => '/',
                 'type' => 'link',
                 'highlight' => false,
-                'children' => []
-            ]
+                'children' => [],
+            ],
         ];
 
         $response = $this->actingAs($this->admin, 'web')
             ->put('/admin/settings/site/navigation', [
                 'settings' => [
                     'header_menu' => json_encode($menuData),
-                ]
+                ],
             ]);
 
         $response->assertRedirect('/admin/settings/site?group=navigation');
-        
+
         $setting = Setting::where('group', 'navigation')->where('key', 'header_menu')->first();
         $this->assertNotNull($setting);
         $decoded = json_decode($setting->value, true);
@@ -146,19 +147,19 @@ class SiteSettingsDashboardTest extends TestCase
                 'image' => 'media/banners/banner1.webp',
                 'button_text' => 'Grab Now',
                 'button_link' => '/offers',
-                'enabled' => true
-            ]
+                'enabled' => true,
+            ],
         ];
 
         $response = $this->actingAs($this->admin, 'web')
             ->put('/admin/settings/site/hero', [
                 'settings' => [
                     'banners' => json_encode($bannersData),
-                ]
+                ],
             ]);
 
         $response->assertRedirect('/admin/settings/site?group=hero');
-        
+
         $setting = Setting::where('group', 'hero')->where('key', 'banners')->first();
         $this->assertNotNull($setting);
         $decoded = json_decode($setting->value, true);

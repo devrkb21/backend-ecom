@@ -9,7 +9,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasColumn('cart_items', 'product_variant_id')) {
+        if (! Schema::hasColumn('cart_items', 'product_variant_id')) {
             Schema::table('cart_items', function (Blueprint $table) {
                 $table->foreignId('product_variant_id')
                     ->nullable()
@@ -17,7 +17,7 @@ return new class extends Migration
                     ->constrained('product_variants')
                     ->nullOnDelete();
             });
-        } elseif (!$this->hasForeignKey('cart_items', 'cart_items_product_variant_id_foreign')) {
+        } elseif (! $this->hasForeignKey('cart_items', 'cart_items_product_variant_id_foreign')) {
             Schema::table('cart_items', function (Blueprint $table) {
                 $table->foreign('product_variant_id', 'cart_items_product_variant_id_foreign')
                     ->references('id')
@@ -27,7 +27,7 @@ return new class extends Migration
         }
 
         // Add the replacement unique key first so MySQL always has a valid index for FK checks.
-        if (!$this->hasIndex('cart_items', 'cart_items_cart_product_variant_unique')) {
+        if (! $this->hasIndex('cart_items', 'cart_items_cart_product_variant_unique')) {
             Schema::table('cart_items', function (Blueprint $table) {
                 $table->unique(
                     ['cart_id', 'product_id', 'product_variant_id'],
@@ -63,7 +63,7 @@ return new class extends Migration
             });
         }
 
-        if (!$this->hasIndex('cart_items', 'cart_items_cart_id_product_id_unique')) {
+        if (! $this->hasIndex('cart_items', 'cart_items_cart_id_product_id_unique')) {
             Schema::table('cart_items', function (Blueprint $table) {
                 $table->unique(['cart_id', 'product_id'], 'cart_items_cart_id_product_id_unique');
             });
@@ -81,6 +81,7 @@ return new class extends Migration
                     return true;
                 }
             }
+
             return false;
         }
 

@@ -14,16 +14,16 @@ class PageController extends Controller
             ->where('is_active', true)
             ->first();
 
-        if (!$page) {
+        if (! $page) {
             return response()->json([
                 'success' => false,
-                'message' => 'Page not found'
+                'message' => 'Page not found',
             ], 404);
         }
 
         return response()->json([
             'success' => true,
-            'data' => $page
+            'data' => $page,
         ]);
     }
 
@@ -36,7 +36,7 @@ class PageController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $pages
+            'data' => $pages,
         ]);
     }
 }

@@ -144,14 +144,14 @@ class Address extends Model
     public function getFormattedAddressAttribute(): string
     {
         $lines = [];
-        
+
         $lines[] = $this->name;
         $lines[] = $this->address_line_1;
-        
+
         if ($this->address_line_2) {
             $lines[] = $this->address_line_2;
         }
-        
+
         $cityLineParts = array_filter([
             $this->area,
             $this->union?->name,
@@ -163,15 +163,15 @@ class Address extends Model
         $cityLine = implode(', ', $cityLineParts);
 
         if ($this->postal_code) {
-            $cityLine .= ($cityLine ? ' - ' : '') . $this->postal_code;
+            $cityLine .= ($cityLine ? ' - ' : '').$this->postal_code;
         }
 
         if ($cityLine) {
             $lines[] = $cityLine;
         }
-        
+
         $lines[] = 'Bangladesh';
-        $lines[] = 'Phone: ' . $this->phone;
+        $lines[] = 'Phone: '.$this->phone;
 
         return implode("\n", $lines);
     }
@@ -185,7 +185,7 @@ class Address extends Model
             'shipping_name' => $this->name,
             'shipping_phone' => $this->phone,
             'shipping_email' => $this->email,
-            'shipping_address' => $this->address_line_1 . ($this->address_line_2 ? ', ' . $this->address_line_2 : ''),
+            'shipping_address' => $this->address_line_1.($this->address_line_2 ? ', '.$this->address_line_2 : ''),
             'shipping_division_id' => $this->division_id,
             'shipping_district_id' => $this->district_id,
             'shipping_upazila_id' => $this->upazila_id,

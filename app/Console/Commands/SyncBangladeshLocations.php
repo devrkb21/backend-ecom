@@ -64,7 +64,7 @@ class SyncBangladeshLocations extends Command
                         $externalDivisionId = (int) ($row['division_id'] ?? 0);
                         $divisionId = $divisionIdMap->get($externalDivisionId);
 
-                        if (!$divisionId) {
+                        if (! $divisionId) {
                             return null;
                         }
 
@@ -98,7 +98,7 @@ class SyncBangladeshLocations extends Command
                         $externalDistrictId = (int) ($row['district_id'] ?? 0);
                         $districtId = $districtIdMap->get($externalDistrictId);
 
-                        if (!$districtId) {
+                        if (! $districtId) {
                             return null;
                         }
 
@@ -130,7 +130,7 @@ class SyncBangladeshLocations extends Command
                         $externalUpazilaId = (int) ($row['upazilla_id'] ?? 0);
                         $upazilaId = $upazilaIdMap->get($externalUpazilaId);
 
-                        if (!$upazilaId) {
+                        if (! $upazilaId) {
                             return null;
                         }
 
@@ -156,14 +156,14 @@ class SyncBangladeshLocations extends Command
 
             $this->newLine();
             $this->info('Bangladesh location sync completed successfully.');
-            $this->line('Divisions: ' . BdDivision::count());
-            $this->line('Districts: ' . BdDistrict::count());
-            $this->line('Upazilas: ' . BdUpazila::count());
-            $this->line('Unions: ' . BdUnion::count());
+            $this->line('Divisions: '.BdDivision::count());
+            $this->line('Districts: '.BdDistrict::count());
+            $this->line('Upazilas: '.BdUpazila::count());
+            $this->line('Unions: '.BdUnion::count());
 
             return self::SUCCESS;
         } catch (\Throwable $e) {
-            $this->error('Location sync failed: ' . $e->getMessage());
+            $this->error('Location sync failed: '.$e->getMessage());
             report($e);
 
             return self::FAILURE;
@@ -184,7 +184,7 @@ class SyncBangladeshLocations extends Command
 
         $json = $response->json();
 
-        if (!is_array($json) || !isset($json['data']) || !is_array($json['data'])) {
+        if (! is_array($json) || ! isset($json['data']) || ! is_array($json['data'])) {
             throw new \RuntimeException("Invalid response payload from endpoint: {$endpoint}");
         }
 

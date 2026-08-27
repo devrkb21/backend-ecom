@@ -70,7 +70,7 @@ class OrderStatusController extends Controller
 
         $isActive = $request->boolean('is_active', $orderStatus->is_active);
 
-        if (!$isActive) {
+        if (! $isActive) {
             $otherActiveCount = OrderStatus::query()
                 ->where('is_active', true)
                 ->where('id', '!=', $orderStatus->id)

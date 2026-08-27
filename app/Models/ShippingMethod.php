@@ -77,7 +77,7 @@ class ShippingMethod extends Model
 
     public function getDistrictRate(?int $districtId = null): ?float
     {
-        if (!$districtId) {
+        if (! $districtId) {
             return null;
         }
 
@@ -98,10 +98,9 @@ class ShippingMethod extends Model
         ?int $divisionId = null,
         ?int $districtId = null,
         ?int $upazilaId = null
-    ): bool
-    {
+    ): bool {
         // Check if active
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return false;
         }
 
@@ -123,13 +122,13 @@ class ShippingMethod extends Model
         // Bangladesh-only operation policy.
         if ($countryCode) {
             $normalizedCountry = strtoupper(trim($countryCode));
-            if (!in_array($normalizedCountry, ['BD', 'BANGLADESH'], true)) {
+            if (! in_array($normalizedCountry, ['BD', 'BANGLADESH'], true)) {
                 return false;
             }
         }
 
         $hasLocationContext = $divisionId || $districtId || $upazilaId;
-        if ($hasLocationContext && !$this->isAvailableForLocation($divisionId, $districtId, $upazilaId)) {
+        if ($hasLocationContext && ! $this->isAvailableForLocation($divisionId, $districtId, $upazilaId)) {
             return false;
         }
 
@@ -196,22 +195,23 @@ class ShippingMethod extends Model
      */
     public function getDeliveryEstimate(): ?string
     {
-        if (!$this->min_delivery_days && !$this->max_delivery_days) {
+        if (! $this->min_delivery_days && ! $this->max_delivery_days) {
             return null;
         }
 
         if ($this->min_delivery_days && $this->max_delivery_days) {
             if ($this->min_delivery_days === $this->max_delivery_days) {
-                return $this->min_delivery_days . ' day' . ($this->min_delivery_days > 1 ? 's' : '');
+                return $this->min_delivery_days.' day'.($this->min_delivery_days > 1 ? 's' : '');
             }
-            return $this->min_delivery_days . '-' . $this->max_delivery_days . ' days';
+
+            return $this->min_delivery_days.'-'.$this->max_delivery_days.' days';
         }
 
         if ($this->min_delivery_days) {
-            return $this->min_delivery_days . '+ days';
+            return $this->min_delivery_days.'+ days';
         }
 
-        return 'Up to ' . $this->max_delivery_days . ' days';
+        return 'Up to '.$this->max_delivery_days.' days';
     }
 
     /**

@@ -2,14 +2,15 @@
 
 namespace App\Services;
 
-use App\Models\Setting;
 use App\Models\Order;
 use App\Models\OrderStatus;
+use App\Models\Setting;
 use Illuminate\Support\Facades\Http;
 
 class SmsService
 {
     private const DEFAULT_SEND_URL = 'https://www.bulksmsbd.net/api/smsapi';
+
     private const DEFAULT_BALANCE_URL = 'https://www.bulksmsbd.net/api/getBalanceApi';
 
     public function isEnabled(): bool
@@ -20,11 +21,11 @@ class SmsService
     /**
      * Send SMS to one or multiple phone numbers.
      *
-     * @param string|array<int, string> $numbers
+     * @param  string|array<int, string>  $numbers
      */
     public function send(string|array $numbers, string $message): array
     {
-        if (!$this->isEnabled()) {
+        if (! $this->isEnabled()) {
             return [
                 'success' => false,
                 'code' => null,
@@ -72,7 +73,7 @@ class SmsService
             ->post($sendUrl, $payload);
 
         $raw = trim((string) $response->body());
-        
+
         // Attempt to parse JSON response
         $decoded = json_decode($raw, true);
         $code = null;
@@ -111,13 +112,13 @@ class SmsService
      */
     public function sendOrderStatusSms(Order $order, string $newStatusKey): array
     {
-        if (!$this->isEnabled()) {
+        if (! $this->isEnabled()) {
             return ['success' => false, 'message' => 'SMS integration is disabled.', 'raw' => null];
         }
 
         // Check if SMS is enabled for this status
         $smsEnabled = Setting::getValue('sms_templates', "sms_enabled_{$newStatusKey}", false);
-        if (!$smsEnabled) {
+        if (! $smsEnabled) {
             return ['success' => false, 'message' => "SMS not enabled for status: {$newStatusKey}", 'raw' => null];
         }
 
@@ -179,7 +180,7 @@ class SmsService
 
     public function getBalance(): array
     {
-        if (!$this->isEnabled()) {
+        if (! $this->isEnabled()) {
             return [
                 'success' => false,
                 'message' => 'SMS integration is disabled.',
@@ -205,7 +206,7 @@ class SmsService
 
         $raw = trim((string) $response->body());
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             return [
                 'success' => false,
                 'message' => 'Failed to fetch balance.',
@@ -244,7 +245,7 @@ class SmsService
     }
 
     /**
-     * @param string|array<int, string> $numbers
+     * @param  string|array<int, string>  $numbers
      */
     private function normalizeNumbers(string|array $numbers): string
     {
@@ -259,12 +260,12 @@ class SmsService
                 }
 
                 if (str_starts_with($value, '01') && strlen($value) === 11) {
-                    $value = '88' . $value;
+                    $value = '88'.$value;
                 }
 
                 return $value;
             })
-            ->filter(fn(?string $number) => is_string($number) && preg_match('/^88\d{11}$/', $number))
+            ->filter(fn (?string $number) => is_string($number) && preg_match('/^88\d{11}$/', $number))
             ->unique()
             ->values();
 
@@ -300,8 +301,8 @@ class SmsService
         $decoded = json_decode($raw, true);
         if (is_array($decoded)) {
             $msg = $decoded['error_message'] ?? $decoded['success_message'] ?? $decoded['message'] ?? null;
-            if ($msg && trim((string)$msg) !== '') {
-                return trim((string)$msg);
+            if ($msg && trim((string) $msg) !== '') {
+                return trim((string) $msg);
             }
         }
 

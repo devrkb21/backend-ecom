@@ -11,6 +11,7 @@ class CancellationReasonController extends Controller
     private function getReasons(): array
     {
         $str = Setting::getValue('general', 'cancellation_reasons', 'Out of Stock,Customer Request,Fraudulent,Payment Failed,Other');
+
         return array_values(array_filter(array_map('trim', explode(',', $str))));
     }
 
@@ -22,6 +23,7 @@ class CancellationReasonController extends Controller
     public function index()
     {
         $reasons = $this->getReasons();
+
         return view('admin.settings.cancellation-reasons', compact('reasons'));
     }
 
@@ -29,7 +31,7 @@ class CancellationReasonController extends Controller
     {
         $request->validate(['reason' => 'required|string|max:255']);
         $reasons = $this->getReasons();
-        
+
         $newReason = trim($request->input('reason'));
         if (in_array(strtolower($newReason), array_map('strtolower', $reasons))) {
             return back()->with('error', 'Reason already exists.');
@@ -46,12 +48,12 @@ class CancellationReasonController extends Controller
         $request->validate(['reason' => 'required|string|max:255']);
         $reasons = $this->getReasons();
 
-        if (!isset($reasons[$id])) {
+        if (! isset($reasons[$id])) {
             return back()->with('error', 'Reason not found.');
         }
 
         $newReason = trim($request->input('reason'));
-        
+
         if (strtolower($reasons[$id]) === 'other' && strtolower($newReason) !== 'other') {
             return back()->with('error', 'The "Other" option cannot be renamed to something else.');
         }
@@ -73,7 +75,7 @@ class CancellationReasonController extends Controller
     {
         $reasons = $this->getReasons();
 
-        if (!isset($reasons[$id])) {
+        if (! isset($reasons[$id])) {
             return back()->with('error', 'Reason not found.');
         }
 

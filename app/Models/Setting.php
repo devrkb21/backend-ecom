@@ -31,10 +31,10 @@ class Setting extends Model
         $setting = Cache::remember(
             "settings.{$group}.{$key}",
             3600,
-            fn() => static::where('group', $group)->where('key', $key)->first()
+            fn () => static::where('group', $group)->where('key', $key)->first()
         );
 
-        if (!$setting) {
+        if (! $setting) {
             return $default;
         }
 
@@ -46,7 +46,7 @@ class Setting extends Model
      */
     public static function getGroup(string $group, bool $publicOnly = true): array
     {
-        $cacheKey = "settings.group.{$group}" . ($publicOnly ? '.public' : '.all');
+        $cacheKey = "settings.group.{$group}".($publicOnly ? '.public' : '.all');
 
         return Cache::remember($cacheKey, 3600, function () use ($group, $publicOnly) {
             $query = static::where('group', $group)->orderBy('sort_order');
@@ -108,7 +108,7 @@ class Setting extends Model
                 return asset($normalized);
             }
 
-            return asset('storage/' . $normalized);
+            return asset('storage/'.$normalized);
         };
 
         return match ($type) {
@@ -116,7 +116,7 @@ class Setting extends Model
             'number', 'integer' => (int) $value,
             'float', 'decimal' => (float) $value,
             'json', 'array' => is_string($value) ? json_decode($value, true) : $value,
-            'image' => is_string($value) && $value !== '' && !str_starts_with($value, 'http')
+            'image' => is_string($value) && $value !== '' && ! str_starts_with($value, 'http')
                 ? $resolveImageUrl($value)
                 : $value,
             default => $value,

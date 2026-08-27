@@ -63,7 +63,7 @@ class ShippingMethodController extends Controller
 
         if ($amount || $weight || $hasLocationInput || $hasLocationText) {
             $methods = $methods->filter(function (ShippingMethod $method) use ($amount, $weight, $divisionId, $districtId, $upazilaId) {
-                if (!$divisionId && !$districtId && !$upazilaId && $method->locationRules->isNotEmpty()) {
+                if (! $divisionId && ! $districtId && ! $upazilaId && $method->locationRules->isNotEmpty()) {
                     return false;
                 }
 
@@ -91,7 +91,7 @@ class ShippingMethodController extends Controller
                 'name' => $method->name,
                 'description' => $method->description,
                 'cost' => $cost,
-                'formatted_cost' => $cost > 0 ? '৳' . number_format($cost, 2) : 'Free',
+                'formatted_cost' => $cost > 0 ? '৳'.number_format($cost, 2) : 'Free',
                 'division_id' => $divisionId,
                 'district_id' => $districtId,
                 'upazila_id' => $upazilaId,
@@ -115,11 +115,11 @@ class ShippingMethodController extends Controller
     {
         $method = ShippingMethod::findByCode($code);
 
-        if (!$method) {
+        if (! $method) {
             return $this->errorResponse('Shipping method not found.', 404);
         }
 
-        if (!$method->is_active) {
+        if (! $method->is_active) {
             return $this->errorResponse('This shipping method is not available.', 404);
         }
 
@@ -183,18 +183,18 @@ class ShippingMethodController extends Controller
 
         $method = ShippingMethod::findByCode($validated['shipping_method']);
 
-        if (!$method || !$method->is_active) {
+        if (! $method || ! $method->is_active) {
             return $this->errorResponse('Shipping method not available.', 404);
         }
 
-        if (!$divisionId && !$districtId && !$upazilaId && $method->locationRules()->exists()) {
+        if (! $divisionId && ! $districtId && ! $upazilaId && $method->locationRules()->exists()) {
             return $this->errorResponse('Could not resolve location from text. Please select division, district and upazila.', 422);
         }
 
         // Check if available for this order
-        if (!$method->isAvailableFor(
+        if (! $method->isAvailableFor(
             (float) $validated['amount'],
-            !empty($validated['weight']) ? (float) $validated['weight'] : null,
+            ! empty($validated['weight']) ? (float) $validated['weight'] : null,
             'BD',
             $divisionId,
             $districtId,
@@ -218,7 +218,7 @@ class ShippingMethodController extends Controller
             'location_text' => $locationText !== '' ? $locationText : null,
             'location_resolution' => $locationResolution,
             'cost' => $cost,
-            'formatted_cost' => $cost > 0 ? '৳' . number_format($cost, 2) : 'Free',
+            'formatted_cost' => $cost > 0 ? '৳'.number_format($cost, 2) : 'Free',
             'is_free' => $cost === 0.0,
             'delivery_estimate' => $method->getDeliveryEstimate(),
         ]);

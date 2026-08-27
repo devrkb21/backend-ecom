@@ -126,7 +126,7 @@ class LicenseService
         // Only stamp the cutoff the moment we first transition out of a
         // valid state — repeated failed verifies must not keep pushing it
         // forward, or the order-lock cutoff would never accumulate a backlog.
-        if ($wasValid || !Setting::getValue(self::GROUP, 'expired_since')) {
+        if ($wasValid || ! Setting::getValue(self::GROUP, 'expired_since')) {
             Setting::setValue(self::GROUP, 'expired_since', now()->toIso8601String(), ['is_public' => false]);
         }
 
@@ -188,7 +188,7 @@ class LicenseService
      */
     public function shouldBlockCreation(): bool
     {
-        return !$this->isValid();
+        return ! $this->isValid();
     }
 
     /**

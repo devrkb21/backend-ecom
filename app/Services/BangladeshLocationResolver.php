@@ -169,7 +169,7 @@ class BangladeshLocationResolver
         }
 
         return [
-            'matched' => !empty($matchedLevels),
+            'matched' => ! empty($matchedLevels),
             'location_text' => $locationText !== '' ? $locationText : null,
             'division_id' => $resolvedDivisionId,
             'district_id' => $resolvedDistrictId,
@@ -199,12 +199,12 @@ class BangladeshLocationResolver
                 continue;
             }
 
-            if (!$best || $score > $best['score']) {
+            if (! $best || $score > $best['score']) {
                 $best = ['item' => $item, 'score' => $score];
             }
         }
 
-        if (!$best || $best['score'] < 60) {
+        if (! $best || $best['score'] < 60) {
             return null;
         }
 
@@ -223,17 +223,20 @@ class BangladeshLocationResolver
 
             if (in_array($normalizedName, $segments, true)) {
                 $maxScore = max($maxScore, 120);
+
                 continue;
             }
 
             if (in_array($normalizedName, $tokens, true)) {
                 $maxScore = max($maxScore, 100);
+
                 continue;
             }
 
             $nameTokens = array_values(array_filter(explode(' ', $normalizedName)));
-            if (!empty($nameTokens) && count(array_intersect($nameTokens, $tokens)) === count($nameTokens)) {
+            if (! empty($nameTokens) && count(array_intersect($nameTokens, $tokens)) === count($nameTokens)) {
                 $maxScore = max($maxScore, 85);
+
                 continue;
             }
 

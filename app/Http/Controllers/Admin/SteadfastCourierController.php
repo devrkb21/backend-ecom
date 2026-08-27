@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use SteadFast\SteadFastCourierLaravelPackage\Facades\SteadfastCourier;
-use App\Models\Order;
 use Illuminate\Support\Facades\Log;
+use SteadFast\SteadFastCourierLaravelPackage\Facades\SteadfastCourier;
 
 class SteadfastCourierController extends Controller
 {
@@ -25,10 +25,10 @@ class SteadfastCourierController extends Controller
 
         $sentToCourierCount = Order::where('carrier', 'steadfast')->count();
         $pendingSendCount = Order::whereIn('status', ['pending', 'processing'])
-                                 ->where(function($q) {
-                                     $q->whereNull('carrier')->orWhere('carrier', '!=', 'steadfast');
-                                 })
-                                 ->count();
+            ->where(function ($q) {
+                $q->whereNull('carrier')->orWhere('carrier', '!=', 'steadfast');
+            })
+            ->count();
 
         return view('admin.settings.couriers.steadfast', compact('settings', 'sentToCourierCount', 'pendingSendCount'));
     }
@@ -62,7 +62,7 @@ class SteadfastCourierController extends Controller
             } else {
                 $toggleKey = $fieldToggleMap[$key] ?? null;
 
-                if ($toggleKey && !$request->boolean($toggleKey)) {
+                if ($toggleKey && ! $request->boolean($toggleKey)) {
                     // Preserve existing value when the integration is disabled.
                     $value = (string) ($currentValues[$key] ?? ($definition['default'] ?? ''));
                 } elseif (array_key_exists($key, $validated)) {
@@ -93,11 +93,11 @@ class SteadfastCourierController extends Controller
         try {
             $apiKey = Setting::getValue(self::GROUP, 'steadfast_api_key');
             $secretKey = Setting::getValue(self::GROUP, 'steadfast_secret_key');
-            
+
             if (empty($apiKey) || empty($secretKey)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'API credentials are not configured.'
+                    'message' => 'API credentials are not configured.',
                 ]);
             }
 
@@ -111,27 +111,28 @@ class SteadfastCourierController extends Controller
 
             if (isset($response['status']) && $response['status'] == 200) {
                 $balance = $response['current_balance'] ?? 0;
-                
+
                 // Save it for later display
                 Setting::setValue(self::GROUP, 'steadfast_last_balance', $balance);
                 Setting::clearCache(self::GROUP);
 
                 return response()->json([
                     'success' => true,
-                    'balance' => $balance
+                    'balance' => $balance,
                 ]);
             }
 
             return response()->json([
                 'success' => false,
-                'message' => $response['message'] ?? 'Failed to retrieve balance from SteadFast API.'
+                'message' => $response['message'] ?? 'Failed to retrieve balance from SteadFast API.',
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Steadfast balance check error: ' . $e->getMessage());
+            Log::error('Steadfast balance check error: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while communicating with SteadFast.'
+                'message' => 'An error occurred while communicating with SteadFast.',
             ]);
         }
     }

@@ -79,12 +79,12 @@ class FlashSaleProduct extends Model
     public function canPurchase(int $quantity = 1, ?int $userId = null): array
     {
         // Check if flash sale is active
-        if (!$this->flashSale->isLive()) {
+        if (! $this->flashSale->isLive()) {
             return ['allowed' => false, 'reason' => 'Flash sale is not active'];
         }
 
         // Check if product is active in flash sale
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return ['allowed' => false, 'reason' => 'Product is not available in this flash sale'];
         }
 
@@ -110,7 +110,7 @@ class FlashSaleProduct extends Model
 
     public function getUserPurchaseCount(int $userId): int
     {
-        return \App\Models\OrderItem::whereHas('order', function ($q) use ($userId) {
+        return OrderItem::whereHas('order', function ($q) use ($userId) {
             $q->where('user_id', $userId)
                 ->whereNotIn('status', ['cancelled', 'failed'])
                 ->whereBetween('created_at', [$this->flashSale->starts_at, $this->flashSale->ends_at]);
@@ -146,18 +146,18 @@ class FlashSaleProduct extends Model
             ->lockForUpdate()
             ->first();
 
-        if (!$flashSaleProduct) {
+        if (! $flashSaleProduct) {
             return null;
         }
 
         // Re-check liveness after the lock — an in-flight write could have
         // just deactivated the sale/product between the query above and now.
-        if (!$flashSaleProduct->flashSale || !$flashSaleProduct->flashSale->isLive() || !$flashSaleProduct->is_active) {
+        if (! $flashSaleProduct->flashSale || ! $flashSaleProduct->flashSale->isLive() || ! $flashSaleProduct->is_active) {
             return null;
         }
 
         $check = $flashSaleProduct->canPurchase($quantity, $userId);
-        if (!$check['allowed']) {
+        if (! $check['allowed']) {
             throw new \Exception($check['reason'] ?? 'This flash sale item is no longer available in the requested quantity.');
         }
 

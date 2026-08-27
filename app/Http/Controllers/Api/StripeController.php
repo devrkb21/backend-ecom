@@ -6,11 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\PaymentGateway;
 use App\Models\User;
-use App\Services\Payment\StripePaymentService;
 use App\Services\OrderService;
+use App\Services\Payment\StripePaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Stripe\Exception\SignatureVerificationException;
 
 class StripeController extends Controller
 {
@@ -26,11 +27,11 @@ class StripeController extends Controller
     {
         $gateway = PaymentGateway::findByCode('stripe');
 
-        if (!$gateway || !$gateway->is_active) {
+        if (! $gateway || ! $gateway->is_active) {
             return $this->errorResponse('Stripe is not available.', 404);
         }
 
-        if (!$this->stripeService->isConfigured()) {
+        if (! $this->stripeService->isConfigured()) {
             return $this->errorResponse('Stripe is not configured.', 503);
         }
 
@@ -55,7 +56,7 @@ class StripeController extends Controller
             $order = $this->orderService->getOrderById($request->order_id);
             $requestUser = $this->resolveApiUser($request);
 
-            if (!$this->canAccessOrder($order, $requestUser, $request->input('guest_token'))) {
+            if (! $this->canAccessOrder($order, $requestUser, $request->input('guest_token'))) {
                 return $this->errorResponse('Unauthorized.', 403);
             }
 
@@ -82,7 +83,7 @@ class StripeController extends Controller
             if ($requestUser) {
                 $hasSavedMethods = $requestUser->savedPaymentMethods()->active()->exists();
 
-                if ($savePaymentMethod || $hasSavedMethods || !empty($requestUser->stripe_customer_id)) {
+                if ($savePaymentMethod || $hasSavedMethods || ! empty($requestUser->stripe_customer_id)) {
                     $stripeOptions['customer_id'] = $this->stripeService->getOrCreateCustomerForUser($requestUser);
                 }
 
@@ -123,7 +124,7 @@ class StripeController extends Controller
             $order = $this->orderService->getOrderById($request->order_id);
             $requestUser = $this->resolveApiUser($request);
 
-            if (!$this->canAccessOrder($order, $requestUser, $request->input('guest_token'))) {
+            if (! $this->canAccessOrder($order, $requestUser, $request->input('guest_token'))) {
                 return $this->errorResponse('Unauthorized.', 403);
             }
 
@@ -145,7 +146,7 @@ class StripeController extends Controller
                     ]);
                 }
 
-                if ($requestUser && !empty($result['payment_method'])) {
+                if ($requestUser && ! empty($result['payment_method'])) {
                     try {
                         if ($request->boolean('save_payment_method')) {
                             $this->stripeService->savePaymentMethodForUser($requestUser, (string) $result['payment_method']);
@@ -180,7 +181,7 @@ class StripeController extends Controller
 
             return $this->successResponse([
                 'status' => $result['status'],
-                'message' => 'Payment is ' . $result['status'],
+                'message' => 'Payment is '.$result['status'],
             ]);
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
@@ -215,7 +216,7 @@ class StripeController extends Controller
             return response()->json(['status' => 'success']);
         } catch (\UnexpectedValueException $e) {
             return response()->json(['error' => 'Invalid payload'], 400);
-        } catch (\Stripe\Exception\SignatureVerificationException $e) {
+        } catch (SignatureVerificationException $e) {
             return response()->json(['error' => 'Invalid signature'], 400);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 400);
@@ -244,6 +245,7 @@ class StripeController extends Controller
                         'expected_cents' => $expectedCents,
                         'paymentIntent_amount' => $paymentIntent->amount,
                     ]);
+
                     return;
                 }
 

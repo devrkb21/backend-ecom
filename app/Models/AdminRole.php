@@ -153,7 +153,7 @@ class AdminRole extends Model
 
     public function hasPermission(string $permission): bool
     {
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return false;
         }
 

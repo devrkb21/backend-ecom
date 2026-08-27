@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Order;
+use App\Models\Setting;
+use App\Models\User;
 use devrkb21\PathaoLaravel\Events\PathaoWebhookReceived;
+use devrkb21\PathaoLaravel\Facades\PathaoLaravel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -28,7 +31,7 @@ class PathaoIntegrationTest extends TestCase
             'shipping_address' => 'Dhaka, Bangladesh',
             'shipping_country' => 'BD',
             'tracking_number' => 'consignment123',
-            'carrier' => 'pathao'
+            'carrier' => 'pathao',
         ]);
 
         $url = $order->generateTrackingUrl('consignment123', 'pathao');
@@ -52,7 +55,7 @@ class PathaoIntegrationTest extends TestCase
             'shipping_address' => 'Dhaka, Bangladesh',
             'shipping_country' => 'BD',
             'tracking_number' => 'consignment123',
-            'carrier' => 'pathao'
+            'carrier' => 'pathao',
         ]);
 
         $eventPayload = [
@@ -87,7 +90,7 @@ class PathaoIntegrationTest extends TestCase
             'shipping_address' => 'Dhaka, Bangladesh',
             'shipping_country' => 'BD',
             'tracking_number' => 'consignment123',
-            'carrier' => 'pathao'
+            'carrier' => 'pathao',
         ]);
 
         $eventPayload = [
@@ -107,14 +110,14 @@ class PathaoIntegrationTest extends TestCase
 
     public function test_pathao_store_creation()
     {
-        $admin = \App\Models\User::create([
+        $admin = User::create([
             'name' => 'Admin User',
             'email' => 'admin@example.com',
             'password' => bcrypt('password'),
             'role' => 'admin',
         ]);
 
-        \devrkb21\PathaoLaravel\Facades\PathaoLaravel::shouldReceive('CREATE_STORE')
+        PathaoLaravel::shouldReceive('CREATE_STORE')
             ->once()
             ->andReturn([
                 'status' => 200,
@@ -122,8 +125,8 @@ class PathaoIntegrationTest extends TestCase
                     'data' => [
                         'store_id' => 999,
                         'store_name' => 'Mock Store',
-                    ]
-                ]
+                    ],
+                ],
             ]);
 
         $response = $this->actingAs($admin, 'web')
@@ -143,7 +146,7 @@ class PathaoIntegrationTest extends TestCase
 
     public function test_pathao_store_creation_validation_fails()
     {
-        $admin = \App\Models\User::create([
+        $admin = User::create([
             'name' => 'Admin User',
             'email' => 'admin@example.com',
             'password' => bcrypt('password'),
@@ -167,8 +170,8 @@ class PathaoIntegrationTest extends TestCase
 
     public function test_pathao_webhook_integration_challenge_response()
     {
-        \App\Models\Setting::setValue('courier', 'pathao_webhook_integration_secret', 'f3992ecc-59da-4cbe-a049-a13da2018d51');
-        
+        Setting::setValue('courier', 'pathao_webhook_integration_secret', 'f3992ecc-59da-4cbe-a049-a13da2018d51');
+
         config([
             'pathao.webhook_integration_secret' => 'f3992ecc-59da-4cbe-a049-a13da2018d51',
         ]);
@@ -185,8 +188,8 @@ class PathaoIntegrationTest extends TestCase
 
     public function test_pathao_webhook_integration_challenge_response_fallback()
     {
-        \App\Models\Setting::setValue('courier', 'pathao_webhook_integration_secret', 'f3992ecc-59da-4cbe-a049-a13da2018d51');
-        
+        Setting::setValue('courier', 'pathao_webhook_integration_secret', 'f3992ecc-59da-4cbe-a049-a13da2018d51');
+
         config([
             'pathao.webhook_integration_secret' => 'f3992ecc-59da-4cbe-a049-a13da2018d51',
         ]);
@@ -201,14 +204,14 @@ class PathaoIntegrationTest extends TestCase
 
     public function test_pathao_test_connection_successful()
     {
-        $admin = \App\Models\User::create([
+        $admin = User::create([
             'name' => 'Admin User',
             'email' => 'admin@example.com',
             'password' => bcrypt('password'),
             'role' => 'admin',
         ]);
 
-        \devrkb21\PathaoLaravel\Facades\PathaoLaravel::shouldReceive('GET_MERCHANT_INFO')
+        PathaoLaravel::shouldReceive('GET_MERCHANT_INFO')
             ->once()
             ->andReturn([
                 'status' => 200,
@@ -219,8 +222,8 @@ class PathaoIntegrationTest extends TestCase
                         'merchant_email' => 'merchant@example.com',
                         'merchant_contact_number' => '01711223344',
                         'country_id' => 1,
-                    ]
-                ]
+                    ],
+                ],
             ]);
 
         $response = $this->actingAs($admin, 'web')
@@ -229,21 +232,21 @@ class PathaoIntegrationTest extends TestCase
         $response->assertRedirect('/admin/settings/couriers/pathao');
         $response->assertSessionHas('success', 'Pathao Connection Successful! Merchant profile loaded and cached.');
 
-        $cachedInfo = \App\Models\Setting::getValue('courier', 'pathao_merchant_info');
+        $cachedInfo = Setting::getValue('courier', 'pathao_merchant_info');
         $this->assertEquals('Mock Merchant', $cachedInfo['merchant_name']);
         $this->assertEquals(1234, $cachedInfo['merchant_id']);
     }
 
     public function test_pathao_test_connection_failed()
     {
-        $admin = \App\Models\User::create([
+        $admin = User::create([
             'name' => 'Admin User',
             'email' => 'admin@example.com',
             'password' => bcrypt('password'),
             'role' => 'admin',
         ]);
 
-        \devrkb21\PathaoLaravel\Facades\PathaoLaravel::shouldReceive('GET_MERCHANT_INFO')
+        PathaoLaravel::shouldReceive('GET_MERCHANT_INFO')
             ->once()
             ->andReturn([
                 'status' => 401,

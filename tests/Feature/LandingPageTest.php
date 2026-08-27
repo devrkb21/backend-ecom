@@ -14,8 +14,11 @@ class LandingPageTest extends TestCase
     use RefreshDatabase;
 
     private Category $category;
+
     private Product $product;
+
     private LandingPage $landingPage;
+
     private User $admin;
 
     protected function setUp(): void
@@ -73,7 +76,7 @@ class LandingPageTest extends TestCase
         $secret = config('shop.internal_api_secret', 'super_secret_key_123');
 
         $response = $this->withHeaders([
-            'X-Internal-Secret' => $secret
+            'X-Internal-Secret' => $secret,
         ])->getJson("/api/v1/landing-pages/slug/{$this->landingPage->slug}");
 
         $response->assertOk()
@@ -90,14 +93,14 @@ class LandingPageTest extends TestCase
 
         // Missing slug
         $response = $this->withHeaders([
-            'X-Internal-Secret' => $secret
+            'X-Internal-Secret' => $secret,
         ])->getJson('/api/v1/landing-pages/slug/non-existent-slug');
         $response->assertStatus(404);
 
         // Inactive landing page
         $this->landingPage->update(['is_active' => false]);
         $response2 = $this->withHeaders([
-            'X-Internal-Secret' => $secret
+            'X-Internal-Secret' => $secret,
         ])->getJson("/api/v1/landing-pages/slug/{$this->landingPage->slug}");
         $response2->assertStatus(404);
     }

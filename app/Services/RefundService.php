@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\ReturnRequest;
 use App\Services\Payment\BkashPaymentService;
 use Illuminate\Support\Facades\Log;
+use Stripe\Exception\ApiErrorException;
+use Stripe\StripeClient;
 
 class RefundService
 {
@@ -17,7 +19,7 @@ class RefundService
      */
     public function processRefund(ReturnRequest $returnRequest): array
     {
-        if (!$returnRequest->canProcessRefund()) {
+        if (! $returnRequest->canProcessRefund()) {
             return [
                 'success' => false,
                 'message' => 'Return request is not eligible for refund processing.',
@@ -52,10 +54,10 @@ class RefundService
 
             if ($result['success']) {
                 $returnRequest->markRefundCompleted($result['transaction_id'] ?? 'MANUAL');
-                
+
                 // Update order payment status
                 $returnRequest->order->update(['payment_status' => 'refunded']);
-                
+
                 Log::info('Refund processed successfully', [
                     'return_id' => $returnRequest->id,
                     'amount' => $amount,
@@ -64,7 +66,7 @@ class RefundService
                 ]);
             } else {
                 $returnRequest->markRefundFailed($result['message']);
-                
+
                 Log::error('Refund failed', [
                     'return_id' => $returnRequest->id,
                     'error' => $result['message'],
@@ -75,7 +77,7 @@ class RefundService
 
         } catch (\Exception $e) {
             $returnRequest->markRefundFailed($e->getMessage());
-            
+
             Log::error('Refund exception', [
                 'return_id' => $returnRequest->id,
                 'error' => $e->getMessage(),
@@ -83,7 +85,7 @@ class RefundService
 
             return [
                 'success' => false,
-                'message' => 'Refund processing failed: ' . $e->getMessage(),
+                'message' => 'Refund processing failed: '.$e->getMessage(),
             ];
         }
     }
@@ -101,7 +103,7 @@ class RefundService
         }
 
         try {
-            $stripe = new \Stripe\StripeClient(config('services.stripe.secret'));
+            $stripe = new StripeClient(config('services.stripe.secret'));
 
             $refund = $stripe->refunds->create([
                 'payment_intent' => $paymentIntentId,
@@ -125,13 +127,13 @@ class RefundService
 
             return [
                 'success' => false,
-                'message' => 'Stripe refund status: ' . $refund->status,
+                'message' => 'Stripe refund status: '.$refund->status,
             ];
 
-        } catch (\Stripe\Exception\ApiErrorException $e) {
+        } catch (ApiErrorException $e) {
             return [
                 'success' => false,
-                'message' => 'Stripe API error: ' . $e->getMessage(),
+                'message' => 'Stripe API error: '.$e->getMessage(),
             ];
         }
     }
@@ -151,11 +153,11 @@ class RefundService
         try {
             // First query the original payment to get trxID
             $queryResult = $this->bkashService->queryPayment($paymentId);
-            
-            if (!$queryResult || empty($queryResult['transaction_id'])) {
+
+            if (! $queryResult || empty($queryResult['transaction_id'])) {
                 // Try to search by transaction ID directly if paymentId is actually a trxID
                 $searchResult = $this->bkashService->searchTransaction($paymentId);
-                
+
                 if ($searchResult && isset($searchResult['trxID'])) {
                     $trxId = $searchResult['trxID'];
                     $actualPaymentId = $searchResult['paymentID'] ?? $paymentId;
@@ -188,13 +190,13 @@ class RefundService
 
             return [
                 'success' => false,
-                'message' => 'bKash refund failed: ' . ($refundResult['message'] ?? 'Unknown error'),
+                'message' => 'bKash refund failed: '.($refundResult['message'] ?? 'Unknown error'),
             ];
 
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => 'bKash refund error: ' . $e->getMessage(),
+                'message' => 'bKash refund error: '.$e->getMessage(),
             ];
         }
     }
@@ -208,8 +210,8 @@ class RefundService
         // Just mark it for manual processing
         return [
             'success' => true,
-            'transaction_id' => 'COD-MANUAL-' . $returnRequest->return_number,
-            'message' => 'COD refund marked for manual bank transfer. Amount: ৳' . number_format($amount, 2),
+            'transaction_id' => 'COD-MANUAL-'.$returnRequest->return_number,
+            'message' => 'COD refund marked for manual bank transfer. Amount: ৳'.number_format($amount, 2),
             'requires_manual_action' => true,
         ];
     }
@@ -221,8 +223,8 @@ class RefundService
     {
         return [
             'success' => true,
-            'transaction_id' => 'MANUAL-' . $returnRequest->return_number,
-            'message' => 'Refund marked for manual processing. Amount: ৳' . number_format($amount, 2),
+            'transaction_id' => 'MANUAL-'.$returnRequest->return_number,
+            'message' => 'Refund marked for manual processing. Amount: ৳'.number_format($amount, 2),
             'requires_manual_action' => true,
         ];
     }
@@ -233,7 +235,7 @@ class RefundService
     public function checkStripeRefundStatus(string $refundId): array
     {
         try {
-            $stripe = new \Stripe\StripeClient(config('services.stripe.secret'));
+            $stripe = new StripeClient(config('services.stripe.secret'));
             $refund = $stripe->refunds->retrieve($refundId);
 
             return [

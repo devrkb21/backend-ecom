@@ -32,7 +32,7 @@ return new class extends Migration
                 ->where('key', $item['key'])
                 ->exists();
 
-            if (!$exists) {
+            if (! $exists) {
                 DB::table('settings')->insert(array_merge($item, [
                     'created_at' => $now,
                     'updated_at' => $now,

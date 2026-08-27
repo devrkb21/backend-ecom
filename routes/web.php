@@ -1,35 +1,46 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Admin\AuthController;
-use App\Http\Controllers\Admin\DashboardController;
-use App\Http\Controllers\Admin\CategoryController;
-use App\Http\Controllers\Admin\ProductController;
-use App\Http\Controllers\Admin\OrderController;
-use App\Http\Controllers\Admin\OrderTrackingController;
-use App\Http\Controllers\Admin\PaymentController;
-use App\Http\Controllers\Admin\SavedPaymentMethodController;
-use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\AbandonedCartController;
+use App\Http\Controllers\Admin\AdminRoleController;
 use App\Http\Controllers\Admin\AttributeController;
+use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\BusinessIntelligenceController;
+use App\Http\Controllers\Admin\CancellationReasonController;
+use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\ContactMessageController;
+use App\Http\Controllers\Admin\CouponController;
+use App\Http\Controllers\Admin\CourierCheckerController;
+use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\CustomerGroupController;
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\FlashSaleController;
+use App\Http\Controllers\Admin\FraudBlockController;
+use App\Http\Controllers\Admin\GlobalSearchController;
+use App\Http\Controllers\Admin\IntegrationSettingController;
+use App\Http\Controllers\Admin\LandingPageController;
+use App\Http\Controllers\Admin\LicenseController;
+use App\Http\Controllers\Admin\LoyaltyController;
+use App\Http\Controllers\Admin\LoyaltyRewardController;
 use App\Http\Controllers\Admin\MediaController;
+use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\OrderStatusController;
+use App\Http\Controllers\Admin\OrderTrackingController;
+use App\Http\Controllers\Admin\PageController;
+use App\Http\Controllers\Admin\PathaoController;
+use App\Http\Controllers\Admin\PathaoCourierController;
+use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PaymentGatewayController;
+use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\ReturnController;
+use App\Http\Controllers\Admin\ReviewController;
+use App\Http\Controllers\Admin\SavedPaymentMethodController;
 use App\Http\Controllers\Admin\ShippingMethodController;
 use App\Http\Controllers\Admin\SiteSettingController;
-use App\Http\Controllers\Admin\IntegrationSettingController;
-use App\Http\Controllers\Admin\AdminRoleController;
-use App\Http\Controllers\Admin\OrderStatusController;
-use App\Http\Controllers\Admin\CancellationReasonController;
-use App\Http\Controllers\Admin\CouponController;
-use App\Http\Controllers\Admin\ReviewController;
-use App\Http\Controllers\Admin\PageController;
-use App\Http\Controllers\Admin\AbandonedCartController;
-use App\Http\Controllers\Admin\ReturnController;
-use App\Http\Controllers\Admin\BusinessIntelligenceController;
-use App\Http\Controllers\Admin\FlashSaleController;
-use App\Http\Controllers\Admin\LoyaltyController;
 use App\Http\Controllers\Admin\SmsTemplateController;
-use App\Http\Controllers\Admin\FraudBlockController;
-use App\Http\Controllers\Admin\LandingPageController;
+use App\Http\Controllers\Admin\SteadfastController;
+use App\Http\Controllers\Admin\SteadfastCourierController;
+use App\Http\Controllers\Admin\UserController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -38,7 +49,7 @@ use App\Http\Controllers\Admin\LandingPageController;
 */
 
 // Global login route for auth middleware redirect
-Route::get('login', fn() => redirect()->route('admin.login'))->name('login');
+Route::get('login', fn () => redirect()->route('admin.login'))->name('login');
 
 // Admin Auth Routes (Guest)
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -51,9 +62,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Dashboard
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-        
+
         // Global Search
-        Route::get('/global-search', [\App\Http\Controllers\Admin\GlobalSearchController::class, 'search'])->name('global-search');
+        Route::get('/global-search', [GlobalSearchController::class, 'search'])->name('global-search');
 
         // Categories CRUD
         Route::resource('categories', CategoryController::class)->except(['show', 'create', 'store']);
@@ -67,15 +78,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('landing-pages', LandingPageController::class);
 
         // Customer Groups & Customer Analytics
-        Route::resource('customer-groups', App\Http\Controllers\Admin\CustomerGroupController::class);
-        Route::get('customers', [App\Http\Controllers\Admin\CustomerController::class, 'index'])->name('customers.index');
-        Route::get('customers/{phone}', [App\Http\Controllers\Admin\CustomerController::class, 'show'])->name('customers.show');
-        Route::put('customers/{phone}', [App\Http\Controllers\Admin\CustomerController::class, 'update'])->name('customers.update');
-        Route::delete('customers/{phone}', [App\Http\Controllers\Admin\CustomerController::class, 'destroy'])->name('customers.destroy');
-        Route::post('customers/{phone}/assign-group', [App\Http\Controllers\Admin\CustomerController::class, 'assignGroup'])->name('customers.assign-group');
+        Route::resource('customer-groups', CustomerGroupController::class);
+        Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
+        Route::get('customers/{phone}', [CustomerController::class, 'show'])->name('customers.show');
+        Route::put('customers/{phone}', [CustomerController::class, 'update'])->name('customers.update');
+        Route::delete('customers/{phone}', [CustomerController::class, 'destroy'])->name('customers.destroy');
+        Route::post('customers/{phone}/assign-group', [CustomerController::class, 'assignGroup'])->name('customers.assign-group');
 
         // Loyalty Rewards
-        Route::resource('loyalty-rewards', App\Http\Controllers\Admin\LoyaltyRewardController::class);
+        Route::resource('loyalty-rewards', LoyaltyRewardController::class);
 
         // Fraud Blocker — full route set (index/store/destroy + custom actions) is
         // registered later in this file; FraudBlockController has no create/show/edit/update
@@ -83,11 +94,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Contact Messages
         Route::prefix('contact-messages')->name('contact-messages.')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Admin\ContactMessageController::class, 'index'])->name('index');
-            Route::get('/{contactMessage}', [\App\Http\Controllers\Admin\ContactMessageController::class, 'show'])->name('show');
-            Route::delete('/{contactMessage}', [\App\Http\Controllers\Admin\ContactMessageController::class, 'destroy'])->name('destroy');
-            Route::post('/{contactMessage}/mark-read', [\App\Http\Controllers\Admin\ContactMessageController::class, 'markAsRead'])->name('mark-read');
-            Route::post('/mark-all-read', [\App\Http\Controllers\Admin\ContactMessageController::class, 'markAllAsRead'])->name('mark-all-read');
+            Route::get('/', [ContactMessageController::class, 'index'])->name('index');
+            Route::get('/{contactMessage}', [ContactMessageController::class, 'show'])->name('show');
+            Route::delete('/{contactMessage}', [ContactMessageController::class, 'destroy'])->name('destroy');
+            Route::post('/{contactMessage}/mark-read', [ContactMessageController::class, 'markAsRead'])->name('mark-read');
+            Route::post('/mark-all-read', [ContactMessageController::class, 'markAllAsRead'])->name('mark-all-read');
         });
 
         // Products CRUD
@@ -129,11 +140,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // automation thresholds, and an ad-hoc phone search. Registered
         // before orders/{order} so "courier-checker" isn't swallowed by the
         // wildcard order-id segment.
-        Route::get('orders/courier-checker', [\App\Http\Controllers\Admin\CourierCheckerController::class, 'index'])->name('orders.courier-checker');
-        Route::put('orders/courier-checker/credentials', [\App\Http\Controllers\Admin\CourierCheckerController::class, 'updateCredentials'])->name('orders.courier-checker.credentials');
-        Route::put('orders/courier-checker/automation', [\App\Http\Controllers\Admin\CourierCheckerController::class, 'updateAutomation'])->name('orders.courier-checker.automation');
-        Route::post('orders/courier-checker/search', [\App\Http\Controllers\Admin\CourierCheckerController::class, 'search'])->name('orders.courier-checker.search');
-        Route::get('orders/courier-checker/history/{courierCheckResult}', [\App\Http\Controllers\Admin\CourierCheckerController::class, 'show'])->name('orders.courier-checker.show');
+        Route::get('orders/courier-checker', [CourierCheckerController::class, 'index'])->name('orders.courier-checker');
+        Route::put('orders/courier-checker/credentials', [CourierCheckerController::class, 'updateCredentials'])->name('orders.courier-checker.credentials');
+        Route::put('orders/courier-checker/automation', [CourierCheckerController::class, 'updateAutomation'])->name('orders.courier-checker.automation');
+        Route::post('orders/courier-checker/search', [CourierCheckerController::class, 'search'])->name('orders.courier-checker.search');
+        Route::get('orders/courier-checker/history/{courierCheckResult}', [CourierCheckerController::class, 'show'])->name('orders.courier-checker.show');
 
         // Every route below resolves a single {order} — wrapped so an order
         // placed after the license expired can't be viewed or acted on from
@@ -152,8 +163,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::patch('orders/{order}/customer-info', [OrderController::class, 'updateCustomerInfo'])->name('orders.update-customer-info');
             Route::post('orders/{order}/items', [OrderController::class, 'updateItems'])->name('orders.update-items');
             Route::post('orders/{order}/courier-history-check', [OrderController::class, 'checkCourierHistory'])->name('orders.courier-history-check');
-            Route::post('orders/{order}/steadfast', [\App\Http\Controllers\Admin\SteadfastController::class, 'sendSingle'])->name('orders.steadfast.send');
-            Route::post('orders/{order}/pathao', [\App\Http\Controllers\Admin\PathaoController::class, 'sendSingle'])->name('orders.pathao.send');
+            Route::post('orders/{order}/steadfast', [SteadfastController::class, 'sendSingle'])->name('orders.steadfast.send');
+            Route::post('orders/{order}/pathao', [PathaoController::class, 'sendSingle'])->name('orders.pathao.send');
 
             // Order Tracking
             Route::get('orders/{order}/tracking', [OrderTrackingController::class, 'edit'])->name('orders.tracking.edit');
@@ -163,10 +174,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('orders/{order}/mark-delivered', [OrderTrackingController::class, 'markDelivered'])->name('orders.mark-delivered');
         });
 
-        Route::post('orders/steadfast/bulk', [\App\Http\Controllers\Admin\SteadfastController::class, 'sendBulk'])->name('orders.steadfast.bulk');
-        Route::post('orders/pathao/bulk', [\App\Http\Controllers\Admin\PathaoController::class, 'sendBulk'])->name('orders.pathao.bulk');
-        Route::get('pathao/zones', [\App\Http\Controllers\Admin\PathaoController::class, 'getZones'])->name('pathao.zones');
-        Route::get('pathao/areas', [\App\Http\Controllers\Admin\PathaoController::class, 'getAreas'])->name('pathao.areas');
+        Route::post('orders/steadfast/bulk', [SteadfastController::class, 'sendBulk'])->name('orders.steadfast.bulk');
+        Route::post('orders/pathao/bulk', [PathaoController::class, 'sendBulk'])->name('orders.pathao.bulk');
+        Route::get('pathao/zones', [PathaoController::class, 'getZones'])->name('pathao.zones');
+        Route::get('pathao/areas', [PathaoController::class, 'getAreas'])->name('pathao.areas');
 
         // Payments (Read Only)
         Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
@@ -201,11 +212,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('media/bulk-convert-webp', [MediaController::class, 'bulkConvertWebp'])->name('media.bulk-convert-webp');
         Route::post('media/{media}/convert-webp', [MediaController::class, 'singleConvertWebp'])->name('media.single-convert-webp');
 
-
         // License (standalone top-level page, not a Settings tab)
-        Route::get('license', [\App\Http\Controllers\Admin\LicenseController::class, 'index'])->name('license');
-        Route::put('license', [\App\Http\Controllers\Admin\LicenseController::class, 'update'])->name('license.update');
-        Route::post('license/verify', [\App\Http\Controllers\Admin\LicenseController::class, 'verifyNow'])->name('license.verify');
+        Route::get('license', [LicenseController::class, 'index'])->name('license');
+        Route::put('license', [LicenseController::class, 'update'])->name('license.update');
+        Route::post('license/verify', [LicenseController::class, 'verifyNow'])->name('license.verify');
 
         // Settings
         Route::prefix('settings')->name('settings.')->group(function () {
@@ -246,15 +256,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
             // Couriers
             Route::redirect('couriers', '/admin/settings/system?group=couriers')->name('couriers');
             Route::redirect('couriers/steadfast', '/admin/settings/system?group=couriers&sub=steadfast')->name('couriers.steadfast');
-            Route::put('couriers/steadfast', [\App\Http\Controllers\Admin\SteadfastCourierController::class, 'update'])->name('couriers.steadfast.update');
-            Route::post('couriers/steadfast/balance', [\App\Http\Controllers\Admin\SteadfastCourierController::class, 'checkBalance'])->name('couriers.steadfast.balance');
+            Route::put('couriers/steadfast', [SteadfastCourierController::class, 'update'])->name('couriers.steadfast.update');
+            Route::post('couriers/steadfast/balance', [SteadfastCourierController::class, 'checkBalance'])->name('couriers.steadfast.balance');
 
             // Pathao Courier
             Route::redirect('couriers/pathao', '/admin/settings/system?group=couriers&sub=pathao')->name('couriers.pathao');
-            Route::put('couriers/pathao', [\App\Http\Controllers\Admin\PathaoCourierController::class, 'update'])->name('couriers.pathao.update');
-            Route::post('couriers/pathao/sync', [\App\Http\Controllers\Admin\PathaoCourierController::class, 'syncLocations'])->name('couriers.pathao.sync');
-            Route::post('couriers/pathao/store', [\App\Http\Controllers\Admin\PathaoCourierController::class, 'createStore'])->name('couriers.pathao.store');
-            Route::post('couriers/pathao/test-connection', [\App\Http\Controllers\Admin\PathaoCourierController::class, 'testConnection'])->name('couriers.pathao.test-connection');
+            Route::put('couriers/pathao', [PathaoCourierController::class, 'update'])->name('couriers.pathao.update');
+            Route::post('couriers/pathao/sync', [PathaoCourierController::class, 'syncLocations'])->name('couriers.pathao.sync');
+            Route::post('couriers/pathao/store', [PathaoCourierController::class, 'createStore'])->name('couriers.pathao.store');
+            Route::post('couriers/pathao/test-connection', [PathaoCourierController::class, 'testConnection'])->name('couriers.pathao.test-connection');
 
             // Order Statuses
             Route::redirect('order-statuses', '/admin/settings/system?group=order-statuses')->name('order-statuses');

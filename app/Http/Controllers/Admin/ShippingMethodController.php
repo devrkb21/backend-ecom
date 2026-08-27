@@ -7,8 +7,8 @@ use App\Models\BdDistrict;
 use App\Models\BdDivision;
 use App\Models\BdUpazila;
 use App\Models\ShippingMethod;
-use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class ShippingMethodController extends Controller
@@ -99,7 +99,7 @@ class ShippingMethodController extends Controller
     public function update(Request $request, ShippingMethod $method): RedirectResponse
     {
         $validated = $request->validate([
-            'code' => ['required', 'string', 'max:50', 'unique:shipping_methods,code,' . $method->id, 'regex:/^[a-z0-9_-]+$/'],
+            'code' => ['required', 'string', 'max:50', 'unique:shipping_methods,code,'.$method->id, 'regex:/^[a-z0-9_-]+$/'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
             'base_cost' => ['required', 'numeric', 'min:0'],
@@ -153,7 +153,7 @@ class ShippingMethodController extends Controller
 
     public function toggle(ShippingMethod $method): RedirectResponse
     {
-        $method->update(['is_active' => !$method->is_active]);
+        $method->update(['is_active' => ! $method->is_active]);
 
         $status = $method->is_active ? 'enabled' : 'disabled';
 
@@ -237,7 +237,7 @@ class ShippingMethodController extends Controller
             }
         }
 
-        if (!empty($rows)) {
+        if (! empty($rows)) {
             $method->locationRules()->insert($rows);
         }
     }

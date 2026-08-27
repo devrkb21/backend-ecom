@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\OrderActivityLog;
 use App\Models\Setting;
+use App\Services\LicenseService;
+use App\Services\SmsService;
+use devrkb21\PathaoLaravel\Facades\PathaoLaravel;
+use devrkb21\PathaoLaravel\Requests\PathaoOrderRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use devrkb21\PathaoLaravel\Facades\PathaoLaravel;
-use devrkb21\PathaoLaravel\Requests\PathaoOrderRequest;
 
 class PathaoController extends Controller
 {
@@ -51,7 +54,7 @@ class PathaoController extends Controller
             'recipient_area' => 'required_if:manual_location,1|nullable|numeric',
         ]);
 
-        if (!in_array($order->status, ['pending', 'processing'])) {
+        if (! in_array($order->status, ['pending', 'processing'])) {
             return back()->with('error', 'Only pending or processing orders can be sent to Pathao.');
         }
 
@@ -74,27 +77,27 @@ class PathaoController extends Controller
                 $zoneId = $resolved['zone_id'];
                 $areaId = $resolved['area_id'];
 
-                if (!$cityId || !$zoneId || !$areaId) {
+                if (! $cityId || ! $zoneId || ! $areaId) {
                     return back()->withInput()->with('error', 'Could not auto-resolve customer address to Pathao locations. Please toggle "Select Location Manually" and choose them manually.');
                 }
             }
 
             // Create Pathao Request object programmatically
-            $pathaoRequest = new PathaoOrderRequest();
+            $pathaoRequest = new PathaoOrderRequest;
             $pathaoRequest->replace([
-                'store_id' => (int)$storeId,
+                'store_id' => (int) $storeId,
                 'merchant_order_id' => $order->order_number,
                 'recipient_name' => $request->recipient_name,
                 'recipient_phone' => $request->recipient_phone,
                 'recipient_address' => $request->recipient_address,
-                'recipient_city' => (int)$cityId,
-                'recipient_zone' => (int)$zoneId,
-                'recipient_area' => (int)$areaId,
-                'delivery_type' => (int)$request->delivery_type,
-                'item_type' => (int)$request->item_type,
-                'item_quantity' => (int)$request->item_quantity,
-                'item_weight' => (float)$request->item_weight,
-                'amount_to_collect' => (float)$request->amount_to_collect,
+                'recipient_city' => (int) $cityId,
+                'recipient_zone' => (int) $zoneId,
+                'recipient_area' => (int) $areaId,
+                'delivery_type' => (int) $request->delivery_type,
+                'item_type' => (int) $request->item_type,
+                'item_quantity' => (int) $request->item_quantity,
+                'item_weight' => (float) $request->item_weight,
+                'amount_to_collect' => (float) $request->amount_to_collect,
                 'special_instruction' => $request->special_instruction ?? $order->notes,
             ]);
 
@@ -103,13 +106,13 @@ class PathaoController extends Controller
             if (isset($response['status']) && $response['status'] == 200) {
                 // Success
                 $consignmentId = $response['data']['data']['consignment_id'] ?? null;
-                
+
                 if (empty($consignmentId)) {
                     return back()->with('error', 'Pathao order created but consignment ID was missing in the response.');
                 }
 
                 $recipientPhone = $request->recipient_phone;
-                $trackingUrl = 'https://merchant.pathao.com/tracking?consignment_id=' . $consignmentId . '&phone=' . urlencode($recipientPhone);
+                $trackingUrl = 'https://merchant.pathao.com/tracking?consignment_id='.$consignmentId.'&phone='.urlencode($recipientPhone);
 
                 $updateData = [
                     'carrier' => 'pathao',
@@ -124,15 +127,15 @@ class PathaoController extends Controller
 
                 $order->update($updateData);
 
-                \App\Models\OrderActivityLog::log($order, 'status_change', "Order sent to Pathao Courier. Consignment ID: {$consignmentId}");
+                OrderActivityLog::log($order, 'status_change', "Order sent to Pathao Courier. Consignment ID: {$consignmentId}");
 
                 if ($statusChangedToProcessing) {
                     try {
-                        $smsResult = app(\App\Services\SmsService::class)->sendOrderStatusSms($order, 'processing');
+                        $smsResult = app(SmsService::class)->sendOrderStatusSms($order, 'processing');
                         if ($smsResult['success']) {
-                            \App\Models\OrderActivityLog::log($order, 'sms_sent', "SMS sent: Status → Processing (via Pathao)", $smsResult['message'] ?? null, ['status' => 'processing']);
-                        } elseif (!str_contains($smsResult['message'] ?? '', 'not enabled')) {
-                            \App\Models\OrderActivityLog::log($order, 'sms_failed', 'SMS failed', $smsResult['message'] ?? null, ['status' => 'processing', 'error' => $smsResult['message'] ?? '']);
+                            OrderActivityLog::log($order, 'sms_sent', 'SMS sent: Status → Processing (via Pathao)', $smsResult['message'] ?? null, ['status' => 'processing']);
+                        } elseif (! str_contains($smsResult['message'] ?? '', 'not enabled')) {
+                            OrderActivityLog::log($order, 'sms_failed', 'SMS failed', $smsResult['message'] ?? null, ['status' => 'processing', 'error' => $smsResult['message'] ?? '']);
                         }
                     } catch (\Throwable $e) {
                         \Log::warning('Order SMS failed', ['order_id' => $order->id, 'status' => 'processing', 'error' => $e->getMessage()]);
@@ -144,13 +147,15 @@ class PathaoController extends Controller
                 // Error from Pathao
                 $errorMsg = $response['message'] ?? 'Unknown API error';
                 if (isset($response['data']) && is_array($response['data'])) {
-                    $errorMsg .= ' - ' . json_encode($response['data']);
+                    $errorMsg .= ' - '.json_encode($response['data']);
                 }
-                return back()->withInput()->with('error', 'Pathao API Error: ' . $errorMsg);
+
+                return back()->withInput()->with('error', 'Pathao API Error: '.$errorMsg);
             }
         } catch (\Exception $e) {
-            Log::error('Pathao Integration Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return back()->withInput()->with('error', 'Pathao Integration Error: ' . $e->getMessage());
+            Log::error('Pathao Integration Error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
+            return back()->withInput()->with('error', 'Pathao Integration Error: '.$e->getMessage());
         }
     }
 
@@ -175,14 +180,14 @@ class PathaoController extends Controller
 
             $orders = Order::whereIn('id', $request->order_ids)
                 ->whereIn('status', ['pending', 'processing'])
-                ->where(function($q) {
+                ->where(function ($q) {
                     $q->whereNull('carrier')->orWhere('carrier', '!=', 'pathao');
                 })
                 ->get();
 
             // Orders placed after the license expired can't be dispatched
             // from the admin panel until renewal.
-            $licenseService = app(\App\Services\LicenseService::class);
+            $licenseService = app(LicenseService::class);
             $orders = $orders->reject(fn (Order $order) => $licenseService->isOrderLocked($order))->values();
 
             if ($orders->isEmpty()) {
@@ -200,32 +205,33 @@ class PathaoController extends Controller
                 $zoneId = $resolved['zone_id'];
                 $areaId = $resolved['area_id'];
 
-                if (!$cityId || !$zoneId || !$areaId) {
+                if (! $cityId || ! $zoneId || ! $areaId) {
                     $failCount++;
                     $errors[] = "Order #{$order->order_number}: Could not auto-resolve address.";
+
                     continue;
                 }
 
                 $customerName = trim($order->shipping_name) ?: ($order->user?->name ?: 'Guest Checkout');
                 $customerPhone = $order->shipping_phone ?: $order->user?->phone;
-                $customerAddress = trim($order->shipping_address . ' ' . ($order->checkout_fields_payload['shipping_location_text'] ?? '') . ' ' . ($order->checkout_fields_payload['shipping_area'] ?? ''));
+                $customerAddress = trim($order->shipping_address.' '.($order->checkout_fields_payload['shipping_location_text'] ?? '').' '.($order->checkout_fields_payload['shipping_area'] ?? ''));
 
                 try {
-                    $pathaoRequest = new PathaoOrderRequest();
+                    $pathaoRequest = new PathaoOrderRequest;
                     $pathaoRequest->replace([
-                        'store_id' => (int)$storeId,
+                        'store_id' => (int) $storeId,
                         'merchant_order_id' => $order->order_number,
                         'recipient_name' => mb_substr($customerName, 0, 100),
                         'recipient_phone' => $customerPhone,
                         'recipient_address' => $customerAddress ?: 'Not Provided',
-                        'recipient_city' => (int)$cityId,
-                        'recipient_zone' => (int)$zoneId,
-                        'recipient_area' => (int)$areaId,
-                        'delivery_type' => (int)$request->delivery_type,
-                        'item_type' => (int)$request->item_type,
-                        'item_quantity' => (int)($order->items_count ?: $order->items()->count() ?: 1),
-                        'item_weight' => (float)$request->item_weight,
-                        'amount_to_collect' => (float)$order->total,
+                        'recipient_city' => (int) $cityId,
+                        'recipient_zone' => (int) $zoneId,
+                        'recipient_area' => (int) $areaId,
+                        'delivery_type' => (int) $request->delivery_type,
+                        'item_type' => (int) $request->item_type,
+                        'item_quantity' => (int) ($order->items_count ?: $order->items()->count() ?: 1),
+                        'item_weight' => (float) $request->item_weight,
+                        'amount_to_collect' => (float) $order->total,
                         'special_instruction' => $request->special_instruction ?? $order->notes,
                     ]);
 
@@ -233,9 +239,9 @@ class PathaoController extends Controller
 
                     if (isset($response['status']) && $response['status'] == 200) {
                         $consignmentId = $response['data']['data']['consignment_id'] ?? null;
-                        
+
                         if ($consignmentId) {
-                            $trackingUrl = 'https://merchant.pathao.com/tracking?consignment_id=' . $consignmentId . '&phone=' . urlencode($customerPhone);
+                            $trackingUrl = 'https://merchant.pathao.com/tracking?consignment_id='.$consignmentId.'&phone='.urlencode($customerPhone);
 
                             $updateData = [
                                 'carrier' => 'pathao',
@@ -250,15 +256,15 @@ class PathaoController extends Controller
 
                             $order->update($updateData);
 
-                            \App\Models\OrderActivityLog::log($order, 'status_change', "Order bulk sent to Pathao Courier. Consignment ID: {$consignmentId}");
+                            OrderActivityLog::log($order, 'status_change', "Order bulk sent to Pathao Courier. Consignment ID: {$consignmentId}");
 
                             if ($statusChangedToProcessing) {
                                 try {
-                                    $smsResult = app(\App\Services\SmsService::class)->sendOrderStatusSms($order, 'processing');
+                                    $smsResult = app(SmsService::class)->sendOrderStatusSms($order, 'processing');
                                     if ($smsResult['success']) {
-                                        \App\Models\OrderActivityLog::log($order, 'sms_sent', "SMS sent: Status → Processing (via Pathao Bulk)", $smsResult['message'] ?? null, ['status' => 'processing']);
-                                    } elseif (!str_contains($smsResult['message'] ?? '', 'not enabled')) {
-                                        \App\Models\OrderActivityLog::log($order, 'sms_failed', 'SMS failed', $smsResult['message'] ?? null, ['status' => 'processing', 'error' => $smsResult['message'] ?? '']);
+                                        OrderActivityLog::log($order, 'sms_sent', 'SMS sent: Status → Processing (via Pathao Bulk)', $smsResult['message'] ?? null, ['status' => 'processing']);
+                                    } elseif (! str_contains($smsResult['message'] ?? '', 'not enabled')) {
+                                        OrderActivityLog::log($order, 'sms_failed', 'SMS failed', $smsResult['message'] ?? null, ['status' => 'processing', 'error' => $smsResult['message'] ?? '']);
                                     }
                                 } catch (\Throwable $e) {
                                     \Log::warning('Order SMS failed', ['order_id' => $order->id, 'status' => 'processing', 'error' => $e->getMessage()]);
@@ -271,25 +277,27 @@ class PathaoController extends Controller
                         }
                     } else {
                         $failCount++;
-                        $errors[] = "Order #{$order->order_number}: " . ($response['message'] ?? 'API error.');
+                        $errors[] = "Order #{$order->order_number}: ".($response['message'] ?? 'API error.');
                     }
                 } catch (\Exception $ex) {
                     $failCount++;
-                    $errors[] = "Order #{$order->order_number}: " . $ex->getMessage();
+                    $errors[] = "Order #{$order->order_number}: ".$ex->getMessage();
                 }
             }
 
             $message = "Successfully sent {$successCount} orders to Pathao.";
             if ($failCount > 0) {
-                $message .= " Failed to send {$failCount} orders: " . implode(', ', $errors);
+                $message .= " Failed to send {$failCount} orders: ".implode(', ', $errors);
+
                 return back()->with('error', $message);
             }
 
             return back()->with('success', $message);
 
         } catch (\Exception $e) {
-            Log::error('Pathao Bulk Dispatch Exception: ' . $e->getMessage());
-            return back()->with('error', 'Pathao Bulk Dispatch Exception: ' . $e->getMessage());
+            Log::error('Pathao Bulk Dispatch Exception: '.$e->getMessage());
+
+            return back()->with('error', 'Pathao Bulk Dispatch Exception: '.$e->getMessage());
         }
     }
 
@@ -333,7 +341,7 @@ class PathaoController extends Controller
         $districtName = $order->shippingDistrict?->name;
         if ($districtName) {
             $pathaoCity = DB::table('pathao_cities')
-                ->where('name', 'like', '%' . $districtName . '%')
+                ->where('name', 'like', '%'.$districtName.'%')
                 ->first();
 
             if ($pathaoCity) {
@@ -344,7 +352,7 @@ class PathaoController extends Controller
                 if ($upazilaName) {
                     $pathaoZone = DB::table('pathao_zones')
                         ->where('city_id', $cityId)
-                        ->where('name', 'like', '%' . $upazilaName . '%')
+                        ->where('name', 'like', '%'.$upazilaName.'%')
                         ->first();
 
                     if ($pathaoZone) {
@@ -355,7 +363,7 @@ class PathaoController extends Controller
                         if ($unionName) {
                             $pathaoArea = DB::table('pathao_areas')
                                 ->where('zone_id', $zoneId)
-                                ->where('name', 'like', '%' . $unionName . '%')
+                                ->where('name', 'like', '%'.$unionName.'%')
                                 ->first();
                             if ($pathaoArea) {
                                 $areaId = $pathaoArea->id;
@@ -363,7 +371,7 @@ class PathaoController extends Controller
                         }
 
                         // Fallback: search shipping address text for matching area name in this zone
-                        if (!$areaId) {
+                        if (! $areaId) {
                             $addressText = $order->shipping_address;
                             $areas = DB::table('pathao_areas')
                                 ->where('zone_id', $zoneId)
@@ -378,7 +386,7 @@ class PathaoController extends Controller
                         }
 
                         // Default to first area in zone if still unmatched
-                        if (!$areaId) {
+                        if (! $areaId) {
                             $firstArea = DB::table('pathao_areas')
                                 ->where('zone_id', $zoneId)
                                 ->first();
@@ -390,7 +398,7 @@ class PathaoController extends Controller
                 }
 
                 // If zone not matched, pick first zone in city
-                if (!$zoneId) {
+                if (! $zoneId) {
                     $firstZone = DB::table('pathao_zones')
                         ->where('city_id', $cityId)
                         ->first();
@@ -408,7 +416,7 @@ class PathaoController extends Controller
         }
 
         // Ultimate fallback: Dhaka City (ID 1)
-        if (!$cityId) {
+        if (! $cityId) {
             $dhakaCity = DB::table('pathao_cities')->where('name', 'like', '%Dhaka%')->first()
                 ?? DB::table('pathao_cities')->first();
 

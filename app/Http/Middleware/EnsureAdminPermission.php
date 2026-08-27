@@ -12,7 +12,7 @@ class EnsureAdminPermission
     {
         $user = $request->user();
 
-        if (!$user || !$user->canAccessAdminPanel()) {
+        if (! $user || ! $user->canAccessAdminPanel()) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
@@ -37,7 +37,7 @@ class EnsureAdminPermission
             return redirect()->route('admin.dashboard')->with('error', 'You do not have permission to access this section.');
         }
 
-        if ($resolvedPermission && !$user->hasAdminPermission($resolvedPermission)) {
+        if ($resolvedPermission && ! $user->hasAdminPermission($resolvedPermission)) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'Permission denied.',

@@ -22,7 +22,7 @@ return new class extends Migration
             $table->string('title')->nullable();
             $table->string('collection')->default('default'); // for organizing media
             $table->timestamps();
-            
+
             $table->index('collection');
             $table->index('mime_type');
         });

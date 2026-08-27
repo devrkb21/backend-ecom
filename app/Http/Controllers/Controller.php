@@ -9,6 +9,7 @@ abstract class Controller
     protected function perPage(int $default = 15, int $max = 100): int
     {
         $perPage = (int) request()->get('per_page', $default);
+
         return max(1, min($perPage, $max));
     }
 

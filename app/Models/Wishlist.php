@@ -62,6 +62,7 @@ class Wishlist extends Model
 
         if ($existing) {
             $existing->delete();
+
             return ['added' => false, 'message' => 'Removed from wishlist'];
         }
 

@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 class ExpireFlashSales extends Command
 {
     protected $signature = 'flash-sales:expire';
+
     protected $description = 'Deactivate expired flash sales';
 
     public function handle(): int

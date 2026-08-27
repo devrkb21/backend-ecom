@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Notifications\OrderShipped;
-use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class OrderTrackingController extends Controller
@@ -17,7 +17,7 @@ class OrderTrackingController extends Controller
     public function edit(Order $order): View
     {
         $order->load('trackingHistory', 'user', 'items.product');
-        
+
         $carriers = [
             'pathao' => 'Pathao',
             'steadfast' => 'Steadfast',
@@ -50,14 +50,14 @@ class OrderTrackingController extends Controller
         $order->update([
             'tracking_number' => $validated['tracking_number'],
             'carrier' => $validated['carrier'],
-            'carrier_tracking_url' => $validated['carrier_tracking_url'] 
+            'carrier_tracking_url' => $validated['carrier_tracking_url']
                 ?? $order->generateTrackingUrl($validated['tracking_number'], $validated['carrier']),
             'estimated_delivery_at' => $validated['estimated_delivery_at'],
             'shipped_at' => $order->shipped_at ?? now(),
         ]);
 
         // Add tracking event
-        if (!$oldTrackingNumber) {
+        if (! $oldTrackingNumber) {
             $order->addTrackingEvent(
                 'shipped',
                 "Package shipped via {$validated['carrier']}. Tracking number: {$validated['tracking_number']}"
@@ -67,7 +67,7 @@ class OrderTrackingController extends Controller
             if ($order->status !== 'shipped') {
                 $order->update(['status' => 'shipped']);
             }
-            
+
             $order->user->notify(new OrderShipped(
                 $order,
                 $validated['tracking_number'],

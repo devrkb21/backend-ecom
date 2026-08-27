@@ -281,7 +281,7 @@ class CheckoutAddressConfigService
             ? Setting::getValue('checkout', 'checkout_fields_schema', [])
             : self::DEFAULT_FIELD_SCHEMA;
 
-        if (!is_array($storedSchema)) {
+        if (! is_array($storedSchema)) {
             $storedSchema = [];
         }
 
@@ -326,13 +326,13 @@ class CheckoutAddressConfigService
         if ($hasSectionKeys) {
             foreach ($normalized as $section => $_) {
                 $items = $schema[$section] ?? [];
-                if (!is_array($items)) {
+                if (! is_array($items)) {
                     $items = [];
                 }
 
                 $order = 1;
                 foreach ($items as $item) {
-                    if (!is_array($item)) {
+                    if (! is_array($item)) {
                         continue;
                     }
 
@@ -354,7 +354,7 @@ class CheckoutAddressConfigService
             $orderMap = ['billing' => 1, 'shipping' => 1, 'additional' => 1];
 
             foreach ($schema as $item) {
-                if (!is_array($item)) {
+                if (! is_array($item)) {
                     continue;
                 }
 
@@ -380,12 +380,12 @@ class CheckoutAddressConfigService
 
         foreach (['billing', 'shipping', 'additional'] as $section) {
             $fields = $schema[$section] ?? [];
-            if (!is_array($fields)) {
+            if (! is_array($fields)) {
                 continue;
             }
 
             foreach ($fields as $field) {
-                if (!is_array($field) || empty($field['enabled'])) {
+                if (! is_array($field) || empty($field['enabled'])) {
                     continue;
                 }
 
@@ -408,7 +408,7 @@ class CheckoutAddressConfigService
 
             $enabledFields = array_values(array_filter(
                 is_array($fields) ? $fields : [],
-                fn ($field) => is_array($field) && !empty($field['enabled'])
+                fn ($field) => is_array($field) && ! empty($field['enabled'])
             ));
 
             $fieldSections[] = [
@@ -440,7 +440,7 @@ class CheckoutAddressConfigService
         }
 
         $type = strtolower(trim((string) ($field['type'] ?? 'text')));
-        if (!in_array($type, self::ALLOWED_TYPES, true)) {
+        if (! in_array($type, self::ALLOWED_TYPES, true)) {
             $type = 'text';
         }
 
@@ -454,12 +454,12 @@ class CheckoutAddressConfigService
         $options = [];
         if ($type === 'select') {
             $rawOptions = $field['options'] ?? [];
-            if (!is_array($rawOptions)) {
+            if (! is_array($rawOptions)) {
                 $rawOptions = [];
             }
 
             foreach ($rawOptions as $option) {
-                if (!is_array($option)) {
+                if (! is_array($option)) {
                     continue;
                 }
 
@@ -508,7 +508,7 @@ class CheckoutAddressConfigService
     {
         $normalized = strtolower(trim($section));
 
-        if (!in_array($normalized, ['billing', 'shipping', 'additional'], true)) {
+        if (! in_array($normalized, ['billing', 'shipping', 'additional'], true)) {
             return 'shipping';
         }
 

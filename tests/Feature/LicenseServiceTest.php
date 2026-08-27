@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\LicenseService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -13,7 +14,7 @@ class LicenseServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function makeOrder(\Carbon\Carbon $createdAt): Order
+    protected function makeOrder(Carbon $createdAt): Order
     {
         $order = Order::create([
             'user_id' => User::factory()->create()->id,

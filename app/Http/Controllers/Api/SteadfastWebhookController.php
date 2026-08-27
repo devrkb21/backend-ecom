@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Order;
+use App\Models\OrderActivityLog;
 use App\Models\Setting;
+use App\Services\SmsService;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class SteadfastWebhookController extends Controller
@@ -23,11 +26,12 @@ class SteadfastWebhookController extends Controller
         $expectedToken = Setting::getValue('courier', 'steadfast_webhook_token');
         $authHeader = (string) $request->header('Authorization', '');
 
-        if (empty($expectedToken) || !hash_equals('Bearer ' . $expectedToken, $authHeader)) {
+        if (empty($expectedToken) || ! hash_equals('Bearer '.$expectedToken, $authHeader)) {
             Log::warning('SteadFast Webhook Unauthorized Request', [
                 'ip' => $request->ip(),
-                'token_configured' => !empty($expectedToken),
+                'token_configured' => ! empty($expectedToken),
             ]);
+
             return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
@@ -42,7 +46,7 @@ class SteadfastWebhookController extends Controller
         $consignmentId = $request->input('consignment_id');
         $invoice = $request->input('invoice');
 
-        if (!$consignmentId || !$invoice) {
+        if (! $consignmentId || ! $invoice) {
             return response()->json(['status' => 'error', 'message' => 'Invalid consignment ID or invoice.'], 400);
         }
 
@@ -51,15 +55,15 @@ class SteadfastWebhookController extends Controller
             ->orWhere('order_number', $invoice)
             ->first();
 
-        if (!$order) {
+        if (! $order) {
             return response()->json(['status' => 'error', 'message' => 'Order not found'], 404);
         }
 
         // Handle Delivery Status Update
         if ($notificationType === 'delivery_status') {
             $status = $request->input('status');
-            
-            if (!$status) {
+
+            if (! $status) {
                 return response()->json(['status' => 'error', 'message' => 'Missing status field in delivery_status webhook.'], 400);
             }
 
@@ -124,7 +128,7 @@ class SteadfastWebhookController extends Controller
 
             $trackingMessage = $request->input('tracking_message', "Package marked as {$statusName}");
             $updatedAtString = $request->input('updated_at');
-            $occurredAt = $updatedAtString ? \Carbon\Carbon::parse($updatedAtString) : now();
+            $occurredAt = $updatedAtString ? Carbon::parse($updatedAtString) : now();
 
             // Determine the internal status key for SMS template lookup
             $internalStatusKey = match (true) {
@@ -136,7 +140,7 @@ class SteadfastWebhookController extends Controller
             };
 
             if ($orderUpdated) {
-                \App\Models\OrderActivityLog::log(
+                OrderActivityLog::log(
                     $order,
                     'status_change',
                     "Order status updated to {$statusName} via SteadFast webhook (Status: {$status})"
@@ -144,14 +148,14 @@ class SteadfastWebhookController extends Controller
 
                 // Send automatic SMS notification for status change
                 try {
-                    $smsResult = app(\App\Services\SmsService::class)->sendOrderStatusSms($order, $internalStatusKey);
+                    $smsResult = app(SmsService::class)->sendOrderStatusSms($order, $internalStatusKey);
                     if ($smsResult['success']) {
-                        \App\Models\OrderActivityLog::log($order, 'sms_sent', "SMS sent: Status → {$statusName} (via SteadFast webhook)", $smsResult['message'] ?? null, [
+                        OrderActivityLog::log($order, 'sms_sent', "SMS sent: Status → {$statusName} (via SteadFast webhook)", $smsResult['message'] ?? null, [
                             'status' => $internalStatusKey,
                             'phone' => $order->shipping_phone,
                         ]);
-                    } elseif (!str_contains($smsResult['message'] ?? '', 'not enabled')) {
-                        \App\Models\OrderActivityLog::log($order, 'sms_failed', 'SMS failed (via SteadFast webhook)', $smsResult['message'] ?? null, [
+                    } elseif (! str_contains($smsResult['message'] ?? '', 'not enabled')) {
+                        OrderActivityLog::log($order, 'sms_failed', 'SMS failed (via SteadFast webhook)', $smsResult['message'] ?? null, [
                             'status' => $internalStatusKey,
                             'error' => $smsResult['message'] ?? 'Unknown error',
                         ]);
@@ -168,7 +172,7 @@ class SteadfastWebhookController extends Controller
                         'status' => $internalStatusKey,
                         'error' => $e->getMessage(),
                     ]);
-                    \App\Models\OrderActivityLog::log($order, 'sms_failed', 'SMS failed (exception via SteadFast webhook)', $e->getMessage());
+                    OrderActivityLog::log($order, 'sms_failed', 'SMS failed (exception via SteadFast webhook)', $e->getMessage());
                 }
             }
 
@@ -191,9 +195,9 @@ class SteadfastWebhookController extends Controller
         } elseif ($notificationType === 'tracking_update') {
             $trackingMessage = $request->input('tracking_message', 'No message');
             $updatedAtString = $request->input('updated_at');
-            $occurredAt = $updatedAtString ? \Carbon\Carbon::parse($updatedAtString) : now();
+            $occurredAt = $updatedAtString ? Carbon::parse($updatedAtString) : now();
 
-            \App\Models\OrderActivityLog::log(
+            OrderActivityLog::log(
                 $order,
                 'tracking_update',
                 "SteadFast Tracking Update: {$trackingMessage}"
@@ -210,7 +214,7 @@ class SteadfastWebhookController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Webhook received successfully.'
+            'message' => 'Webhook received successfully.',
         ], 200);
     }
 }

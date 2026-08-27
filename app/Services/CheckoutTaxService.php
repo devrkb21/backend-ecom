@@ -23,7 +23,7 @@ class CheckoutTaxService
     {
         $normalizedSubtotal = max(0, $subtotal);
 
-        if (!$this->isEnabled()) {
+        if (! $this->isEnabled()) {
             return 0.0;
         }
 

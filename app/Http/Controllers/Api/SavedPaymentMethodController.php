@@ -62,6 +62,7 @@ class SavedPaymentMethodController extends Controller
 
         try {
             $this->stripeService->removeSavedPaymentMethod($request->user(), $savedPaymentMethod);
+
             return $this->successResponse(null, 'Saved payment method removed.');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);

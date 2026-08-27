@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -28,17 +28,17 @@ return new class extends Migration
                 ->where('image', $product->image)
                 ->exists();
 
-            if (!$imageExists) {
+            if (! $imageExists) {
                 DB::table('product_images')->insert([
                     'product_id' => $product->id,
                     'image' => $product->image,
                     'alt_text' => $product->name,
                     'sort_order' => 0,
-                    'is_primary' => !$hasPrimary, // Set as primary only if no primary exists
+                    'is_primary' => ! $hasPrimary, // Set as primary only if no primary exists
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
-            } elseif (!$hasPrimary) {
+            } elseif (! $hasPrimary) {
                 // If image exists but no primary, set it as primary
                 DB::table('product_images')
                     ->where('product_id', $product->id)

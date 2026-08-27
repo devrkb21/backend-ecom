@@ -11,9 +11,9 @@ use App\Models\Order;
 use App\Services\FraudDetectionService;
 use App\Services\LicenseService;
 use App\Services\OrderService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class OrderController extends Controller
 {
@@ -50,7 +50,7 @@ class OrderController extends Controller
         $isAdmin = $request->user()->isAdmin();
 
         // Users can only view their own orders unless admin
-        if (!$isAdmin && $order->user_id !== $request->user()->id) {
+        if (! $isAdmin && $order->user_id !== $request->user()->id) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
@@ -77,23 +77,23 @@ class OrderController extends Controller
     {
         $normalizedOrderNumber = $this->normalizeOrderNumber($orderNumber);
 
-        if (!$this->isValidOrderNumber($normalizedOrderNumber)) {
+        if (! $this->isValidOrderNumber($normalizedOrderNumber)) {
             return $this->errorResponse('Order not found', 404);
         }
 
         $order = $this->orderService->getOrderByNumber($normalizedOrderNumber);
 
-        if (!$order) {
+        if (! $order) {
             return $this->errorResponse('Order not found', 404);
         }
 
         $requestUser = $request->user('sanctum') ?? $request->user();
 
-        if (!$requestUser) {
+        if (! $requestUser) {
             return $this->successResponse($this->buildOrderSummary($order));
         }
 
-        if (!$requestUser->isAdmin() && $order->user_id !== $requestUser->id) {
+        if (! $requestUser->isAdmin() && $order->user_id !== $requestUser->id) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
@@ -115,19 +115,19 @@ class OrderController extends Controller
     {
         $normalizedOrderNumber = $this->normalizeOrderNumber($orderNumber);
 
-        if (!$this->isValidOrderNumber($normalizedOrderNumber)) {
+        if (! $this->isValidOrderNumber($normalizedOrderNumber)) {
             return $this->errorResponse('Order not found', 404);
         }
 
         $order = $this->orderService->getOrderByNumber($normalizedOrderNumber);
 
-        if (!$order) {
+        if (! $order) {
             return $this->errorResponse('Order not found', 404);
         }
 
         $guestToken = trim((string) $request->query('guest_token', ''));
 
-        if (!$order->hasValidGuestAccessToken($guestToken)) {
+        if (! $order->hasValidGuestAccessToken($guestToken)) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
@@ -152,12 +152,12 @@ class OrderController extends Controller
             $requestUser = $request->user('sanctum') ?? $request->user();
 
             if ($requestUser) {
-                if (!$requestUser->isAdmin() && $order->user_id !== $requestUser->id) {
+                if (! $requestUser->isAdmin() && $order->user_id !== $requestUser->id) {
                     return $this->errorResponse('Unauthorized', 403);
                 }
             } else {
                 $guestToken = trim((string) $request->query('guest_token', ''));
-                if (!$order->hasValidGuestAccessToken($guestToken)) {
+                if (! $order->hasValidGuestAccessToken($guestToken)) {
                     return $this->errorResponse('Unauthorized', 403);
                 }
             }
@@ -245,7 +245,7 @@ class OrderController extends Controller
 
     public function updateStatus(UpdateOrderStatusRequest $request, int $id): JsonResponse
     {
-        if (!$request->user()->isAdmin()) {
+        if (! $request->user()->isAdmin()) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
@@ -275,7 +275,7 @@ class OrderController extends Controller
 
     public function byStatus(Request $request, string $status): JsonResponse
     {
-        if (!$request->user()->isAdmin()) {
+        if (! $request->user()->isAdmin()) {
             return $this->errorResponse('Unauthorized', 403);
         }
 

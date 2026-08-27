@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\Category;
 use App\Models\ProductAttribute;
 use Illuminate\Http\Request;
 
@@ -14,8 +14,8 @@ class GlobalSearchController extends Controller
     public function search(Request $request)
     {
         $query = $request->input('q');
-        
-        if (!$query || mb_strlen($query) < 2) {
+
+        if (! $query || mb_strlen($query) < 2) {
             return response()->json(['results' => []]);
         }
 
@@ -27,21 +27,23 @@ class GlobalSearchController extends Controller
         if ($user->hasAdminPermission('orders.manage')) {
             $orders = Order::with('user')
                 ->where('order_number', 'like', "%{$query}%")
-                ->orWhereHas('user', function($q) use ($query) {
+                ->orWhereHas('user', function ($q) use ($query) {
                     $q->where('name', 'like', "%{$query}%");
                 })
                 ->take(5)
                 ->get()
                 ->map(function ($order) {
                     return [
-                        'title' => 'Order #' . $order->order_number,
+                        'title' => 'Order #'.$order->order_number,
                         'subtitle' => $order->user ? $order->user->name : 'Guest',
                         'url' => route('admin.orders.show', $order->id),
                         'type' => 'Order',
-                        'icon' => 'bi-cart'
+                        'icon' => 'bi-cart',
                     ];
                 });
-            foreach ($orders as $item) $results[] = $item;
+            foreach ($orders as $item) {
+                $results[] = $item;
+            }
         }
 
         // Search Products, Categories, Attributes
@@ -56,13 +58,15 @@ class GlobalSearchController extends Controller
                 ->map(function ($product) {
                     return [
                         'title' => $product->name,
-                        'subtitle' => 'SKU: ' . $product->sku,
+                        'subtitle' => 'SKU: '.$product->sku,
                         'url' => route('admin.products.edit', $product->id),
                         'type' => 'Product',
-                        'icon' => 'bi-box-seam'
+                        'icon' => 'bi-box-seam',
                     ];
                 });
-            foreach ($products as $item) $results[] = $item;
+            foreach ($products as $item) {
+                $results[] = $item;
+            }
 
             $categories = Category::where('name', 'like', "%{$query}%")
                 ->take(5)
@@ -73,10 +77,12 @@ class GlobalSearchController extends Controller
                         'subtitle' => 'Category',
                         'url' => route('admin.categories.edit', $category->id),
                         'type' => 'Category',
-                        'icon' => 'bi-tags'
+                        'icon' => 'bi-tags',
                     ];
                 });
-            foreach ($categories as $item) $results[] = $item;
+            foreach ($categories as $item) {
+                $results[] = $item;
+            }
 
             $attributes = ProductAttribute::where('name', 'like', "%{$query}%")
                 ->take(3)
@@ -87,10 +93,12 @@ class GlobalSearchController extends Controller
                         'subtitle' => 'Attribute',
                         'url' => route('admin.attributes.edit', $attr->id),
                         'type' => 'Attribute',
-                        'icon' => 'bi-sliders'
+                        'icon' => 'bi-sliders',
                     ];
                 });
-            foreach ($attributes as $item) $results[] = $item;
+            foreach ($attributes as $item) {
+                $results[] = $item;
+            }
         }
 
         return response()->json(['results' => $results]);

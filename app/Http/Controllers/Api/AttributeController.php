@@ -15,7 +15,7 @@ class AttributeController extends Controller
     public function index(): JsonResponse
     {
         $attributes = ProductAttribute::with('values')->orderBy('name')->get();
-        
+
         return $this->successResponse(ProductAttributeResource::collection($attributes));
     }
 
@@ -25,7 +25,7 @@ class AttributeController extends Controller
     public function show(int $id): JsonResponse
     {
         $attribute = ProductAttribute::with('values')->findOrFail($id);
-        
+
         return $this->successResponse(new ProductAttributeResource($attribute));
     }
 }

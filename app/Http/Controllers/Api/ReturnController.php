@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\ReturnRequest;
-use App\Models\ReturnItem;
 use App\Models\Order;
+use App\Models\ReturnItem;
+use App\Models\ReturnRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -151,7 +151,7 @@ class ReturnController extends Controller
         $itemsData = [];
 
         foreach ($validated['items'] as $item) {
-            if (!in_array($item['order_item_id'], $orderItemIds)) {
+            if (! in_array($item['order_item_id'], $orderItemIds)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'One or more items do not belong to this order.',
@@ -202,7 +202,7 @@ class ReturnController extends Controller
         $imagePaths = [];
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
-                $path = $image->store('returns/' . date('Y/m'), 'public');
+                $path = $image->store('returns/'.date('Y/m'), 'public');
                 $imagePaths[] = $path;
             }
         }
@@ -270,7 +270,7 @@ class ReturnController extends Controller
             ], 404);
         }
 
-        if (!$return->isPending()) {
+        if (! $return->isPending()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Only pending return requests can be cancelled.',
@@ -307,7 +307,7 @@ class ReturnController extends Controller
         }
 
         // Check order status
-        if (!in_array($order->status, ['delivered', 'completed'])) {
+        if (! in_array($order->status, ['delivered', 'completed'])) {
             return response()->json([
                 'success' => true,
                 'eligible' => false,
@@ -359,7 +359,7 @@ class ReturnController extends Controller
                 'ordered_quantity' => $item->quantity,
                 'returnable_quantity' => max(0, $item->quantity - $alreadyReturned),
             ];
-        })->filter(fn($item) => $item['returnable_quantity'] > 0)->values();
+        })->filter(fn ($item) => $item['returnable_quantity'] > 0)->values();
 
         return response()->json([
             'success' => true,
@@ -395,7 +395,7 @@ class ReturnController extends Controller
             ], 404);
         }
 
-        if (!$return->isPending()) {
+        if (! $return->isPending()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Cannot upload images to a processed return request.',
@@ -418,7 +418,7 @@ class ReturnController extends Controller
 
         $newImages = [];
         foreach ($request->file('images') as $image) {
-            $path = $image->store('returns/' . date('Y/m'), 'public');
+            $path = $image->store('returns/'.date('Y/m'), 'public');
             $newImages[] = $path;
         }
 

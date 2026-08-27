@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Cart\AddToCartRequest;
 use App\Http\Requests\Cart\UpdateCartItemRequest;
 use App\Http\Resources\CartResource;
+use App\Models\ProductVariant;
 use App\Services\CartService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -68,12 +69,12 @@ class CartController extends Controller
                             return;
                         }
 
-                        $variantBelongsToProduct = \App\Models\ProductVariant::query()
+                        $variantBelongsToProduct = ProductVariant::query()
                             ->where('id', (int) $value)
                             ->where('product_id', $productId)
                             ->exists();
 
-                        if (!$variantBelongsToProduct) {
+                        if (! $variantBelongsToProduct) {
                             $fail('The selected variant is invalid for the selected product.');
                         }
                     },

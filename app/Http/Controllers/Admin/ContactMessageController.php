@@ -16,9 +16,9 @@ class ContactMessageController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('subject', 'like', "%{$search}%");
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('subject', 'like', "%{$search}%");
             });
         }
 
@@ -38,7 +38,7 @@ class ContactMessageController extends Controller
 
     public function show(ContactMessage $contactMessage)
     {
-        if (!$contactMessage->is_read) {
+        if (! $contactMessage->is_read) {
             $contactMessage->update(['is_read' => true]);
         }
 

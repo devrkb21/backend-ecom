@@ -2,13 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\Category;
 use App\Models\Order;
+use App\Models\OrderActivityLog;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
-use App\Models\Category;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class BusinessIntelligenceService
 {
@@ -60,7 +61,7 @@ class BusinessIntelligenceService
         $previousCancelledRevenue = Order::whereBetween('created_at', [$previousStart, $previousEnd])
             ->where('status', 'cancelled')
             ->sum('total');
-        
+
         $cancelledGrowth = $previousCancelledRevenue > 0 ? (($currentCancelledRevenue - $previousCancelledRevenue) / $previousCancelledRevenue) * 100 : 0;
 
         return [
@@ -163,18 +164,18 @@ class BusinessIntelligenceService
     {
         $dates = $this->getDateRange($period);
 
-        $logs = \App\Models\OrderActivityLog::where('type', 'status_change')
+        $logs = OrderActivityLog::where('type', 'status_change')
             ->whereBetween('created_at', [$dates['start'], $dates['end']])
             ->where('metadata', 'LIKE', '%"new_status":"cancelled"%')
             ->get();
-        
+
         $reasons = [];
 
         foreach ($logs as $log) {
             $metadata = $log->metadata ?? [];
             if (($metadata['new_status'] ?? '') === 'cancelled') {
                 $reason = $metadata['reason'] ?? 'Unspecified';
-                if (!isset($reasons[$reason])) {
+                if (! isset($reasons[$reason])) {
                     $reasons[$reason] = 0;
                 }
                 $reasons[$reason]++;
@@ -189,7 +190,7 @@ class BusinessIntelligenceService
             ];
         }
 
-        usort($formatted, fn($a, $b) => $b['count'] <=> $a['count']);
+        usort($formatted, fn ($a, $b) => $b['count'] <=> $a['count']);
 
         return $formatted;
     }
@@ -384,7 +385,7 @@ class BusinessIntelligenceService
             $totalUnits += $product->stock_quantity;
 
             $categoryName = $product->category->name ?? 'Uncategorized';
-            if (!isset($categoryBreakdown[$categoryName])) {
+            if (! isset($categoryBreakdown[$categoryName])) {
                 $categoryBreakdown[$categoryName] = [
                     'units' => 0,
                     'value' => 0,
@@ -408,7 +409,7 @@ class BusinessIntelligenceService
             'potential_profit' => round($potentialProfit, 2),
             'potential_profit_percentage' => $potentialProfitPercentage,
             'by_category' => collect($categoryBreakdown)
-                ->map(fn($data, $name) => [
+                ->map(fn ($data, $name) => [
                     'name' => $name,
                     'units' => $data['units'],
                     'value' => round($data['value'], 2),
@@ -507,8 +508,8 @@ class BusinessIntelligenceService
             'new_customer_growth' => round($newCustomerGrowth, 1),
             'active_customers' => $activeCustomers,
             'returning_customers' => $returningCustomers,
-            'retention_rate' => $activeCustomers > 0 
-                ? round(($returningCustomers / $activeCustomers) * 100, 1) 
+            'retention_rate' => $activeCustomers > 0
+                ? round(($returningCustomers / $activeCustomers) * 100, 1)
                 : 0,
         ];
     }
@@ -531,7 +532,7 @@ class BusinessIntelligenceService
             ->limit($limit)
             ->get()
             ->map(function ($customer) {
-                $daysSinceLastOrder = $customer->last_order_at 
+                $daysSinceLastOrder = $customer->last_order_at
                     ? Carbon::parse($customer->last_order_at)->diffInDays(now())
                     : null;
 
@@ -578,7 +579,7 @@ class BusinessIntelligenceService
         ];
 
         foreach ($customers as $customer) {
-            $daysSinceOrder = $customer->last_order 
+            $daysSinceOrder = $customer->last_order
                 ? Carbon::parse($customer->last_order)->diffInDays(now())
                 : 999;
             $orderCount = $customer->order_count ?? 0;
@@ -720,7 +721,7 @@ class BusinessIntelligenceService
                     'category' => $product->category->name ?? 'Uncategorized',
                 ];
             })
-            ->filter(fn($p) => $p['sold_last_period'] < 5) // Less than 5 sales
+            ->filter(fn ($p) => $p['sold_last_period'] < 5) // Less than 5 sales
             ->sortBy('sold_last_period')
             ->take($limit)
             ->values()
@@ -854,6 +855,7 @@ class BusinessIntelligenceService
     {
         if ($customStart && $customEnd) {
             $daysDiff = $customStart->diffInDays($customEnd);
+
             return [
                 'start' => $customStart,
                 'end' => $customEnd,
@@ -922,20 +924,40 @@ class BusinessIntelligenceService
 
     protected function getCustomerStatus(?int $daysSinceLastOrder): string
     {
-        if ($daysSinceLastOrder === null) return 'new';
-        if ($daysSinceLastOrder <= 30) return 'active';
-        if ($daysSinceLastOrder <= 90) return 'at_risk';
+        if ($daysSinceLastOrder === null) {
+            return 'new';
+        }
+        if ($daysSinceLastOrder <= 30) {
+            return 'active';
+        }
+        if ($daysSinceLastOrder <= 90) {
+            return 'at_risk';
+        }
+
         return 'dormant';
     }
 
     protected function determineSegment(int $orderCount, float $totalSpent, int $daysSinceOrder): string
     {
-        if ($orderCount === 0) return 'new';
-        if ($orderCount === 1 && $daysSinceOrder <= 30) return 'new';
-        if ($daysSinceOrder > 180) return 'dormant';
-        if ($daysSinceOrder > 90) return 'at_risk';
-        if ($orderCount >= 5 && $totalSpent >= 10000 && $daysSinceOrder <= 30) return 'champions';
-        if ($orderCount >= 3 && $totalSpent >= 5000) return 'loyal';
+        if ($orderCount === 0) {
+            return 'new';
+        }
+        if ($orderCount === 1 && $daysSinceOrder <= 30) {
+            return 'new';
+        }
+        if ($daysSinceOrder > 180) {
+            return 'dormant';
+        }
+        if ($daysSinceOrder > 90) {
+            return 'at_risk';
+        }
+        if ($orderCount >= 5 && $totalSpent >= 10000 && $daysSinceOrder <= 30) {
+            return 'champions';
+        }
+        if ($orderCount >= 3 && $totalSpent >= 5000) {
+            return 'loyal';
+        }
+
         return 'potential';
     }
 }

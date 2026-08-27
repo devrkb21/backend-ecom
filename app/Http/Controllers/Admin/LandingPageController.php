@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\LandingPage;
 use App\Models\Product;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class LandingPageController extends Controller
 {
@@ -17,38 +17,40 @@ class LandingPageController extends Controller
 
         if ($search = $request->input('search')) {
             $query->where('title', 'like', "%{$search}%")
-                  ->orWhere('slug', 'like', "%{$search}%")
-                  ->orWhereHas('product', function ($q) use ($search) {
-                      $q->where('name', 'like', "%{$search}%");
-                  });
+                ->orWhere('slug', 'like', "%{$search}%")
+                ->orWhereHas('product', function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%");
+                });
         }
 
         $landingPages = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
+
         return view('admin.landing-pages.index', compact('landingPages'));
     }
 
     public function create()
     {
         $products = Product::active()->orderBy('name')->get(['id', 'name']);
+
         return view('admin.landing-pages.create', compact('products'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'product_ids'    => 'required|array|min:1',
-            'product_ids.*'  => 'required|exists:products,id',
-            'title'          => 'required|string|max:255',
-            'slug'           => 'nullable|string|max:255|unique:landing_pages,slug',
-            'template_type'  => 'required|string|in:default,clothing,am,khejur,digital_item,inner_item,sexual_item',
-            'theme_color'    => 'required|string|regex:/^#[0-9A-Fa-f]{6}$/',
-            'banner_image'   => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:4096',
+            'product_ids' => 'required|array|min:1',
+            'product_ids.*' => 'required|exists:products,id',
+            'title' => 'required|string|max:255',
+            'slug' => 'nullable|string|max:255|unique:landing_pages,slug',
+            'template_type' => 'required|string|in:default,clothing,am,khejur,digital_item,inner_item,sexual_item',
+            'theme_color' => 'required|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'banner_image' => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:4096',
             'video_embed_code' => 'nullable|string',
-            'features'       => 'nullable|array',
-            'testimonials'   => 'nullable|array',
-            'custom_css'     => 'nullable|string',
-            'is_active'      => 'boolean',
-            'show_location'  => 'boolean',
+            'features' => 'nullable|array',
+            'testimonials' => 'nullable|array',
+            'custom_css' => 'nullable|string',
+            'is_active' => 'boolean',
+            'show_location' => 'boolean',
         ]);
 
         // Normalize product_ids (unique ints)
@@ -72,20 +74,20 @@ class LandingPageController extends Controller
         // Handle Banner Image File Upload
         if ($request->hasFile('banner_image')) {
             $path = $request->file('banner_image')->store('landing-pages', 'public');
-            $validated['banner_image'] = '/storage/' . $path;
+            $validated['banner_image'] = '/storage/'.$path;
         }
 
         // Normalize features
         if (isset($validated['features'])) {
             $validated['features'] = array_values(array_filter($validated['features'], function ($item) {
-                return !empty($item['title']);
+                return ! empty($item['title']);
             }));
         }
 
         // Normalize testimonials
         if (isset($validated['testimonials'])) {
             $validated['testimonials'] = array_values(array_filter($validated['testimonials'], function ($item) {
-                return !empty($item['name']);
+                return ! empty($item['name']);
             }));
         }
 
@@ -98,25 +100,26 @@ class LandingPageController extends Controller
     public function edit(LandingPage $landingPage)
     {
         $products = Product::active()->orderBy('name')->get(['id', 'name']);
+
         return view('admin.landing-pages.edit', compact('landingPage', 'products'));
     }
 
     public function update(Request $request, LandingPage $landingPage)
     {
         $validated = $request->validate([
-            'product_ids'    => 'required|array|min:1',
-            'product_ids.*'  => 'required|exists:products,id',
-            'title'          => 'required|string|max:255',
-            'slug'           => 'nullable|string|max:255|unique:landing_pages,slug,' . $landingPage->id,
-            'template_type'  => 'required|string|in:default,clothing,am,khejur,digital_item,inner_item,sexual_item',
-            'theme_color'    => 'required|string|regex:/^#[0-9A-Fa-f]{6}$/',
-            'banner_image'   => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:4096',
+            'product_ids' => 'required|array|min:1',
+            'product_ids.*' => 'required|exists:products,id',
+            'title' => 'required|string|max:255',
+            'slug' => 'nullable|string|max:255|unique:landing_pages,slug,'.$landingPage->id,
+            'template_type' => 'required|string|in:default,clothing,am,khejur,digital_item,inner_item,sexual_item',
+            'theme_color' => 'required|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'banner_image' => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:4096',
             'video_embed_code' => 'nullable|string',
-            'features'       => 'nullable|array',
-            'testimonials'   => 'nullable|array',
-            'custom_css'     => 'nullable|string',
-            'is_active'      => 'boolean',
-            'show_location'  => 'boolean',
+            'features' => 'nullable|array',
+            'testimonials' => 'nullable|array',
+            'custom_css' => 'nullable|string',
+            'is_active' => 'boolean',
+            'show_location' => 'boolean',
         ]);
 
         // Normalize product_ids
@@ -144,7 +147,7 @@ class LandingPageController extends Controller
                 Storage::disk('public')->delete($oldPath);
             }
             $path = $request->file('banner_image')->store('landing-pages', 'public');
-            $validated['banner_image'] = '/storage/' . $path;
+            $validated['banner_image'] = '/storage/'.$path;
         } else {
             $validated['banner_image'] = $landingPage->banner_image;
         }
@@ -152,7 +155,7 @@ class LandingPageController extends Controller
         // Normalize features
         if (isset($validated['features'])) {
             $validated['features'] = array_values(array_filter($validated['features'], function ($item) {
-                return !empty($item['title']);
+                return ! empty($item['title']);
             }));
         } else {
             $validated['features'] = [];
@@ -161,7 +164,7 @@ class LandingPageController extends Controller
         // Normalize testimonials
         if (isset($validated['testimonials'])) {
             $validated['testimonials'] = array_values(array_filter($validated['testimonials'], function ($item) {
-                return !empty($item['name']);
+                return ! empty($item['name']);
             }));
         } else {
             $validated['testimonials'] = [];

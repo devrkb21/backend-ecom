@@ -162,11 +162,11 @@ class DatabaseSeeder extends Seeder
         // Seed payment gateways and shipping methods
         $this->call([
             PaymentGatewaySeeder::class,
-            //ShippingMethodSeeder::class,
+            // ShippingMethodSeeder::class,
             SettingSeeder::class,
             LoyaltyTierSeeder::class,
             PagesTableSeeder::class,
-            //CouponSeeder::class,
+            // CouponSeeder::class,
         ]);
     }
 }

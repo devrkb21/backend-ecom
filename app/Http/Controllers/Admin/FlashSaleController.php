@@ -38,8 +38,8 @@ class FlashSaleController extends Controller
         $stats = [
             'active' => FlashSale::active()->count(),
             'scheduled' => FlashSale::upcoming()->count(),
-            'total_sold' => \App\Models\FlashSaleProduct::sum('sold_count'),
-            'total_revenue' => \App\Models\FlashSaleProduct::selectRaw('SUM(sold_count * flash_price) as revenue')->value('revenue') ?? 0,
+            'total_sold' => FlashSaleProduct::sum('sold_count'),
+            'total_revenue' => FlashSaleProduct::selectRaw('SUM(sold_count * flash_price) as revenue')->value('revenue') ?? 0,
         ];
 
         return view('admin.flash-sales.index', compact('flashSales', 'status', 'stats'));
@@ -83,7 +83,7 @@ class FlashSaleController extends Controller
     public function show(FlashSale $flashSale)
     {
         $flashSale->load(['flashSaleProducts.product.images', 'flashSaleProducts.product.category']);
-        
+
         // Get products not in this flash sale for add modal
         $existingProductIds = $flashSale->flashSaleProducts->pluck('product_id')->toArray();
         $availableProducts = Product::where('is_active', true)
@@ -170,7 +170,7 @@ class FlashSaleController extends Controller
 
     public function toggleProduct(FlashSale $flashSale, FlashSaleProduct $product)
     {
-        $product->update(['is_active' => !$product->is_active]);
+        $product->update(['is_active' => ! $product->is_active]);
 
         return back()->with('success', 'Product status updated!');
     }
@@ -191,13 +191,13 @@ class FlashSaleController extends Controller
         $newEndDate = $flashSale->ends_at->addHours($validated['hours']);
         $this->flashSaleService->extendFlashSale($flashSale, $newEndDate);
 
-        return back()->with('success', 'Flash sale extended by ' . $validated['hours'] . ' hours!');
+        return back()->with('success', 'Flash sale extended by '.$validated['hours'].' hours!');
     }
 
     public function duplicate(FlashSale $flashSale)
     {
         $newSale = $flashSale->replicate();
-        $newSale->name = $flashSale->name . ' (Copy)';
+        $newSale->name = $flashSale->name.' (Copy)';
         $newSale->slug = Str::slug($newSale->name);
         $newSale->starts_at = now()->addDay();
         $newSale->ends_at = now()->addDays(2);

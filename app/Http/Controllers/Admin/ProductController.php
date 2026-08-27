@@ -40,8 +40,8 @@ class ProductController extends Controller
             $search = trim($search);
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('sku', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -49,9 +49,9 @@ class ProductController extends Controller
         if ($categoryId = $request->input('category')) {
             $query->where(function ($q) use ($categoryId) {
                 $q->where('category_id', $categoryId)
-                  ->orWhereHas('categories', function ($q2) use ($categoryId) {
-                      $q2->where('categories.id', $categoryId);
-                  });
+                    ->orWhereHas('categories', function ($q2) use ($categoryId) {
+                        $q2->where('categories.id', $categoryId);
+                    });
             });
         }
 
@@ -100,8 +100,8 @@ class ProductController extends Controller
             $search = trim($search);
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('sku', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -109,9 +109,9 @@ class ProductController extends Controller
         if ($categoryId = $request->input('category')) {
             $query->where(function ($q) use ($categoryId) {
                 $q->where('category_id', $categoryId)
-                  ->orWhereHas('categories', function ($q2) use ($categoryId) {
-                      $q2->where('categories.id', $categoryId);
-                  });
+                    ->orWhereHas('categories', function ($q2) use ($categoryId) {
+                        $q2->where('categories.id', $categoryId);
+                    });
             });
         }
 
@@ -138,38 +138,38 @@ class ProductController extends Controller
             $query->where('stock_quantity', '<=', 0);
         }
 
-        $filename = "products-export-" . date('Y-m-d-His') . ".csv";
+        $filename = 'products-export-'.date('Y-m-d-His').'.csv';
 
         $headers = [
-            "Content-type"        => "text/csv; charset=UTF-8",
-            "Content-Disposition" => "attachment; filename=$filename",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
+            'Content-type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=$filename",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
         ];
 
         $columns = [
             'ID', 'Name', 'SKU', 'Slug', 'Primary Category', 'Regular Price', 'Sale Price', 'Buy Price',
             'Stock Quantity', 'Status', 'Featured', 'New Product', 'Bestseller', 'Sales Count',
-            'Description', 'Short Description', 'Created At', 'Variants Details'
+            'Description', 'Short Description', 'Created At', 'Variants Details',
         ];
 
-        $callback = function() use($query, $columns) {
+        $callback = function () use ($query, $columns) {
             $file = fopen('php://output', 'w');
-            
+
             // Add UTF-8 BOM to support non-ASCII characters like Bengali perfectly in Microsoft Excel
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-            
+
             fputcsv($file, $columns);
 
-            $query->chunk(100, function($products) use($file) {
+            $query->chunk(100, function ($products) use ($file) {
                 foreach ($products as $product) {
                     $variantsDetails = [];
                     foreach ($product->variants as $variant) {
-                        $variantName = $variant->name ?: ('ID: ' . $variant->id);
-                        $variantsDetails[] = $variantName . " (SKU: " . $variant->sku . ") Price: " . $variant->regular_price . " BDT / Stock: " . $variant->stock_quantity;
+                        $variantName = $variant->name ?: ('ID: '.$variant->id);
+                        $variantsDetails[] = $variantName.' (SKU: '.$variant->sku.') Price: '.$variant->regular_price.' BDT / Stock: '.$variant->stock_quantity;
                     }
-                    $variantsString = implode(" | ", $variantsDetails);
+                    $variantsString = implode(' | ', $variantsDetails);
 
                     fputcsv($file, [
                         $product->id,
@@ -189,7 +189,7 @@ class ProductController extends Controller
                         $product->description,
                         $product->short_description,
                         $product->created_at ? $product->created_at->format('Y-m-d H:i:s') : '',
-                        $variantsString
+                        $variantsString,
                     ]);
                 }
             });
@@ -205,6 +205,7 @@ class ProductController extends Controller
         $categories = Category::with('children')->whereNull('parent_id')->orderBy('name')->get();
         $attributes = ProductAttribute::with('values')->get();
         $stockEnabled = Product::isStockEnabled();
+
         return view('admin.products.create', compact('categories', 'attributes', 'stockEnabled'));
     }
 
@@ -217,8 +218,8 @@ class ProductController extends Controller
 
         DB::transaction(function () use ($data, $request, $categoryIds) {
             $product = Product::create($data);
-            
-            if (!empty($categoryIds)) {
+
+            if (! empty($categoryIds)) {
                 $product->categories()->sync($categoryIds);
             }
 
@@ -246,7 +247,9 @@ class ProductController extends Controller
             // Handle variants
             if ($request->has('variants')) {
                 foreach ($request->input('variants', []) as $variantData) {
-                    if (empty($variantData['sku'])) continue;
+                    if (empty($variantData['sku'])) {
+                        continue;
+                    }
 
                     $variant = $product->variants()->create([
                         'sku' => $variantData['sku'],
@@ -255,7 +258,7 @@ class ProductController extends Controller
                         'is_active' => true,
                     ]);
 
-                    if (!empty($variantData['attribute_values'])) {
+                    if (! empty($variantData['attribute_values'])) {
                         $variant->attributeValues()->attach($variantData['attribute_values']);
                     }
                 }
@@ -276,6 +279,7 @@ class ProductController extends Controller
     public function show(Product $product)
     {
         $product->load(['category', 'images', 'variants.attributeValues.attribute']);
+
         return view('admin.products.show', compact('product'));
     }
 
@@ -285,6 +289,7 @@ class ProductController extends Controller
         $categories = Category::with('children')->whereNull('parent_id')->orderBy('name')->get();
         $attributes = ProductAttribute::with('values')->get();
         $stockEnabled = Product::isStockEnabled();
+
         return view('admin.products.edit', compact('product', 'categories', 'attributes', 'stockEnabled'));
     }
 
@@ -299,7 +304,7 @@ class ProductController extends Controller
         DB::transaction(function () use ($data, $request, $product, $categoryIds) {
             $product->update($data);
 
-            if (!empty($categoryIds)) {
+            if (! empty($categoryIds)) {
                 $product->categories()->sync($categoryIds);
             }
 
@@ -308,7 +313,7 @@ class ProductController extends Controller
                 $primaryImage = $product->images()->where('is_primary', true)->first();
                 if ($primaryImage instanceof ProductImage) {
                     // Don't delete from storage if it's from media library
-                    if (!str_starts_with($primaryImage->image, 'media/')) {
+                    if (! str_starts_with($primaryImage->image, 'media/')) {
                         Storage::disk('public')->delete($primaryImage->image);
                     }
                     $primaryImage->delete();
@@ -348,7 +353,7 @@ class ProductController extends Controller
                 $imagesToDelete = $product->images()->whereIn('id', $deleteImages)->get();
                 foreach ($imagesToDelete as $img) {
                     // Don't delete from storage if it's from media library
-                    if (!str_starts_with($img->image, 'media/')) {
+                    if (! str_starts_with($img->image, 'media/')) {
                         Storage::disk('public')->delete($img->image);
                     }
                     $img->delete();
@@ -378,7 +383,7 @@ class ProductController extends Controller
     {
         // Delete all product images (only non-media-library ones from storage)
         foreach ($product->images as $img) {
-            if (!str_starts_with($img->image, 'media/')) {
+            if (! str_starts_with($img->image, 'media/')) {
                 Storage::disk('public')->delete($img->image);
             }
         }
@@ -565,7 +570,7 @@ class ProductController extends Controller
         $updated = 0;
 
         // Update variants
-        if (!empty($updateData)) {
+        if (! empty($updateData)) {
             $updated = $product->variants()->whereIn('id', $variantIds)->update($updateData);
         }
 
@@ -635,7 +640,7 @@ class ProductController extends Controller
         // Handle image removal
         if ($request->boolean('remove_variant_image') && $variant->image) {
             // Only delete if not from media library
-            if (!str_starts_with($variant->image, 'media/')) {
+            if (! str_starts_with($variant->image, 'media/')) {
                 Storage::disk('public')->delete($variant->image);
             }
             $data['image'] = null;
@@ -644,7 +649,7 @@ class ProductController extends Controller
         // Handle image from media library
         if ($imagePath = $request->input('variant_image_path')) {
             // Delete old image if not from media library
-            if ($variant->image && !str_starts_with($variant->image, 'media/')) {
+            if ($variant->image && ! str_starts_with($variant->image, 'media/')) {
                 Storage::disk('public')->delete($variant->image);
             }
             $data['image'] = $imagePath;
@@ -766,7 +771,7 @@ class ProductController extends Controller
         if ($requestedDefaultVariantId !== null) {
             $defaultRow = $rows->first(fn (array $row) => $row['id'] === $requestedDefaultVariantId);
 
-            if (!$defaultRow) {
+            if (! $defaultRow) {
                 if ($isJsonRequest) {
                     return response()->json([
                         'success' => false,
@@ -780,7 +785,7 @@ class ProductController extends Controller
                     ->with('error', 'Selected base variant does not belong to this product.');
             }
 
-            if (!$defaultRow['is_active']) {
+            if (! $defaultRow['is_active']) {
                 if ($isJsonRequest) {
                     return response()->json([
                         'success' => false,
@@ -973,7 +978,7 @@ class ProductController extends Controller
                 $messageParts[] = "{$deleted} removed";
             }
 
-            $message = 'Variants synced: ' . implode(', ', $messageParts) . '.';
+            $message = 'Variants synced: '.implode(', ', $messageParts).'.';
             if ($unchanged > 0) {
                 $message .= " {$unchanged} already matched.";
             }
@@ -1055,7 +1060,7 @@ class ProductController extends Controller
             abort(404);
         }
 
-        if (!str_starts_with($image->image, 'media/')) {
+        if (! str_starts_with($image->image, 'media/')) {
             Storage::disk('public')->delete($image->image);
         }
 
@@ -1100,7 +1105,7 @@ class ProductController extends Controller
         $isVariableProduct = $request->boolean('is_variable') || ($product?->isVariableProduct() ?? false);
 
         if ($isVariableProduct) {
-            if (!array_key_exists('regular_price', $data) || $data['regular_price'] === null || $data['regular_price'] === '') {
+            if (! array_key_exists('regular_price', $data) || $data['regular_price'] === null || $data['regular_price'] === '') {
                 $data['regular_price'] = (float) ($product?->regular_price ?? 0.01);
             } else {
                 $data['regular_price'] = max(0.01, round((float) $data['regular_price'], 2));
@@ -1115,7 +1120,7 @@ class ProductController extends Controller
 
         if ($isVariableProduct) {
             $data['stock_quantity'] = (int) ($product?->variants()->sum('stock_quantity') ?? 0);
-        } elseif (!array_key_exists('stock_quantity', $data) || $data['stock_quantity'] === null || $data['stock_quantity'] === '') {
+        } elseif (! array_key_exists('stock_quantity', $data) || $data['stock_quantity'] === null || $data['stock_quantity'] === '') {
             $data['stock_quantity'] = (int) ($product?->stock_quantity ?? 0);
         } else {
             $data['stock_quantity'] = max(0, (int) $data['stock_quantity']);
@@ -1125,7 +1130,7 @@ class ProductController extends Controller
         $metaData = is_array($metaData) ? $metaData : [];
 
         $normalizedTiers = $this->normalizeDynamicDiscountTiers($request->input('dynamic_discount_tiers', []));
-        if (!empty($normalizedTiers)) {
+        if (! empty($normalizedTiers)) {
             $metaData['quantity_pricing'] = $normalizedTiers;
         } else {
             unset($metaData['quantity_pricing']);
@@ -1148,8 +1153,9 @@ class ProductController extends Controller
     {
         $hasVariants = $product->variants()->exists();
 
-        if (!$hasVariants && !$product->isVariableProduct()) {
+        if (! $hasVariants && ! $product->isVariableProduct()) {
             $this->syncProductDefaultVariantSelection($product);
+
             return;
         }
 
@@ -1208,14 +1214,14 @@ class ProductController extends Controller
 
     private function normalizeDynamicDiscountTiers(mixed $tiers): array
     {
-        if (!is_array($tiers)) {
+        if (! is_array($tiers)) {
             return [];
         }
 
         $normalized = [];
 
         foreach ($tiers as $tier) {
-            if (!is_array($tier)) {
+            if (! is_array($tier)) {
                 continue;
             }
 
@@ -1251,7 +1257,7 @@ class ProductController extends Controller
         $stockEnabled = Product::isStockEnabled();
 
         $variantAttributes = $productForView->variants
-            ->flatMap(fn(ProductVariant $variant) => $variant->attributeValues->map(fn($value) => $value->attribute))
+            ->flatMap(fn (ProductVariant $variant) => $variant->attributeValues->map(fn ($value) => $value->attribute))
             ->filter()
             ->unique('id')
             ->sortBy('id')
@@ -1294,7 +1300,7 @@ class ProductController extends Controller
         foreach ($attributeGroups as $attributeId => $valueIds) {
             foreach ($valueIds as $valueId) {
                 $value = $values->get($valueId);
-                if (!$value || (int) $value->attribute_id !== (int) $attributeId) {
+                if (! $value || (int) $value->attribute_id !== (int) $attributeId) {
                     throw new \InvalidArgumentException('Selected values do not match the selected attributes.');
                 }
             }
@@ -1305,6 +1311,7 @@ class ProductController extends Controller
             ->get()
             ->mapWithKeys(function (ProductVariant $variant) {
                 $signature = $this->buildAttributeCombinationSignature($variant->attributeValues->pluck('id')->all());
+
                 return [$signature => true];
             })
             ->all();
@@ -1319,6 +1326,7 @@ class ProductController extends Controller
 
             if (isset($existingSignatures[$signature])) {
                 $skipped++;
+
                 continue;
             }
 
@@ -1370,7 +1378,7 @@ class ProductController extends Controller
         foreach ($attributeGroups as $attributeId => $valueIds) {
             foreach ($valueIds as $valueId) {
                 $value = $values->get($valueId);
-                if (!$value || (int) $value->attribute_id !== (int) $attributeId) {
+                if (! $value || (int) $value->attribute_id !== (int) $attributeId) {
                     throw new \InvalidArgumentException('Selected values do not match the selected attributes.');
                 }
             }
@@ -1401,7 +1409,7 @@ class ProductController extends Controller
 
                 $signature = $this->buildAttributeCombinationSignature($valueIds);
 
-                if (!isset($existingBySignature[$signature])) {
+                if (! isset($existingBySignature[$signature])) {
                     $existingBySignature[$signature] = [];
                 }
 
@@ -1417,9 +1425,10 @@ class ProductController extends Controller
             $missingCombinations = [];
 
             foreach ($targetCombinations as $signature => $targetValueIds) {
-                if (!empty($existingBySignature[$signature])) {
+                if (! empty($existingBySignature[$signature])) {
                     array_shift($existingBySignature[$signature]);
                     $unchanged++;
+
                     continue;
                 }
 
@@ -1451,6 +1460,7 @@ class ProductController extends Controller
 
                 if ($bestVariantId === null) {
                     $stillMissingCombinations[$signature] = $targetValueIds;
+
                     continue;
                 }
 
@@ -1489,7 +1499,7 @@ class ProductController extends Controller
 
     private function normalizeAttributeGroups(mixed $rawGroups): array
     {
-        if (!is_array($rawGroups)) {
+        if (! is_array($rawGroups)) {
             return [];
         }
 
@@ -1497,7 +1507,7 @@ class ProductController extends Controller
 
         foreach ($rawGroups as $rawAttributeId => $rawValueIds) {
             $attributeId = (int) $rawAttributeId;
-            if ($attributeId <= 0 || !is_array($rawValueIds)) {
+            if ($attributeId <= 0 || ! is_array($rawValueIds)) {
                 continue;
             }
 
@@ -1506,7 +1516,7 @@ class ProductController extends Controller
                 fn (int $id) => $id > 0
             )));
 
-            if (!empty($valueIds)) {
+            if (! empty($valueIds)) {
                 sort($valueIds);
                 $normalized[$attributeId] = $valueIds;
             }
@@ -1519,7 +1529,7 @@ class ProductController extends Controller
 
     private function expandLegacyValueSelectionToGroups(mixed $rawValueIds): array
     {
-        if (!is_array($rawValueIds)) {
+        if (! is_array($rawValueIds)) {
             return [];
         }
 
@@ -1546,7 +1556,7 @@ class ProductController extends Controller
                     ->values()
                     ->all();
             })
-            ->filter(fn (array $ids) => !empty($ids))
+            ->filter(fn (array $ids) => ! empty($ids))
             ->sortKeys()
             ->toArray();
     }
@@ -1586,17 +1596,17 @@ class ProductController extends Controller
 
     private function generateUniqueVariantSku(Product $product, array $combinationValueIds, ?string $skuPrefix = null): string
     {
-        $prefix = strtoupper(trim((string) ($skuPrefix ?: $product->sku ?: ('VAR' . $product->id))));
-        $prefix = preg_replace('/[^A-Z0-9\-]/', '', $prefix) ?: ('VAR' . $product->id);
+        $prefix = strtoupper(trim((string) ($skuPrefix ?: $product->sku ?: ('VAR'.$product->id))));
+        $prefix = preg_replace('/[^A-Z0-9\-]/', '', $prefix) ?: ('VAR'.$product->id);
 
-        $seed = strtoupper(substr(md5($product->id . ':' . implode('-', $combinationValueIds)), 0, 6));
-        $base = rtrim($prefix, '-') . '-' . $seed;
+        $seed = strtoupper(substr(md5($product->id.':'.implode('-', $combinationValueIds)), 0, 6));
+        $base = rtrim($prefix, '-').'-'.$seed;
 
         $candidate = $base;
         $counter = 1;
 
         while (ProductVariant::query()->where('sku', $candidate)->exists()) {
-            $candidate = $base . '-' . $counter;
+            $candidate = $base.'-'.$counter;
             $counter++;
         }
 

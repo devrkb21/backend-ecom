@@ -28,7 +28,7 @@ class UpdateProductRequest extends FormRequest
 
         $stockRules = ['nullable', 'integer', 'min:0'];
 
-        if (Product::isStockEnabled() && !$isVariableProduct) {
+        if (Product::isStockEnabled() && ! $isVariableProduct) {
             $stockRules[0] = 'required';
         }
 
@@ -37,7 +37,7 @@ class UpdateProductRequest extends FormRequest
             : ['required', 'numeric', 'min:0.01'];
 
         $salePriceRules = ['nullable', 'numeric', 'min:0'];
-        if (!$isVariableProduct) {
+        if (! $isVariableProduct) {
             $salePriceRules[] = 'lt:regular_price';
         }
 

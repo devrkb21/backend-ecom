@@ -13,13 +13,12 @@ class OrderNoteController extends Controller
 {
     public function __construct(protected LicenseService $licenseService) {}
 
-
     public function index(Request $request, int $orderId): JsonResponse
     {
         $order = Order::findOrFail($orderId);
 
         // Non-admin users can only see customer-visible notes for their own orders
-        if (!$request->user()->isAdmin()) {
+        if (! $request->user()->isAdmin()) {
             if ($order->user_id !== $request->user()->id) {
                 return $this->errorResponse('Unauthorized', 403);
             }
@@ -41,7 +40,7 @@ class OrderNoteController extends Controller
 
     public function store(Request $request, int $orderId): JsonResponse
     {
-        if (!$request->user()->isAdmin()) {
+        if (! $request->user()->isAdmin()) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
@@ -74,7 +73,7 @@ class OrderNoteController extends Controller
 
     public function destroy(Request $request, int $orderId, int $noteId): JsonResponse
     {
-        if (!$request->user()->isAdmin()) {
+        if (! $request->user()->isAdmin()) {
             return $this->errorResponse('Unauthorized', 403);
         }
 

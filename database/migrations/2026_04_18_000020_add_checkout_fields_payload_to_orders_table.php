@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            if (!Schema::hasColumn('orders', 'checkout_fields_payload')) {
+            if (! Schema::hasColumn('orders', 'checkout_fields_payload')) {
                 $table->json('checkout_fields_payload')->nullable()->after('notes');
             }
         });

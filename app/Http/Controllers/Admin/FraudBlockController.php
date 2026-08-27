@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\FraudBlock;
 use App\Models\Order;
+use App\Models\Setting;
 use App\Support\FraudNormalizer;
 use Illuminate\Http\Request;
 
@@ -35,7 +36,7 @@ class FraudBlockController extends Controller
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('value', 'like', "%{$search}%")
-                  ->orWhere('reason', 'like', "%{$search}%");
+                    ->orWhere('reason', 'like', "%{$search}%");
             });
         }
 
@@ -43,7 +44,7 @@ class FraudBlockController extends Controller
         $blocks = $query->paginate($perPage)->withQueryString();
         $summary = FraudBlock::getSummary();
         $needsReviewCount = FraudBlock::where('needs_review', true)->count();
-        $defaults = \App\Models\Setting::getGroup('fraud_blocks', false);
+        $defaults = Setting::getGroup('fraud_blocks', false);
         $automation = $this->getAutomationSettings();
 
         return view('admin.fraud-blocks.index', compact('blocks', 'summary', 'needsReviewCount', 'defaults', 'automation'));
@@ -86,12 +87,12 @@ class FraudBlockController extends Controller
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => ucfirst($validated['type']) . ' blocked successfully.',
+                'message' => ucfirst($validated['type']).' blocked successfully.',
             ]);
         }
 
         return redirect()->route('admin.fraud-blocks.index')
-            ->with('success', ucfirst($validated['type']) . ' blocked successfully.');
+            ->with('success', ucfirst($validated['type']).' blocked successfully.');
     }
 
     /**
@@ -118,8 +119,9 @@ class FraudBlockController extends Controller
             : FraudBlock::where('type', $type)->where('value', $value)->first();
 
         if ($existing) {
-            if (!$existing->is_active) {
+            if (! $existing->is_active) {
                 $existing->update(['is_active' => true, 'needs_review' => false, 'blocked_by' => auth()->id()]);
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Re-activated existing block.',
@@ -137,7 +139,7 @@ class FraudBlockController extends Controller
         FraudBlock::create([
             'type' => $type,
             'value' => $value,
-            'reason' => $validated['reason'] ?? ('Blocked from Order #' . ($validated['order_id'] ? Order::find($validated['order_id'])?->order_number : 'N/A')),
+            'reason' => $validated['reason'] ?? ('Blocked from Order #'.($validated['order_id'] ? Order::find($validated['order_id'])?->order_number : 'N/A')),
             'custom_message' => $validated['custom_message'] ?? null,
             'blocked_by' => auth()->id(),
             'order_id' => $validated['order_id'] ?? null,
@@ -146,7 +148,7 @@ class FraudBlockController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => ucfirst($type) . ' blocked successfully.',
+            'message' => ucfirst($type).' blocked successfully.',
             'action' => 'created',
         ]);
     }
@@ -213,7 +215,7 @@ class FraudBlockController extends Controller
      */
     public function toggle(FraudBlock $fraudBlock)
     {
-        $fraudBlock->update(['is_active' => !$fraudBlock->is_active]);
+        $fraudBlock->update(['is_active' => ! $fraudBlock->is_active]);
 
         if (request()->expectsJson()) {
             return response()->json([
@@ -288,7 +290,7 @@ class FraudBlockController extends Controller
         ]);
 
         foreach ($validated as $key => $value) {
-            \App\Models\Setting::setValue('fraud_blocks', $key, $value, ['type' => 'string', 'is_public' => false]);
+            Setting::setValue('fraud_blocks', $key, $value, ['type' => 'string', 'is_public' => false]);
         }
 
         return redirect()->back()->with('success', 'Default messages saved successfully.');
@@ -319,10 +321,10 @@ class FraudBlockController extends Controller
         ];
 
         foreach ($values as $key => $value) {
-            \App\Models\Setting::setValue('fraud_blocks', $key, $value, ['type' => 'string', 'is_public' => false]);
+            Setting::setValue('fraud_blocks', $key, $value, ['type' => 'string', 'is_public' => false]);
         }
 
-        \App\Models\Setting::clearCache('fraud_blocks');
+        Setting::clearCache('fraud_blocks');
 
         return redirect()->route('admin.fraud-blocks.index')->with('success', 'Automation settings saved successfully.');
     }
@@ -330,12 +332,12 @@ class FraudBlockController extends Controller
     private function getAutomationSettings(): array
     {
         return [
-            'velocity_enabled' => filter_var(\App\Models\Setting::getValue('fraud_blocks', 'velocity_enabled', '1'), FILTER_VALIDATE_BOOLEAN),
-            'velocity_limit_count' => (int) \App\Models\Setting::getValue('fraud_blocks', 'velocity_limit_count', 5),
-            'velocity_limit_window_minutes' => (int) \App\Models\Setting::getValue('fraud_blocks', 'velocity_limit_window_minutes', 60),
-            'repeat_offender_enabled' => filter_var(\App\Models\Setting::getValue('fraud_blocks', 'repeat_offender_enabled', '1'), FILTER_VALIDATE_BOOLEAN),
-            'repeat_offender_threshold' => (int) \App\Models\Setting::getValue('fraud_blocks', 'repeat_offender_threshold', 3),
-            'repeat_offender_action' => \App\Models\Setting::getValue('fraud_blocks', 'repeat_offender_action', 'flag'),
+            'velocity_enabled' => filter_var(Setting::getValue('fraud_blocks', 'velocity_enabled', '1'), FILTER_VALIDATE_BOOLEAN),
+            'velocity_limit_count' => (int) Setting::getValue('fraud_blocks', 'velocity_limit_count', 5),
+            'velocity_limit_window_minutes' => (int) Setting::getValue('fraud_blocks', 'velocity_limit_window_minutes', 60),
+            'repeat_offender_enabled' => filter_var(Setting::getValue('fraud_blocks', 'repeat_offender_enabled', '1'), FILTER_VALIDATE_BOOLEAN),
+            'repeat_offender_threshold' => (int) Setting::getValue('fraud_blocks', 'repeat_offender_threshold', 3),
+            'repeat_offender_action' => Setting::getValue('fraud_blocks', 'repeat_offender_action', 'flag'),
         ];
     }
 }

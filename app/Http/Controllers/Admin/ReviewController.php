@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Review;
 use App\Models\Product;
+use App\Models\Review;
 use Illuminate\Http\Request;
 
 class ReviewController extends Controller
@@ -105,9 +105,10 @@ class ReviewController extends Controller
      */
     public function toggleFeatured(Review $review)
     {
-        $review->update(['is_featured' => !$review->is_featured]);
+        $review->update(['is_featured' => ! $review->is_featured]);
 
         $status = $review->is_featured ? 'featured' : 'unfeatured';
+
         return back()->with('success', "Review {$status} successfully.");
     }
 
@@ -161,7 +162,7 @@ class ReviewController extends Controller
 
         Review::whereIn('id', $validated['review_ids'])->update(['is_approved' => true]);
 
-        return back()->with('success', count($validated['review_ids']) . ' reviews approved.');
+        return back()->with('success', count($validated['review_ids']).' reviews approved.');
     }
 
     /**
@@ -176,6 +177,6 @@ class ReviewController extends Controller
 
         Review::whereIn('id', $validated['review_ids'])->delete();
 
-        return back()->with('success', count($validated['review_ids']) . ' reviews deleted.');
+        return back()->with('success', count($validated['review_ids']).' reviews deleted.');
     }
 }

@@ -16,14 +16,14 @@ class LandingPageController extends Controller
             ->with([
                 'product' => function ($query) {
                     $query->with(['variants.attributeValues.attribute', 'images']);
-                }
+                },
             ])
             ->first();
 
-        if (!$landingPage) {
+        if (! $landingPage) {
             return response()->json([
                 'success' => false,
-                'message' => 'Landing page not found'
+                'message' => 'Landing page not found',
             ], 404);
         }
 
@@ -33,7 +33,7 @@ class LandingPageController extends Controller
         // Load all linked products (via product_ids JSON array)
         $productIds = $landingPage->product_ids ?? ($landingPage->product_id ? [$landingPage->product_id] : []);
         $linkedProducts = [];
-        if (!empty($productIds)) {
+        if (! empty($productIds)) {
             $linkedProducts = Product::whereIn('id', $productIds)
                 ->where('is_active', true)
                 ->with(['variants.attributeValues.attribute', 'images'])
@@ -41,6 +41,7 @@ class LandingPageController extends Controller
                 ->map(function ($p) use ($productIds) {
                     // Preserve the order of selection
                     $p->setAttribute('_sort_order', array_search($p->id, $productIds));
+
                     return $p;
                 })
                 ->sortBy('_sort_order')
@@ -53,7 +54,7 @@ class LandingPageController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => $data,
+            'data' => $data,
         ]);
     }
 }

@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AbandonedCart;
 use App\Services\OrderService;
-use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class AbandonedCartController extends Controller
@@ -60,9 +60,9 @@ class AbandonedCartController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('name', 'like', "%{$search}%")
-                  ->orWhere('landing_page_slug', 'like', "%{$search}%");
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('name', 'like', "%{$search}%")
+                    ->orWhere('landing_page_slug', 'like', "%{$search}%");
             });
         }
 
@@ -162,7 +162,7 @@ class AbandonedCartController extends Controller
      */
     public function markRecovered(Request $request, AbandonedCart $abandonedCart): RedirectResponse
     {
-        if (!in_array($abandonedCart->status, ['pending', 'follow_up'], true)) {
+        if (! in_array($abandonedCart->status, ['pending', 'follow_up'], true)) {
             return redirect()
                 ->back()
                 ->with('error', 'Only incomplete checkouts can be marked as recovered.');
@@ -173,7 +173,7 @@ class AbandonedCartController extends Controller
         } catch (\Throwable $exception) {
             return redirect()
                 ->back()
-                ->with('error', 'Recovery failed: ' . $exception->getMessage());
+                ->with('error', 'Recovery failed: '.$exception->getMessage());
         }
 
         return redirect()
@@ -302,7 +302,7 @@ class AbandonedCartController extends Controller
 
         $carts = $query->get();
 
-        $filename = 'abandoned_carts_' . now()->format('Y-m-d_His') . '.csv';
+        $filename = 'abandoned_carts_'.now()->format('Y-m-d_His').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',

@@ -30,12 +30,12 @@ class LandingPage extends Model
     protected function casts(): array
     {
         return [
-            'product_ids'   => 'array',
-            'features'      => 'array',
-            'testimonials'  => 'array',
-            'is_active'     => 'boolean',
+            'product_ids' => 'array',
+            'features' => 'array',
+            'testimonials' => 'array',
+            'is_active' => 'boolean',
             'show_location' => 'boolean',
-            'views_count'   => 'integer',
+            'views_count' => 'integer',
         ];
     }
 
@@ -55,6 +55,7 @@ class LandingPage extends Model
         if (empty($ids)) {
             return collect();
         }
+
         return Product::whereIn('id', $ids)->with(['variants.attributeValues.attribute', 'images'])->get();
     }
 }

@@ -41,7 +41,7 @@ class CategoryController extends Controller
     {
         $category = $this->categoryService->getCategoryBySlug($slug);
 
-        if (!$category) {
+        if (! $category) {
             return $this->errorResponse('Category not found', 404);
         }
 
@@ -64,7 +64,7 @@ class CategoryController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        if (!$request->user()->isAdmin()) {
+        if (! $request->user()->isAdmin()) {
             return $this->errorResponse('Unauthorized', 403);
         }
 

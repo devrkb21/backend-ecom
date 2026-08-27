@@ -58,12 +58,14 @@ class AuthController extends Controller
         ]);
 
         if ($this->guard()->attempt($credentials, $request->boolean('remember'))) {
-            if (!$this->guard()->user()->canAccessAdminPanel()) {
+            if (! $this->guard()->user()->canAccessAdminPanel()) {
                 $this->guard()->logout();
+
                 return back()->withErrors(['email' => 'Access denied. Your role cannot access admin panel.']);
             }
 
             $request->session()->regenerate();
+
             return redirect()->intended(route('admin.dashboard'));
         }
 

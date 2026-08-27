@@ -76,6 +76,7 @@ class ReturnRequest extends Model
         $prefix = 'RET';
         $timestamp = now()->format('YmdHis');
         $random = strtoupper(substr(uniqid(), -4));
+
         return "{$prefix}-{$timestamp}-{$random}";
     }
 
@@ -126,7 +127,7 @@ class ReturnRequest extends Model
     public function scopeRefundPending($query)
     {
         return $query->where('refund_status', 'pending')
-                    ->whereIn('status', ['approved', 'processing', 'received']);
+            ->whereIn('status', ['approved', 'processing', 'received']);
     }
 
     // ==================== ACCESSORS ====================
@@ -227,12 +228,12 @@ class ReturnRequest extends Model
     {
         // For refund-only, can process immediately after approval
         if ($this->type === 'refund') {
-            return in_array($this->status, ['approved', 'processing']) 
+            return in_array($this->status, ['approved', 'processing'])
                 && $this->refund_status !== 'completed';
         }
-        
+
         // For returns, need to receive product first
-        return in_array($this->status, ['received', 'processing']) 
+        return in_array($this->status, ['received', 'processing'])
             && $this->refund_status !== 'completed';
     }
 
@@ -339,7 +340,8 @@ class ReturnRequest extends Model
     public function isEligibleForAutoRefund(): bool
     {
         $paymentMethod = $this->getPaymentMethod();
-        return in_array($paymentMethod, ['stripe', 'bkash']) 
+
+        return in_array($paymentMethod, ['stripe', 'bkash'])
             && $this->refund_method === 'original'
             && $this->getOriginalTransactionId();
     }
@@ -400,7 +402,7 @@ class ReturnRequest extends Model
         if (isset($this->attributes['refund_amount']) && $this->attributes['refund_amount']) {
             return (float) $this->attributes['refund_amount'];
         }
-        
+
         return $this->items->sum(function ($item) {
             return $item->quantity * $item->unit_price;
         });
@@ -448,8 +450,8 @@ class ReturnRequest extends Model
             $timeline[] = [
                 'status' => 'shipped',
                 'title' => 'Items Shipped',
-                'description' => $this->return_tracking_number 
-                    ? "Tracking: {$this->return_tracking_number}" 
+                'description' => $this->return_tracking_number
+                    ? "Tracking: {$this->return_tracking_number}"
                     : 'Items shipped back',
                 'date' => $this->shipped_at->toIso8601String(),
                 'completed' => true,
@@ -483,7 +485,7 @@ class ReturnRequest extends Model
             $timeline[] = [
                 'status' => 'refund_completed',
                 'title' => 'Refund Completed',
-                'description' => '৳' . number_format((float) ($this->final_refund_amount ?? 0), 2) . ' refunded',
+                'description' => '৳'.number_format((float) ($this->final_refund_amount ?? 0), 2).' refunded',
                 'date' => $this->refunded_at->toIso8601String(),
                 'completed' => true,
             ];

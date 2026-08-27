@@ -98,14 +98,14 @@ class ReturnController extends Controller
      */
     public function approve(Request $request, ReturnRequest $return)
     {
-        if (!$return->isPending()) {
+        if (! $return->isPending()) {
             return back()->with('error', 'This return request has already been processed.');
         }
 
         $validated = $request->validate([
             'admin_notes' => 'nullable|string|max:1000',
             'restocking_fee' => 'nullable|numeric|min:0',
-            'refund_amount' => 'required|numeric|min:0|max:' . $return->total_amount,
+            'refund_amount' => 'required|numeric|min:0|max:'.$return->total_amount,
         ]);
 
         $return->approve([
@@ -123,7 +123,7 @@ class ReturnController extends Controller
      */
     public function reject(Request $request, ReturnRequest $return)
     {
-        if (!$return->isPending()) {
+        if (! $return->isPending()) {
             return back()->with('error', 'This return request has already been processed.');
         }
 
@@ -144,7 +144,7 @@ class ReturnController extends Controller
      */
     public function markReceived(Request $request, ReturnRequest $return)
     {
-        if (!$return->isApproved() && !$return->isProcessing()) {
+        if (! $return->isApproved() && ! $return->isProcessing()) {
             return back()->with('error', 'Return must be approved before marking as received.');
         }
 
@@ -157,9 +157,9 @@ class ReturnController extends Controller
         // Update item conditions if needed
         if ($validated['condition'] !== 'good') {
             $return->update([
-                'admin_notes' => ($return->admin_notes ? $return->admin_notes . "\n\n" : '') 
-                    . "Received Condition: {$validated['condition']}\n"
-                    . ($validated['condition_notes'] ?? ''),
+                'admin_notes' => ($return->admin_notes ? $return->admin_notes."\n\n" : '')
+                    ."Received Condition: {$validated['condition']}\n"
+                    .($validated['condition_notes'] ?? ''),
             ]);
         }
 
@@ -179,7 +179,7 @@ class ReturnController extends Controller
      */
     public function processRefund(Request $request, ReturnRequest $return)
     {
-        if (!$return->canProcessRefund()) {
+        if (! $return->canProcessRefund()) {
             return back()->with('error', 'This return is not eligible for refund processing.');
         }
 
@@ -192,10 +192,11 @@ class ReturnController extends Controller
                 if (isset($result['requires_manual_action']) && $result['requires_manual_action']) {
                     $message .= ' Note: This requires manual bank transfer.';
                 }
+
                 return back()->with('success', $message);
             }
 
-            return back()->with('error', 'Refund processing failed: ' . $result['message']);
+            return back()->with('error', 'Refund processing failed: '.$result['message']);
         }
 
         // Manual refund processing
@@ -208,8 +209,8 @@ class ReturnController extends Controller
 
         if ($validated['refund_notes']) {
             $return->update([
-                'admin_notes' => ($return->admin_notes ? $return->admin_notes . "\n\n" : '') 
-                    . "Refund Notes: {$validated['refund_notes']}",
+                'admin_notes' => ($return->admin_notes ? $return->admin_notes."\n\n" : '')
+                    ."Refund Notes: {$validated['refund_notes']}",
             ]);
         }
 
@@ -245,10 +246,10 @@ class ReturnController extends Controller
         ]);
 
         $existingNotes = $return->admin_notes;
-        $newNote = "[" . now()->format('Y-m-d H:i') . " - " . auth()->user()->name . "]\n" . $validated['notes'];
+        $newNote = '['.now()->format('Y-m-d H:i').' - '.auth()->user()->name."]\n".$validated['notes'];
 
         $return->update([
-            'admin_notes' => $existingNotes ? $existingNotes . "\n\n" . $newNote : $newNote,
+            'admin_notes' => $existingNotes ? $existingNotes."\n\n".$newNote : $newNote,
         ]);
 
         return back()->with('success', 'Notes added successfully.');
@@ -277,7 +278,7 @@ class ReturnController extends Controller
 
         $returns = $query->get();
 
-        $filename = 'returns_' . now()->format('Y-m-d_His') . '.csv';
+        $filename = 'returns_'.now()->format('Y-m-d_His').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',

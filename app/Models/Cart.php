@@ -47,6 +47,7 @@ class Cart extends Model
     {
         $subtotal = $this->subtotal;
         $discount = $this->discount_amount ?? 0;
+
         return max(0, $subtotal - $discount);
     }
 
@@ -62,8 +63,8 @@ class Cart extends Model
     {
         if ($this->coupon_id && $this->coupon) {
             $errors = $this->coupon->validateForCart($this);
-            
-            if (!empty($errors)) {
+
+            if (! empty($errors)) {
                 // Coupon no longer valid, remove it
                 $this->update([
                     'coupon_id' => null,

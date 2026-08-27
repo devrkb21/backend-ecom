@@ -2,20 +2,21 @@
 
 namespace App\Services;
 
-use App\Models\User;
-use App\Models\Order;
-use App\Models\LoyaltyTransaction;
-use App\Models\LoyaltyReward;
 use App\Models\LoyaltyRedemption;
+use App\Models\LoyaltyReward;
 use App\Models\LoyaltyTier;
+use App\Models\LoyaltyTransaction;
+use App\Models\Order;
+use App\Models\User;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class LoyaltyService
 {
     // Points earning rate (points per currency unit spent)
     protected int $pointsPerUnit = 1; // 1 point per ৳1 spent
+
     protected int $pointsExpireDays = 365; // Points expire after 1 year
 
     /**
@@ -23,7 +24,7 @@ class LoyaltyService
      */
     public function awardOrderPoints(Order $order): ?LoyaltyTransaction
     {
-        if (!$order->user_id || $order->status === 'cancelled' || $order->status === 'failed') {
+        if (! $order->user_id || $order->status === 'cancelled' || $order->status === 'failed') {
             return null;
         }
 
@@ -136,7 +137,7 @@ class LoyaltyService
     {
         // Check if can redeem
         $canRedeem = $reward->canRedeem($user);
-        if (!$canRedeem['allowed']) {
+        if (! $canRedeem['allowed']) {
             return ['success' => false, 'error' => $canRedeem['reason']];
         }
 
@@ -156,7 +157,7 @@ class LoyaltyService
             // Generate coupon code if applicable
             $couponCode = null;
             if (in_array($reward->reward_type, [LoyaltyReward::TYPE_DISCOUNT_PERCENTAGE, LoyaltyReward::TYPE_DISCOUNT_FIXED, LoyaltyReward::TYPE_COUPON])) {
-                $couponCode = 'LYL-' . strtoupper(Str::random(8));
+                $couponCode = 'LYL-'.strtoupper(Str::random(8));
             }
 
             // Create redemption record
@@ -182,6 +183,7 @@ class LoyaltyService
             ];
         } catch (\Exception $e) {
             DB::rollBack();
+
             return ['success' => false, 'error' => 'Failed to redeem reward. Please try again.'];
         }
     }
@@ -191,7 +193,7 @@ class LoyaltyService
      */
     public function applyRedemptionToOrder(LoyaltyRedemption $redemption, Order $order): array
     {
-        if (!$redemption->isValid()) {
+        if (! $redemption->isValid()) {
             return ['success' => false, 'error' => 'Redemption is no longer valid'];
         }
 
@@ -271,6 +273,7 @@ class LoyaltyService
             ->map(function ($reward) use ($user) {
                 $reward->can_redeem = $reward->canRedeem($user)['allowed'];
                 $reward->points_needed = max(0, $reward->points_required - $user->loyalty_points);
+
                 return $reward;
             });
     }
@@ -385,7 +388,9 @@ class LoyaltyService
 
         foreach ($expiredTransactions as $userId => $transactions) {
             $user = User::find($userId);
-            if (!$user) continue;
+            if (! $user) {
+                continue;
+            }
 
             $totalExpired = $transactions->sum('points');
 
@@ -394,7 +399,7 @@ class LoyaltyService
                 $user,
                 $totalExpired,
                 LoyaltyTransaction::TYPE_EXPIRED,
-                "Points expired",
+                'Points expired',
                 null,
                 ['expired_transaction_ids' => $transactions->pluck('id')->toArray()]
             );
@@ -418,7 +423,7 @@ class LoyaltyService
             ->where('type', LoyaltyTransaction::TYPE_EARNED)
             ->first();
 
-        if (!$earnedTransaction) {
+        if (! $earnedTransaction) {
             return null;
         }
 
@@ -440,10 +445,10 @@ class LoyaltyService
         return match ($reward->reward_type) {
             LoyaltyReward::TYPE_DISCOUNT_PERCENTAGE => "Use code {$couponCode} at checkout for {$reward->reward_value}% off!",
             LoyaltyReward::TYPE_DISCOUNT_FIXED => "Use code {$couponCode} at checkout for ৳{$reward->reward_value} off!",
-            LoyaltyReward::TYPE_FREE_SHIPPING => "Your next order qualifies for free shipping!",
-            LoyaltyReward::TYPE_FREE_PRODUCT => "A free product has been added to your account!",
+            LoyaltyReward::TYPE_FREE_SHIPPING => 'Your next order qualifies for free shipping!',
+            LoyaltyReward::TYPE_FREE_PRODUCT => 'A free product has been added to your account!',
             LoyaltyReward::TYPE_COUPON => "Use code {$couponCode} at checkout!",
-            default => "Reward redeemed successfully!",
+            default => 'Reward redeemed successfully!',
         };
     }
 

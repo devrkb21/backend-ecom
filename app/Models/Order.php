@@ -2,18 +2,19 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use App\Traits\Auditable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class Order extends Model
 {
-    use HasFactory, SoftDeletes, Auditable;
+    use Auditable, HasFactory, SoftDeletes;
 
     /**
      * Plain-text guest access token, generated once during checkout and returned
@@ -133,6 +134,7 @@ class Order extends Model
 
         return substr($sanitizedPrefix, 0, 20);
     }
+
     protected static function resolveOrderNumberGenerationMode(): string
     {
         $rawMode = (string) Setting::getValue('general', 'order_number_generation_mode', 'global_sequence');
@@ -151,7 +153,7 @@ class Order extends Model
                 strtoupper(Str::random(4))
             );
 
-            if (!static::withTrashed()->where('order_number', $candidate)->exists()) {
+            if (! static::withTrashed()->where('order_number', $candidate)->exists()) {
                 return $candidate;
             }
         }
@@ -171,7 +173,7 @@ class Order extends Model
                 str_pad((string) ($startingSequence + $attempt), 4, '0', STR_PAD_LEFT)
             );
 
-            if (!static::withTrashed()->where('order_number', $candidate)->exists()) {
+            if (! static::withTrashed()->where('order_number', $candidate)->exists()) {
                 return $candidate;
             }
         }
@@ -183,7 +185,7 @@ class Order extends Model
     protected static function resolveStartingSequenceForPrefix(string $basePrefix): int
     {
         $orderNumbers = static::withTrashed()
-            ->where('order_number', 'like', $basePrefix . '-%')
+            ->where('order_number', 'like', $basePrefix.'-%')
             ->orderByDesc('id')
             ->limit(300)
             ->pluck('order_number');
@@ -191,11 +193,11 @@ class Order extends Model
         $maxSequence = 0;
 
         foreach ($orderNumbers as $orderNumber) {
-            if (!is_string($orderNumber)) {
+            if (! is_string($orderNumber)) {
                 continue;
             }
 
-            if (!str_starts_with($orderNumber, $basePrefix . '-')) {
+            if (! str_starts_with($orderNumber, $basePrefix.'-')) {
                 continue;
             }
 
@@ -247,7 +249,7 @@ class Order extends Model
                 $candidate = str_replace($matches[0], str_pad((string) ($startingSequence + $attempt), $length, '0', STR_PAD_LEFT), $candidate);
             }
 
-            if (!static::withTrashed()->where('order_number', $candidate)->exists()) {
+            if (! static::withTrashed()->where('order_number', $candidate)->exists()) {
                 return $candidate;
             }
         }
@@ -263,7 +265,7 @@ class Order extends Model
         }
 
         $orderNumbers = static::withTrashed()
-            ->where('order_number', 'like', str_replace(['_', '%'], ['\_', '\%'], $patternBeforeSeq) . '%')
+            ->where('order_number', 'like', str_replace(['_', '%'], ['\_', '\%'], $patternBeforeSeq).'%')
             ->orderByDesc('id')
             ->limit(300)
             ->pluck('order_number');
@@ -271,11 +273,11 @@ class Order extends Model
         $maxSequence = 0;
 
         foreach ($orderNumbers as $orderNumber) {
-            if (!is_string($orderNumber)) {
+            if (! is_string($orderNumber)) {
                 continue;
             }
 
-            if (!str_starts_with($orderNumber, $patternBeforeSeq)) {
+            if (! str_starts_with($orderNumber, $patternBeforeSeq)) {
                 continue;
             }
 
@@ -424,7 +426,7 @@ class Order extends Model
             'carrier' => $carrier,
             'carrier_tracking_url' => $trackingUrl ?? $this->generateTrackingUrl($trackingNumber, $carrier),
             'shipped_at' => now(),
-            'estimated_delivery_at' => $estimatedDelivery ? \Carbon\Carbon::parse($estimatedDelivery) : null,
+            'estimated_delivery_at' => $estimatedDelivery ? Carbon::parse($estimatedDelivery) : null,
         ]);
 
         $this->addTrackingEvent(
@@ -465,14 +467,14 @@ class Order extends Model
     public function generateTrackingUrl(string $trackingNumber, string $carrier): ?string
     {
         $carriers = [
-            'pathao' => 'https://merchant.pathao.com/tracking?consignment_id=' . $trackingNumber . '&phone=' . urlencode($this->shipping_phone ?: ''),
-            'steadfast' => 'https://steadfast.com.bd/tl/' . $trackingNumber,
-            'redx' => 'https://redx.com.bd/track/' . $trackingNumber,
-            'paperfly' => 'https://paperfly.com.bd/tracking/' . $trackingNumber,
-            'sundarban' => 'https://sundarbancourier.com/track/' . $trackingNumber,
-            'dhl' => 'https://www.dhl.com/en/express/tracking.html?AWB=' . $trackingNumber,
-            'fedex' => 'https://www.fedex.com/fedextrack/?trknbr=' . $trackingNumber,
-            'ups' => 'https://www.ups.com/track?tracknum=' . $trackingNumber,
+            'pathao' => 'https://merchant.pathao.com/tracking?consignment_id='.$trackingNumber.'&phone='.urlencode($this->shipping_phone ?: ''),
+            'steadfast' => 'https://steadfast.com.bd/tl/'.$trackingNumber,
+            'redx' => 'https://redx.com.bd/track/'.$trackingNumber,
+            'paperfly' => 'https://paperfly.com.bd/tracking/'.$trackingNumber,
+            'sundarban' => 'https://sundarbancourier.com/track/'.$trackingNumber,
+            'dhl' => 'https://www.dhl.com/en/express/tracking.html?AWB='.$trackingNumber,
+            'fedex' => 'https://www.fedex.com/fedextrack/?trknbr='.$trackingNumber,
+            'ups' => 'https://www.ups.com/track?tracknum='.$trackingNumber,
         ];
 
         return $carriers[strtolower($carrier)] ?? null;
@@ -491,7 +493,7 @@ class Order extends Model
      */
     public function hasTrackingInfo(): bool
     {
-        return !empty($this->tracking_number);
+        return ! empty($this->tracking_number);
     }
 
     /**
@@ -546,14 +548,17 @@ class Order extends Model
         $checkoutPayload = is_array($this->checkout_fields_payload) ? $this->checkout_fields_payload : [];
         $rawUserName = trim((string) ($this->user?->name ?? ''));
         $rawUserEmail = trim((string) ($this->user?->email ?? ''));
-        
+
         $isGuestCheckoutOrder = strtolower($rawUserEmail) === $guestCheckoutEmail || strtolower($rawUserName) === 'guest checkout';
 
         $firstNonEmpty = function (array $candidates): string {
             foreach ($candidates as $candidate) {
                 $val = trim((string) ($candidate ?? ''));
-                if ($val !== '') return $val;
+                if ($val !== '') {
+                    return $val;
+                }
             }
+
             return '';
         };
 
@@ -562,7 +567,7 @@ class Order extends Model
                 $this->shipping_name,
                 $checkoutPayload['shipping_name'] ?? null,
                 $checkoutPayload['billing_name'] ?? null,
-                trim(($checkoutPayload['billing_first_name'] ?? '') . ' ' . ($checkoutPayload['billing_last_name'] ?? '')),
+                trim(($checkoutPayload['billing_first_name'] ?? '').' '.($checkoutPayload['billing_last_name'] ?? '')),
                 $rawUserName,
             ]);
         } else {

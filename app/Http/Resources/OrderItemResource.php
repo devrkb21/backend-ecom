@@ -36,7 +36,7 @@ class OrderItemResource extends JsonResource
 
     private function resolveVariantSku(): ?string
     {
-        if (!$this->product_variant_id) {
+        if (! $this->product_variant_id) {
             return null;
         }
 
@@ -56,10 +56,10 @@ class OrderItemResource extends JsonResource
     private function resolveVariantAttributes(): array
     {
         if (
-            !$this->product_variant_id
-            || !$this->relationLoaded('variant')
-            || !$this->variant
-            || !$this->variant->relationLoaded('attributeValues')
+            ! $this->product_variant_id
+            || ! $this->relationLoaded('variant')
+            || ! $this->variant
+            || ! $this->variant->relationLoaded('attributeValues')
         ) {
             return [];
         }
@@ -85,7 +85,7 @@ class OrderItemResource extends JsonResource
 
     private function resolveVariantName(array $variantAttributes, ?string $variantSku): ?string
     {
-        if (!$this->product_variant_id) {
+        if (! $this->product_variant_id) {
             return null;
         }
 
@@ -97,7 +97,7 @@ class OrderItemResource extends JsonResource
             return $variantName;
         }
 
-        if (!empty($variantAttributes)) {
+        if (! empty($variantAttributes)) {
             $attributeOnlyName = collect($variantAttributes)
                 ->map(function (array $attribute): string {
                     $attributeName = trim((string) ($attribute['attribute_name'] ?? ''));
@@ -121,18 +121,18 @@ class OrderItemResource extends JsonResource
             return $variantSku;
         }
 
-        return 'Variant #' . $this->product_variant_id;
+        return 'Variant #'.$this->product_variant_id;
     }
 
     private function resolveVariantSummary(array $variantAttributes, ?string $variantSku): ?string
     {
-        if (!$this->product_variant_id) {
+        if (! $this->product_variant_id) {
             return null;
         }
 
         $summaryParts = [];
 
-        if (!empty($variantAttributes)) {
+        if (! empty($variantAttributes)) {
             $attributeSummary = collect($variantAttributes)
                 ->map(function (array $attribute): string {
                     $attributeName = trim((string) ($attribute['attribute_name'] ?? ''));
@@ -157,7 +157,7 @@ class OrderItemResource extends JsonResource
         }
 
         if (empty($summaryParts)) {
-            return 'Variant #' . $this->product_variant_id;
+            return 'Variant #'.$this->product_variant_id;
         }
 
         return implode(' | ', $summaryParts);

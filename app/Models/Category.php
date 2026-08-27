@@ -4,9 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class Category extends Model
@@ -77,7 +77,7 @@ class Category extends Model
         // parent, not a longer loop, so this traversal must bound itself.
         $visited = [$this->id => true];
 
-        while ($parent && !isset($visited[$parent->id])) {
+        while ($parent && ! isset($visited[$parent->id])) {
             $visited[$parent->id] = true;
             array_unshift($path, $parent->name);
             $parent = $parent->parent;
@@ -95,7 +95,7 @@ class Category extends Model
         $parent = $this->parent;
         $visited = [$this->id => true];
 
-        while ($parent && !isset($visited[$parent->id])) {
+        while ($parent && ! isset($visited[$parent->id])) {
             $visited[$parent->id] = true;
             $depth++;
             $parent = $parent->parent;

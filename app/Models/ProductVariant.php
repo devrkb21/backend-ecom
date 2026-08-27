@@ -61,8 +61,9 @@ class ProductVariant extends Model
                 return asset($normalized);
             }
 
-            return asset('storage/' . $normalized);
+            return asset('storage/'.$normalized);
         }
+
         return null;
     }
 
@@ -133,7 +134,7 @@ class ProductVariant extends Model
 
     public function hasStock(int $quantity = 1): bool
     {
-        if (!Product::isStockEnabled()) {
+        if (! Product::isStockEnabled()) {
             return true;
         }
 
@@ -142,7 +143,7 @@ class ProductVariant extends Model
 
     public function decrementStock(int $quantity): void
     {
-        if (!Product::isStockEnabled()) {
+        if (! Product::isStockEnabled()) {
             return;
         }
 
@@ -158,7 +159,7 @@ class ProductVariant extends Model
      */
     public function decrementStockIfAvailable(int $quantity): bool
     {
-        if (!Product::isStockEnabled()) {
+        if (! Product::isStockEnabled()) {
             return true;
         }
 
@@ -176,7 +177,7 @@ class ProductVariant extends Model
 
     public function incrementStock(int $quantity): void
     {
-        if (!Product::isStockEnabled()) {
+        if (! Product::isStockEnabled()) {
             return;
         }
 

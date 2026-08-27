@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\CustomerGroup;
 use App\Models\Order;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class CustomerGroupController extends Controller
 {
@@ -33,7 +33,7 @@ class CustomerGroupController extends Controller
         // Find qualifying group
         $qualifyingGroup = CustomerGroup::getQualifyingGroup($totalOrders, $totalSpent, $phone);
 
-        if (!$qualifyingGroup) {
+        if (! $qualifyingGroup) {
             return response()->json([
                 'success' => true,
                 'has_group' => false,

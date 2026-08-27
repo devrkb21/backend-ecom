@@ -18,7 +18,7 @@ class CouponService
     {
         $coupon = Coupon::findByCode($code);
 
-        if (!$coupon) {
+        if (! $coupon) {
             return [
                 'success' => false,
                 'message' => 'Invalid coupon code.',
@@ -27,7 +27,7 @@ class CouponService
 
         // Validate coupon for cart
         $errors = $coupon->validateForCart($cart);
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             return [
                 'success' => false,
                 'message' => $errors[0],
@@ -40,7 +40,7 @@ class CouponService
             $userUsageCount = CouponUsage::where('coupon_id', $coupon->id)
                 ->where('user_id', $cart->user_id)
                 ->count();
-            
+
             if ($userUsageCount >= $coupon->usage_limit_per_user) {
                 return [
                     'success' => false,
@@ -73,14 +73,14 @@ class CouponService
     {
         $coupon = Coupon::findByCode($code);
 
-        if (!$coupon) {
+        if (! $coupon) {
             return [
                 'success' => false,
                 'message' => 'Invalid coupon code.',
             ];
         }
 
-        if (!$coupon->allow_guest_checkout) {
+        if (! $coupon->allow_guest_checkout) {
             return [
                 'success' => false,
                 'message' => 'Please login to use this coupon.',
@@ -97,7 +97,7 @@ class CouponService
         }
 
         $errors = $coupon->validateForCart($previewCart);
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             return [
                 'success' => false,
                 'message' => $errors[0],
@@ -138,14 +138,14 @@ class CouponService
     {
         $coupon = Coupon::findByCode($code);
 
-        if (!$coupon) {
+        if (! $coupon) {
             return [
                 'valid' => false,
                 'message' => 'Invalid coupon code.',
             ];
         }
 
-        if (!$coupon->isValid()) {
+        if (! $coupon->isValid()) {
             $status = $coupon->status;
             $messages = [
                 'inactive' => 'This coupon is no longer active.',
@@ -153,21 +153,21 @@ class CouponService
                 'scheduled' => 'This coupon is not yet valid.',
                 'exhausted' => 'This coupon has reached its usage limit.',
             ];
-            
+
             return [
                 'valid' => false,
                 'message' => $messages[$status] ?? 'This coupon is not valid.',
             ];
         }
 
-        if ($user && !$coupon->isValidForUser($user)) {
+        if ($user && ! $coupon->isValidForUser($user)) {
             return [
                 'valid' => false,
                 'message' => 'You have already used this coupon the maximum number of times.',
             ];
         }
 
-        if (!$user && !$coupon->allow_guest_checkout) {
+        if (! $user && ! $coupon->allow_guest_checkout) {
             return [
                 'valid' => false,
                 'message' => 'Please login to use this coupon.',
@@ -208,11 +208,11 @@ class CouponService
 
         foreach ($coupons as $coupon) {
             /** @var Coupon $coupon */
-            if (!$user && !$coupon->allow_guest_checkout) {
+            if (! $user && ! $coupon->allow_guest_checkout) {
                 continue;
             }
 
-            if ($user && !$coupon->isValidForUser($user)) {
+            if ($user && ! $coupon->isValidForUser($user)) {
                 continue;
             }
 
@@ -233,7 +233,7 @@ class CouponService
         }
 
         // Sort by potential discount (highest first)
-        usort($applicable, fn($a, $b) => $b['potential_discount'] <=> $a['potential_discount']);
+        usort($applicable, fn ($a, $b) => $b['potential_discount'] <=> $a['potential_discount']);
 
         return $applicable;
     }
@@ -297,7 +297,7 @@ class CouponService
             /** @var Product|null $product */
             $product = $products->get($item['product_id']);
 
-            if (!$product) {
+            if (! $product) {
                 throw new InvalidArgumentException('One or more cart items are no longer available.');
             }
 
@@ -309,7 +309,7 @@ class CouponService
             ];
         });
 
-        $cart = new Cart();
+        $cart = new Cart;
         $cart->setAttribute('user_id', null);
         $cart->setRelation('items', $previewItems);
 

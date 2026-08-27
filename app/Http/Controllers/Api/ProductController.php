@@ -50,7 +50,7 @@ class ProductController extends Controller
             'page' => $page,
         ];
 
-        $cacheKey = 'api.products.index.v' . $cacheVersion . '.' . md5((string) json_encode($cachePayload));
+        $cacheKey = 'api.products.index.v'.$cacheVersion.'.'.md5((string) json_encode($cachePayload));
 
         $responsePayload = Cache::remember($cacheKey, 120, function () use (
             $perPage,
@@ -111,12 +111,12 @@ class ProductController extends Controller
                 } else {
                     $categoryIds = [(int) $categoryId];
                 }
-                
+
                 $query->where(function ($q) use ($categoryIds) {
                     $q->whereIn('category_id', $categoryIds)
-                      ->orWhereHas('categories', function ($q2) use ($categoryIds) {
-                          $q2->whereIn('categories.id', $categoryIds);
-                      });
+                        ->orWhereHas('categories', function ($q2) use ($categoryIds) {
+                            $q2->whereIn('categories.id', $categoryIds);
+                        });
                 });
             }
 
@@ -154,7 +154,7 @@ class ProductController extends Controller
             }
 
             if ($sortBy === 'price') {
-                $query->orderByRaw('COALESCE(sale_price, regular_price) ' . strtoupper($sortOrder));
+                $query->orderByRaw('COALESCE(sale_price, regular_price) '.strtoupper($sortOrder));
             } elseif (in_array($sortBy, ['name', 'created_at', 'sales_count'], true)) {
                 $query->orderBy($sortBy, $sortOrder);
             } else {
@@ -180,7 +180,7 @@ class ProductController extends Controller
     {
         $product = $this->productService->getProductBySlug($slug);
 
-        if (!$product) {
+        if (! $product) {
             return $this->errorResponse('Product not found', 404);
         }
 
@@ -203,7 +203,7 @@ class ProductController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        if (!$request->user()->isAdmin()) {
+        if (! $request->user()->isAdmin()) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
@@ -253,7 +253,7 @@ class ProductController extends Controller
     {
         $product = $this->productService->getProductWithDetails($id);
 
-        if (!$product) {
+        if (! $product) {
             return $this->errorResponse('Product not found', 404);
         }
 
@@ -262,7 +262,7 @@ class ProductController extends Controller
 
     public function bulkAction(Request $request): JsonResponse
     {
-        if (!$request->user()->isAdmin()) {
+        if (! $request->user()->isAdmin()) {
             return $this->errorResponse('Unauthorized', 403);
         }
 
@@ -279,17 +279,17 @@ class ProductController extends Controller
 
         switch ($action) {
             case 'activate':
-                \App\Models\Product::whereIn('id', $productIds)->update(['is_active' => true]);
+                Product::whereIn('id', $productIds)->update(['is_active' => true]);
                 $message = "{$count} products activated.";
                 break;
 
             case 'deactivate':
-                \App\Models\Product::whereIn('id', $productIds)->update(['is_active' => false]);
+                Product::whereIn('id', $productIds)->update(['is_active' => false]);
                 $message = "{$count} products deactivated.";
                 break;
 
             case 'delete':
-                \App\Models\Product::whereIn('id', $productIds)->delete();
+                Product::whereIn('id', $productIds)->delete();
                 $message = "{$count} products deleted.";
                 break;
 
@@ -303,9 +303,9 @@ class ProductController extends Controller
                 $type = $request->value['type'];
                 $amount = $request->value['amount'];
 
-                $products = \App\Models\Product::whereIn('id', $productIds)->get();
+                $products = Product::whereIn('id', $productIds)->get();
                 foreach ($products as $product) {
-                    /** @var \App\Models\Product $product */
+                    /** @var Product $product */
                     $newPrice = $type === 'percentage'
                         ? $product->regular_price * (1 + $amount / 100)
                         : $product->regular_price + $amount;

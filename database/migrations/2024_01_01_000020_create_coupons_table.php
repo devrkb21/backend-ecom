@@ -28,7 +28,7 @@ return new class extends Migration
             $table->json('applicable_products')->nullable(); // Limit to specific products
             $table->json('excluded_products')->nullable(); // Exclude specific products
             $table->timestamps();
-            
+
             $table->index(['code', 'is_active']);
             $table->index('expires_at');
         });
@@ -41,7 +41,7 @@ return new class extends Migration
             $table->foreignId('order_id')->nullable()->constrained()->onDelete('set null');
             $table->decimal('discount_amount', 10, 2);
             $table->timestamps();
-            
+
             $table->index(['coupon_id', 'user_id']);
         });
 

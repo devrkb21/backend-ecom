@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\OrderTrackingResource;
 use App\Models\Order;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class OrderTrackingController extends Controller
 {
@@ -17,7 +17,7 @@ class OrderTrackingController extends Controller
     {
         $order = Order::where('order_number', $orderNumber)->first();
 
-        if (!$order) {
+        if (! $order) {
             return response()->json([
                 'success' => false,
                 'message' => 'Order not found',
@@ -34,7 +34,7 @@ class OrderTrackingController extends Controller
     {
         $order = Order::where('tracking_number', $trackingNumber)->first();
 
-        if (!$order) {
+        if (! $order) {
             return response()->json([
                 'success' => false,
                 'message' => 'Order not found with this tracking number',
@@ -53,7 +53,7 @@ class OrderTrackingController extends Controller
             ->where('user_id', $request->user()->id)
             ->first();
 
-        if (!$order) {
+        if (! $order) {
             return response()->json([
                 'success' => false,
                 'message' => 'Order not found',

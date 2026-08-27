@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('carrier_status')->nullable(); // Raw status from carrier
             $table->timestamp('occurred_at')->useCurrent();
             $table->timestamps();
-            
+
             $table->index(['order_id', 'occurred_at']);
         });
     }
