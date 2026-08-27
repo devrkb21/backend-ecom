@@ -10,7 +10,11 @@ return [
         env('APP_ENV') === 'local' ? 'http://localhost:3000' : null,
         env('APP_ENV') === 'local' ? 'http://localhost:5173' : null,
     ]),
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '#^https?://192\.168\.\d+\.\d+(:\d+)?$#',
+        '#^https?://10\.\d+\.\d+\.\d+(:\d+)?$#',
+        '#^https?://172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+(:\d+)?$#',
+    ],
     'allowed_headers' => ['Content-Type', 'X-Requested-With', 'Authorization', 'Accept', 'Origin', 'X-XSRF-TOKEN'],
     'exposed_headers' => [],
     'max_age' => 86400,
