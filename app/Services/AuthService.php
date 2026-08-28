@@ -17,6 +17,7 @@ use Illuminate\Support\Str;
 class AuthService
 {
     private const RESET_OTP_TTL_MINUTES = 10;
+
     private const RESET_OTP_MAX_ATTEMPTS = 5;
 
     public function __construct(
@@ -188,10 +189,12 @@ class AuthService
 
         if (Hash::check($otp, $otpHash)) {
             Cache::forget($attemptsKey);
+
             return true;
         }
 
         Cache::put($attemptsKey, $attempts + 1, now()->addMinutes(self::RESET_OTP_TTL_MINUTES));
+
         return false;
     }
 
