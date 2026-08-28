@@ -59,6 +59,7 @@ class LicenseManager
         $payload = [
             'license_key' => $this->licenseKey,
             'domain' => $_SERVER['HTTP_HOST'] ?? 'cli',
+            'hardware_hash' => hash('sha256', php_uname()),
             'nonce' => $nonce,
         ];
 
