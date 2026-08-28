@@ -17,6 +17,7 @@ use Illuminate\Support\Str;
 class AuthService
 {
     private const RESET_OTP_TTL_MINUTES = 10;
+    private const RESET_OTP_MAX_ATTEMPTS = 5;
 
     public function __construct(
         protected UserRepositoryInterface $userRepository,
@@ -101,9 +102,7 @@ class AuthService
             if (! $smsResult['success']) {
                 Log::warning('Failed to send password reset OTP SMS.', [
                     'email' => $email,
-                    'phone' => $user->phone,
-                    'sms_code' => $smsResult['code'] ?? null,
-                    'sms_message' => $smsResult['message'] ?? null,
+                    'provider_code' => $smsResult['code'] ?? null,
                 ]);
             }
         }
@@ -168,15 +167,32 @@ class AuthService
         return 'password_reset_otp:'.strtolower(trim($email));
     }
 
+    private function otpAttemptsCacheKey(string $email): string
+    {
+        return $this->otpCacheKey($email).':attempts';
+    }
+
     private function verifyOtp(string $email, string $otp): bool
     {
+        $attemptsKey = $this->otpAttemptsCacheKey($email);
+        $attempts = (int) Cache::get($attemptsKey, 0);
+        if ($attempts >= self::RESET_OTP_MAX_ATTEMPTS) {
+            return false;
+        }
+
         $otpHash = Cache::get($this->otpCacheKey($email));
 
         if (! is_string($otpHash) || $otpHash === '') {
             return false;
         }
 
-        return Hash::check($otp, $otpHash);
+        if (Hash::check($otp, $otpHash)) {
+            Cache::forget($attemptsKey);
+            return true;
+        }
+
+        Cache::put($attemptsKey, $attempts + 1, now()->addMinutes(self::RESET_OTP_TTL_MINUTES));
+        return false;
     }
 
     public function sendVerificationEmail(User $user): void
