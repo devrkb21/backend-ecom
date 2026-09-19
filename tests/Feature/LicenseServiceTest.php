@@ -14,6 +14,12 @@ class LicenseServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['license.license_key' => '']);
+    }
+
     protected function makeOrder(Carbon $createdAt): Order
     {
         $order = Order::create([
