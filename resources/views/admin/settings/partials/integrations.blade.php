@@ -239,7 +239,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div data-integration-form="mail_enabled" class="{{ $isChecked('mail_enabled') ? '' : 'd-none' }}">
                         <div class="row g-3">
                             <div class="col-md-6">
@@ -293,7 +293,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="small text-muted mt-2 {{ $isChecked('mail_enabled') ? 'd-none' : '' }}" data-integration-disabled-note="mail_enabled">
                         Disabled. Custom mail configuration is disabled. System defaults will be loaded from server configurations (.env file).
                     </div>
@@ -322,7 +322,7 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label small text-muted mb-1" for="sms_provider">Provider Name</label>
-                                <input type="text" class="form-control form-control-sm @error('sms_provider') is-invalid @enderror" id="sms_provider" name="sms_provider" value="{{ $valueOf('sms_provider') }}" placeholder="BulkSMSBD">
+                                <input type="text" class="form-control form-control-sm @error('sms_provider') is-invalid @enderror" id="sms_provider" name="sms_provider" value="{{ $valueOf('sms_provider') }}" placeholder="BulkSMSBD or REVE SMS">
                                 @error('sms_provider')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -330,7 +330,7 @@
 
                             <div class="col-12">
                                 <label class="form-label small text-muted mb-1" for="sms_api_base_url">SMS Send API URL</label>
-                                <input type="url" class="form-control form-control-sm @error('sms_api_base_url') is-invalid @enderror" id="sms_api_base_url" name="sms_api_base_url" value="{{ $valueOf('sms_api_base_url') }}" placeholder="https://api.provider.com/v1/send">
+                                <input type="url" class="form-control form-control-sm @error('sms_api_base_url') is-invalid @enderror" id="sms_api_base_url" name="sms_api_base_url" value="{{ $valueOf('sms_api_base_url') }}" placeholder="https://smpp.revesms.com:7790/sendtext or http://www.bulksmsbd.net/api/smsapi">
                                 @error('sms_api_base_url')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -346,22 +346,38 @@
 
                             <div class="col-md-6">
                                 <label class="form-label small text-muted mb-1" for="sms_sender_id">Sender ID</label>
-                                <input type="text" class="form-control form-control-sm @error('sms_sender_id') is-invalid @enderror" id="sms_sender_id" name="sms_sender_id" value="{{ $valueOf('sms_sender_id') }}" placeholder="8809617XXXXXX">
+                                <input type="text" class="form-control form-control-sm @error('sms_sender_id') is-invalid @enderror" id="sms_sender_id" name="sms_sender_id" value="{{ $valueOf('sms_sender_id') }}" placeholder="8809617XXXXXX or REVE callerID">
                                 @error('sms_sender_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1" for="revesms_secret_key">REVE Secret Key</label>
+                                <input type="text" class="form-control form-control-sm @error('revesms_secret_key') is-invalid @enderror" id="revesms_secret_key" name="revesms_secret_key" value="{{ $valueOf('revesms_secret_key') }}" placeholder="Enter REVE secret key">
+                                @error('revesms_secret_key')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1" for="revesms_client_id">REVE Client ID</label>
+                                <input type="text" class="form-control form-control-sm @error('revesms_client_id') is-invalid @enderror" id="revesms_client_id" name="revesms_client_id" value="{{ $valueOf('revesms_client_id') }}" placeholder="Enter REVE client id for balance lookup">
+                                @error('revesms_client_id')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
 
                             <div class="col-12">
                                 <label class="form-label small text-muted mb-1" for="sms_balance_url">Balance API URL</label>
-                                <input type="url" class="form-control form-control-sm @error('sms_balance_url') is-invalid @enderror" id="sms_balance_url" name="sms_balance_url" value="{{ $valueOf('sms_balance_url') }}" placeholder="http://www.bulksmsbd.net/api/getBalanceApi">
+                                <input type="url" class="form-control form-control-sm @error('sms_balance_url') is-invalid @enderror" id="sms_balance_url" name="sms_balance_url" value="{{ $valueOf('sms_balance_url') }}" placeholder="https://smpp.revesms.com/sms/smsConfiguration/smsClientBalance.jsp?client=CLIENT_ID or http://www.bulksmsbd.net/api/getBalanceApi">
                                 @error('sms_balance_url')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
                         </div>
                         <div class="alert alert-info mt-3 mb-0 py-2 small">
-                            <strong>OTP Format:</strong> Your {Brand/Company Name} OTP is XXXX
+                            <strong>REVE SMS:</strong> send uses api key, secret key, sender ID, and message. Balance check uses client ID.
                         </div>
                     </div>
 
