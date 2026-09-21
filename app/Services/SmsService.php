@@ -13,9 +13,9 @@ class SmsService
 
     private const DEFAULT_BALANCE_URL = 'https://www.bulksmsbd.net/api/getBalanceApi';
 
-    private const DEFAULT_REVE_SEND_URL = 'https://smpp.revesms.com:7790';
+    private const DEFAULT_REVE_SEND_URL = 'https://smpp.revesms.com:7790/sendtext';
 
-    private const DEFAULT_REVE_BALANCE_URL = 'https://smpp.revesms.com';
+    private const DEFAULT_REVE_BALANCE_URL = 'https://smpp.revesms.com/sms/smsConfiguration/smsClientBalance.jsp';
 
     public function isEnabled(): bool
     {
@@ -284,10 +284,9 @@ class SmsService
 
     private function sendReveSms(string $numbers, string $message): array
     {
-        $apiKey = trim((string) Setting::getValue('integration', 'sms_api_key', ''));
+        $apiKey = trim((string) Setting::getValue('integration', 'revesms_api_key', ''));
         $secretKey = trim((string) Setting::getValue('integration', 'revesms_secret_key', ''));
-        $clientId = trim((string) Setting::getValue('integration', 'revesms_client_id', ''));
-        $senderId = trim((string) Setting::getValue('integration', 'sms_sender_id', ''));
+        $senderId = trim((string) Setting::getValue('integration', 'revesms_sender_id', ''));
         $sendUrl = trim((string) Setting::getValue('integration', 'sms_api_base_url', self::DEFAULT_REVE_SEND_URL));
 
         if ($apiKey === '' || $secretKey === '' || $senderId === '' || $sendUrl === '') {
@@ -299,16 +298,14 @@ class SmsService
             ];
         }
 
-        $query = array_filter([
+        $response = Http::timeout(15)->get($sendUrl, [
             'apikey' => $apiKey,
             'secretkey' => $secretKey,
             'callerID' => $senderId,
             'toUser' => $numbers,
             'messageContent' => $message,
-            'client_id' => $clientId !== '' ? $clientId : null,
-        ], static fn ($value) => $value !== null && $value !== '');
+        ]);
 
-        $response = Http::timeout(15)->get($sendUrl, $query);
         $raw = trim((string) $response->body());
         $decoded = json_decode($raw, true);
         $code = null;
@@ -336,12 +333,10 @@ class SmsService
 
     private function getReveBalance(): array
     {
-        $apiKey = trim((string) Setting::getValue('integration', 'sms_api_key', ''));
-        $secretKey = trim((string) Setting::getValue('integration', 'revesms_secret_key', ''));
         $clientId = trim((string) Setting::getValue('integration', 'revesms_client_id', ''));
         $balanceUrl = trim((string) Setting::getValue('integration', 'sms_balance_url', self::DEFAULT_REVE_BALANCE_URL));
 
-        if ($apiKey === '' || $secretKey === '' || $balanceUrl === '') {
+        if ($clientId === '' || $balanceUrl === '') {
             return [
                 'success' => false,
                 'message' => 'REVE SMS balance API is not configured.',
@@ -350,11 +345,9 @@ class SmsService
             ];
         }
 
-        $response = Http::timeout(10)->get($balanceUrl, array_filter([
-            'apikey' => $apiKey,
-            'secretkey' => $secretKey,
-            'client_id' => $clientId !== '' ? $clientId : null,
-        ], static fn ($value) => $value !== null && $value !== ''));
+        $response = Http::timeout(10)->get($balanceUrl, [
+            'client' => $clientId,
+        ]);
 
         $raw = trim((string) $response->body());
 
@@ -390,6 +383,13 @@ class SmsService
     {
         $messages = [
             0 => 'SMS submitted successfully.',
+            1 => 'SMS request failed.',
+            2 => 'SMS request pending.',
+            4 => 'SMS request sent.',
+            101 => 'Internal server error.',
+            108 => 'Wrong password or secret key.',
+            109 => 'API key or user not provided, deleted, or invalid.',
+            114 => 'Required message content or message id was not provided.',
             202 => 'SMS submitted successfully.',
             1001 => 'Invalid number.',
             1002 => 'Sender ID is invalid or disabled.',
@@ -410,9 +410,6 @@ class SmsService
             1021 => 'Parent account active price not found.',
             1031 => 'Account not verified.',
             1032 => 'IP is not whitelisted.',
-            108 => 'Invalid password or secret key.',
-            109 => 'User not provided or deleted.',
-            114 => 'Message content not provided.',
         ];
 
         $decoded = json_decode($raw, true);
