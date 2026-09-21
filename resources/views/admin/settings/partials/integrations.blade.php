@@ -9,6 +9,8 @@
         return filter_var($valueOf($key, '0'), FILTER_VALIDATE_BOOLEAN);
     };
 
+    $smsProvider = strtolower(trim((string) $valueOf('sms_provider', 'bulksmsbd')));
+
     $siteVerificationEntries = old('site_verification_entries');
 
     if (!is_array($siteVerificationEntries)) {
@@ -319,10 +321,14 @@
 
                         <div class="alert d-none py-2 small" id="smsBalanceAlert"></div>
 
-                        <div class="row g-3">
+                        <div class="row g-3 mb-2">
                             <div class="col-md-6">
-                                <label class="form-label small text-muted mb-1" for="sms_provider">Provider Name</label>
-                                <input type="text" class="form-control form-control-sm @error('sms_provider') is-invalid @enderror" id="sms_provider" name="sms_provider" value="{{ $valueOf('sms_provider') }}" placeholder="BulkSMSBD or REVE SMS">
+                                <label class="form-label small text-muted mb-1" for="sms_provider">Provider</label>
+                                <select class="form-select form-select-sm @error('sms_provider') is-invalid @enderror" id="sms_provider" name="sms_provider" data-sms-provider>
+                                    <option value="bulksmsbd" {{ $smsProvider === 'bulksmsbd' ? 'selected' : '' }}>BulkSMSBD</option>
+                                    <option value="revesms" {{ $smsProvider === 'revesms' ? 'selected' : '' }}>REVE SMS</option>
+                                    <option value="custom" {{ $smsProvider === 'custom' ? 'selected' : '' }}>Custom</option>
+                                </select>
                                 @error('sms_provider')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -335,39 +341,69 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
+                        </div>
 
+                        <div class="row g-3" data-sms-provider-group="bulksmsbd">
                             <div class="col-md-6">
-                                <label class="form-label small text-muted mb-1" for="sms_api_key">API Key</label>
-                                <input type="text" class="form-control form-control-sm @error('sms_api_key') is-invalid @enderror" id="sms_api_key" name="sms_api_key" value="{{ $valueOf('sms_api_key') }}" placeholder="Enter API key">
+                                <label class="form-label small text-muted mb-1" for="sms_api_key">BulkSMSBD API Key</label>
+                                <input type="text" class="form-control form-control-sm @error('sms_api_key') is-invalid @enderror" id="sms_api_key" name="sms_api_key" value="{{ $valueOf('sms_api_key') }}" placeholder="BulkSMSBD API key">
                                 @error('sms_api_key')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
 
                             <div class="col-md-6">
-                                <label class="form-label small text-muted mb-1" for="sms_sender_id">Sender ID</label>
-                                <input type="text" class="form-control form-control-sm @error('sms_sender_id') is-invalid @enderror" id="sms_sender_id" name="sms_sender_id" value="{{ $valueOf('sms_sender_id') }}" placeholder="8809617XXXXXX or REVE callerID">
+                                <label class="form-label small text-muted mb-1" for="sms_sender_id">BulkSMSBD Sender ID</label>
+                                <input type="text" class="form-control form-control-sm @error('sms_sender_id') is-invalid @enderror" id="sms_sender_id" name="sms_sender_id" value="{{ $valueOf('sms_sender_id') }}" placeholder="Approved BulkSMSBD sender ID">
                                 @error('sms_sender_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="row g-3" data-sms-provider-group="revesms">
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1" for="revesms_api_key">REVE SMS API Key</label>
+                                <input type="text" class="form-control form-control-sm @error('revesms_api_key') is-invalid @enderror" id="revesms_api_key" name="revesms_api_key" value="{{ $valueOf('revesms_api_key') }}" placeholder="REVE apikey">
+                                @error('revesms_api_key')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
 
                             <div class="col-md-6">
-                                <label class="form-label small text-muted mb-1" for="revesms_secret_key">REVE Secret Key</label>
-                                <input type="text" class="form-control form-control-sm @error('revesms_secret_key') is-invalid @enderror" id="revesms_secret_key" name="revesms_secret_key" value="{{ $valueOf('revesms_secret_key') }}" placeholder="Enter REVE secret key">
+                                <label class="form-label small text-muted mb-1" for="revesms_secret_key">REVE SMS Secret Key</label>
+                                <input type="text" class="form-control form-control-sm @error('revesms_secret_key') is-invalid @enderror" id="revesms_secret_key" name="revesms_secret_key" value="{{ $valueOf('revesms_secret_key') }}" placeholder="REVE secret key">
                                 @error('revesms_secret_key')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
 
                             <div class="col-md-6">
-                                <label class="form-label small text-muted mb-1" for="revesms_client_id">REVE Client ID</label>
-                                <input type="text" class="form-control form-control-sm @error('revesms_client_id') is-invalid @enderror" id="revesms_client_id" name="revesms_client_id" value="{{ $valueOf('revesms_client_id') }}" placeholder="Enter REVE client id for balance lookup">
-                                @error('revesms_client_id')
+                                <label class="form-label small text-muted mb-1" for="revesms_sender_id">REVE SMS Sender ID</label>
+                                <input type="text" class="form-control form-control-sm @error('revesms_sender_id') is-invalid @enderror" id="revesms_sender_id" name="revesms_sender_id" value="{{ $valueOf('revesms_sender_id') }}" placeholder="REVE callerID">
+                                @error('revesms_sender_id')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
 
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1" for="revesms_client_id">REVE SMS Client ID</label>
+                                <input type="text" class="form-control form-control-sm @error('revesms_client_id') is-invalid @enderror" id="revesms_client_id" name="revesms_client_id" value="{{ $valueOf('revesms_client_id') }}" placeholder="REVE client id">
+                                @error('revesms_client_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="row g-3" data-sms-provider-group="custom">
+                            <div class="col-12">
+                                <div class="alert alert-light border py-2 small mb-0">
+                                    Custom mode uses the same fields above. Fill only the provider-specific values you need; blank fields will be ignored by the gateway logic.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-0">
                             <div class="col-12">
                                 <label class="form-label small text-muted mb-1" for="sms_balance_url">Balance API URL</label>
                                 <input type="url" class="form-control form-control-sm @error('sms_balance_url') is-invalid @enderror" id="sms_balance_url" name="sms_balance_url" value="{{ $valueOf('sms_balance_url') }}" placeholder="https://smpp.revesms.com/sms/smsConfiguration/smsClientBalance.jsp?client=CLIENT_ID or http://www.bulksmsbd.net/api/getBalanceApi">
@@ -376,8 +412,9 @@
                                 @enderror
                             </div>
                         </div>
+
                         <div class="alert alert-info mt-3 mb-0 py-2 small">
-                            <strong>REVE SMS:</strong> send uses api key, secret key, sender ID, and message. Balance check uses client ID.
+                            <strong>REVE SMS:</strong> send uses API key, secret key, sender ID, and message. Balance check uses client ID.
                         </div>
                     </div>
 
@@ -672,6 +709,28 @@ document.addEventListener('DOMContentLoaded', function () {
             section.classList.toggle('d-none', !this.checked);
         });
     });
+
+    const smsProviderSelect = document.getElementById('sms_provider');
+    const smsProviderGroups = document.querySelectorAll('[data-sms-provider-group]');
+    const smsCustomNotice = document.querySelector('[data-sms-custom-notice]');
+
+    const syncSmsProviderGroups = () => {
+        if (!smsProviderSelect) return;
+        const provider = (smsProviderSelect.value || 'bulksmsbd').toLowerCase();
+        smsProviderGroups.forEach((group) => {
+            const groupKey = (group.getAttribute('data-sms-provider-group') || '').toLowerCase();
+            const show = provider === 'custom' || provider === groupKey;
+            group.classList.toggle('d-none', !show);
+        });
+        if (smsCustomNotice) {
+            smsCustomNotice.classList.toggle('d-none', provider !== 'custom');
+        }
+    };
+
+    if (smsProviderSelect) {
+        syncSmsProviderGroups();
+        smsProviderSelect.addEventListener('change', syncSmsProviderGroups);
+    }
 });
 </script>
 @endpush
