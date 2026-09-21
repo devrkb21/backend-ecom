@@ -50,9 +50,15 @@ class SmsService
             ];
         }
 
-        return $provider === 'revesms' || str_contains($provider, 'reve')
-            ? $this->sendReveSms($numberList, $message)
-            : $this->sendBulkSmsBd($numberList, $message);
+        if ($this->isCustomProvider($provider)) {
+            return $this->sendCustomSms($numberList, $message);
+        }
+
+        if ($this->isReveProvider($provider)) {
+            return $this->sendReveSms($numberList, $message);
+        }
+
+        return $this->sendBulkSmsBd($numberList, $message);
     }
 
     public function sendOtp(string $phone, string $otp, ?string $brandName = null): array
@@ -151,61 +157,15 @@ class SmsService
 
         $provider = strtolower(trim((string) Setting::getValue('integration', 'sms_provider', 'bulksmsbd')));
 
-        if ($provider === 'revesms' || str_contains($provider, 'reve')) {
+        if ($this->isCustomProvider($provider)) {
+            return $this->getCustomBalance();
+        }
+
+        if ($this->isReveProvider($provider)) {
             return $this->getReveBalance();
         }
 
-        $apiKey = trim((string) Setting::getValue('integration', 'sms_api_key', ''));
-        $balanceUrl = trim((string) Setting::getValue('integration', 'sms_balance_url', self::DEFAULT_BALANCE_URL));
-
-        if ($apiKey === '' || $balanceUrl === '') {
-            return [
-                'success' => false,
-                'message' => 'SMS balance API is not configured.',
-                'balance' => null,
-                'raw' => null,
-            ];
-        }
-
-        $response = Http::timeout(10)->get($balanceUrl, ['api_key' => $apiKey]);
-        $raw = trim((string) $response->body());
-
-        if (! $response->successful()) {
-            return [
-                'success' => false,
-                'message' => 'Failed to fetch balance.',
-                'balance' => null,
-                'raw' => $raw,
-            ];
-        }
-
-        $code = ctype_digit($raw) ? (int) $raw : null;
-        if ($code !== null && $code >= 1000) {
-            return [
-                'success' => false,
-                'message' => $this->resolveCodeMessage($code, $raw),
-                'balance' => null,
-                'raw' => $raw,
-            ];
-        }
-
-        $balance = $this->extractBalanceValue($raw);
-
-        if ($balance === null) {
-            return [
-                'success' => false,
-                'message' => 'Could not parse balance from SMS API response.',
-                'balance' => null,
-                'raw' => $raw,
-            ];
-        }
-
-        return [
-            'success' => true,
-            'message' => 'Balance fetched successfully.',
-            'balance' => $balance,
-            'raw' => $raw,
-        ];
+        return $this->getBulkBalance();
     }
 
     /**
@@ -286,7 +246,7 @@ class SmsService
     {
         $apiKey = trim((string) Setting::getValue('integration', 'revesms_api_key', ''));
         $secretKey = trim((string) Setting::getValue('integration', 'revesms_secret_key', ''));
-        $senderId = trim((string) Setting::getValue('integration', 'revesms_sender_id', ''));
+        $senderId = trim((string) Setting::getValue('integration', 'sms_sender_id', ''));
         $sendUrl = trim((string) Setting::getValue('integration', 'sms_api_base_url', self::DEFAULT_REVE_SEND_URL));
 
         if ($apiKey === '' || $secretKey === '' || $senderId === '' || $sendUrl === '') {
@@ -327,6 +287,61 @@ class SmsService
             'success' => $success,
             'code' => $code,
             'message' => $this->resolveCodeMessage($code, $raw),
+            'raw' => $raw,
+        ];
+    }
+
+    private function getBulkBalance(): array
+    {
+        $apiKey = trim((string) Setting::getValue('integration', 'sms_api_key', ''));
+        $balanceUrl = trim((string) Setting::getValue('integration', 'sms_balance_url', self::DEFAULT_BALANCE_URL));
+
+        if ($apiKey === '' || $balanceUrl === '') {
+            return [
+                'success' => false,
+                'message' => 'SMS balance API is not configured.',
+                'balance' => null,
+                'raw' => null,
+            ];
+        }
+
+        $response = Http::timeout(10)->get($balanceUrl, ['api_key' => $apiKey]);
+        $raw = trim((string) $response->body());
+
+        if (! $response->successful()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to fetch balance.',
+                'balance' => null,
+                'raw' => $raw,
+            ];
+        }
+
+        $code = ctype_digit($raw) ? (int) $raw : null;
+        if ($code !== null && $code >= 1000) {
+            return [
+                'success' => false,
+                'message' => $this->resolveCodeMessage($code, $raw),
+                'balance' => null,
+                'raw' => $raw,
+            ];
+        }
+
+        $balance = $this->extractBalanceValue($raw);
+
+        if ($balance === null) {
+            return [
+                'success' => false,
+                'message' => 'Could not parse balance from SMS API response.',
+                'balance' => null,
+                'raw' => $raw,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Balance fetched successfully.',
+            'balance' => $balance,
             'raw' => $raw,
         ];
     }
@@ -377,6 +392,70 @@ class SmsService
             'balance' => $balance,
             'raw' => $raw,
         ];
+    }
+
+    private function sendCustomSms(string $numbers, string $message): array
+    {
+        return $this->resolveCustomProvider() === 'revesms'
+            ? $this->sendReveSms($numbers, $message)
+            : ($this->resolveCustomProvider() === 'bulksmsbd'
+                ? $this->sendBulkSmsBd($numbers, $message)
+                : [
+                    'success' => false,
+                    'code' => null,
+                    'message' => 'Custom SMS integration is not fully configured.',
+                    'raw' => null,
+                ]);
+    }
+
+    private function getCustomBalance(): array
+    {
+        return $this->resolveCustomProvider() === 'revesms'
+            ? $this->getReveBalance()
+            : ($this->resolveCustomProvider() === 'bulksmsbd'
+                ? $this->getBulkBalance()
+                : [
+                    'success' => false,
+                    'message' => 'Custom SMS balance API is not configured.',
+                    'balance' => null,
+                    'raw' => null,
+                ]);
+    }
+
+    private function resolveCustomProvider(): ?string
+    {
+        $revesmsApiKey = trim((string) Setting::getValue('integration', 'revesms_api_key', ''));
+        $revesmsSecretKey = trim((string) Setting::getValue('integration', 'revesms_secret_key', ''));
+        $revesmsClientId = trim((string) Setting::getValue('integration', 'revesms_client_id', ''));
+        $smsApiKey = trim((string) Setting::getValue('integration', 'sms_api_key', ''));
+        $smsSenderId = trim((string) Setting::getValue('integration', 'sms_sender_id', ''));
+        $smsApiBaseUrl = strtolower(trim((string) Setting::getValue('integration', 'sms_api_base_url', '')));
+        $smsBalanceUrl = strtolower(trim((string) Setting::getValue('integration', 'sms_balance_url', '')));
+
+        if ($revesmsApiKey !== '' || $revesmsSecretKey !== '' || $revesmsClientId !== '' || str_contains($smsApiBaseUrl, 'revesms') || str_contains($smsBalanceUrl, 'revesms')) {
+            return 'revesms';
+        }
+
+        if ($smsApiKey !== '' || $smsSenderId !== '' || str_contains($smsApiBaseUrl, 'bulksmsbd') || str_contains($smsBalanceUrl, 'bulksmsbd')) {
+            return 'bulksmsbd';
+        }
+
+        return null;
+    }
+
+    private function isBulkProvider(string $provider): bool
+    {
+        return $provider === 'bulksmsbd' || str_contains($provider, 'bulk');
+    }
+
+    private function isReveProvider(string $provider): bool
+    {
+        return $provider === 'revesms' || str_contains($provider, 'reve');
+    }
+
+    private function isCustomProvider(string $provider): bool
+    {
+        return $provider === 'custom';
     }
 
     private function resolveCodeMessage(?int $code, string $raw): string
