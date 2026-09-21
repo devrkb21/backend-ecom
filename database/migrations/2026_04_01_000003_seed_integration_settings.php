@@ -19,11 +19,15 @@ return new class extends Migration
             ['group' => 'integration', 'key' => 'google_analytics_enabled', 'type' => 'boolean', 'label' => 'Enable Google Analytics', 'description' => 'Toggle GA4 tracking script usage.', 'value' => '0', 'is_public' => true, 'sort_order' => 7],
             ['group' => 'integration', 'key' => 'google_analytics_measurement_id', 'type' => 'text', 'label' => 'Google Analytics Measurement ID', 'description' => 'Example: G-XXXXXXXXXX', 'value' => '', 'is_public' => true, 'sort_order' => 8],
             ['group' => 'integration', 'key' => 'sms_enabled', 'type' => 'boolean', 'label' => 'Enable SMS API', 'description' => 'Enable SMS sending via third-party API.', 'value' => '0', 'is_public' => false, 'sort_order' => 9],
-            ['group' => 'integration', 'key' => 'sms_provider', 'type' => 'text', 'label' => 'SMS Provider Name', 'description' => 'Current provider: BulkSMSBD.', 'value' => 'BulkSMSBD', 'is_public' => false, 'sort_order' => 10],
-            ['group' => 'integration', 'key' => 'sms_api_base_url', 'type' => 'text', 'label' => 'SMS Send API URL', 'description' => 'BulkSMSBD send endpoint.', 'value' => 'http://www.bulksmsbd.net/api/smsapi', 'is_public' => false, 'sort_order' => 11],
+            ['group' => 'integration', 'key' => 'sms_provider', 'type' => 'text', 'label' => 'SMS Provider Name', 'description' => 'Current provider: BulkSMSBD or REVE SMS.', 'value' => 'BulkSMSBD', 'is_public' => false, 'sort_order' => 10],
+            ['group' => 'integration', 'key' => 'sms_api_base_url', 'type' => 'text', 'label' => 'SMS Send API URL', 'description' => 'BulkSMSBD send endpoint or provider-specific send endpoint.', 'value' => 'http://www.bulksmsbd.net/api/smsapi', 'is_public' => false, 'sort_order' => 11],
             ['group' => 'integration', 'key' => 'sms_api_key', 'type' => 'text', 'label' => 'SMS API Key', 'description' => 'BulkSMSBD api_key value.', 'value' => '', 'is_public' => false, 'sort_order' => 12],
             ['group' => 'integration', 'key' => 'sms_sender_id', 'type' => 'text', 'label' => 'SMS Sender ID', 'description' => 'Approved senderid from BulkSMSBD.', 'value' => '', 'is_public' => false, 'sort_order' => 13],
-            ['group' => 'integration', 'key' => 'sms_balance_url', 'type' => 'text', 'label' => 'SMS Balance API URL', 'description' => 'BulkSMSBD balance endpoint.', 'value' => 'http://www.bulksmsbd.net/api/getBalanceApi', 'is_public' => false, 'sort_order' => 14],
+            ['group' => 'integration', 'key' => 'sms_balance_url', 'type' => 'text', 'label' => 'SMS Balance API URL', 'description' => 'BulkSMSBD balance endpoint or provider-specific balance endpoint.', 'value' => 'http://www.bulksmsbd.net/api/getBalanceApi', 'is_public' => false, 'sort_order' => 14],
+            ['group' => 'integration', 'key' => 'revesms_api_key', 'type' => 'text', 'label' => 'REVE SMS API Key', 'description' => 'REVE SMS apikey value.', 'value' => '', 'is_public' => false, 'sort_order' => 15],
+            ['group' => 'integration', 'key' => 'revesms_secret_key', 'type' => 'text', 'label' => 'REVE SMS Secret Key', 'description' => 'REVE SMS secretkey value.', 'value' => '', 'is_public' => false, 'sort_order' => 16],
+            ['group' => 'integration', 'key' => 'revesms_sender_id', 'type' => 'text', 'label' => 'REVE SMS Sender ID', 'description' => 'Approved callerID from REVE SMS.', 'value' => '', 'is_public' => false, 'sort_order' => 17],
+            ['group' => 'integration', 'key' => 'revesms_client_id', 'type' => 'text', 'label' => 'REVE SMS Client ID', 'description' => 'Used for REVE balance lookup.', 'value' => '', 'is_public' => false, 'sort_order' => 18],
         ];
 
         foreach ($defaults as $item) {
@@ -60,6 +64,10 @@ return new class extends Migration
                 'sms_api_key',
                 'sms_sender_id',
                 'sms_balance_url',
+                'revesms_api_key',
+                'revesms_secret_key',
+                'revesms_sender_id',
+                'revesms_client_id',
             ])
             ->delete();
     }
