@@ -13,6 +13,10 @@ class SmsService
 
     private const DEFAULT_BALANCE_URL = 'https://www.bulksmsbd.net/api/getBalanceApi';
 
+    private const DEFAULT_REVE_SEND_URL = 'https://smpp.revesms.com:7790';
+
+    private const DEFAULT_REVE_BALANCE_URL = 'https://smpp.revesms.com';
+
     public function isEnabled(): bool
     {
         return (bool) Setting::getValue('integration', 'sms_enabled', false);
@@ -34,20 +38,9 @@ class SmsService
             ];
         }
 
-        $apiKey = trim((string) Setting::getValue('integration', 'sms_api_key', ''));
-        $senderId = trim((string) Setting::getValue('integration', 'sms_sender_id', ''));
-        $sendUrl = trim((string) Setting::getValue('integration', 'sms_api_base_url', self::DEFAULT_SEND_URL));
-
-        if ($apiKey === '' || $senderId === '' || $sendUrl === '') {
-            return [
-                'success' => false,
-                'code' => null,
-                'message' => 'SMS integration is not fully configured.',
-                'raw' => null,
-            ];
-        }
-
+        $provider = strtolower(trim((string) Setting::getValue('integration', 'sms_provider', 'bulksmsbd')));
         $numberList = $this->normalizeNumbers($numbers);
+
         if ($numberList === '') {
             return [
                 'success' => false,
@@ -57,42 +50,9 @@ class SmsService
             ];
         }
 
-        $payload = [
-            'api_key' => $apiKey,
-            'type' => 'text',
-            'number' => $numberList,
-            'senderid' => $senderId,
-            'message' => $message,
-        ];
-
-        // No withoutVerifying() — that disabled TLS certificate validation
-        // outright, so even an admin-configured https:// URL wouldn't have
-        // been protected from a MITM intercepting the API key in transit.
-        $response = Http::asForm()
-            ->timeout(15)
-            ->post($sendUrl, $payload);
-
-        $raw = trim((string) $response->body());
-
-        // Attempt to parse JSON response
-        $decoded = json_decode($raw, true);
-        $code = null;
-        $success = false;
-
-        if (is_array($decoded)) {
-            $code = isset($decoded['response_code']) ? (int) $decoded['response_code'] : null;
-            $success = ($code === 202);
-        } elseif (ctype_digit($raw)) {
-            $code = (int) $raw;
-            $success = ($code === 202);
-        }
-
-        return [
-            'success' => $success,
-            'code' => $code,
-            'message' => $this->resolveCodeMessage($code, $raw),
-            'raw' => $raw,
-        ];
+        return $provider === 'revesms' || str_contains($provider, 'reve')
+            ? $this->sendReveSms($numberList, $message)
+            : $this->sendBulkSmsBd($numberList, $message);
     }
 
     public function sendOtp(string $phone, string $otp, ?string $brandName = null): array
@@ -189,6 +149,12 @@ class SmsService
             ];
         }
 
+        $provider = strtolower(trim((string) Setting::getValue('integration', 'sms_provider', 'bulksmsbd')));
+
+        if ($provider === 'revesms' || str_contains($provider, 'reve')) {
+            return $this->getReveBalance();
+        }
+
         $apiKey = trim((string) Setting::getValue('integration', 'sms_api_key', ''));
         $balanceUrl = trim((string) Setting::getValue('integration', 'sms_balance_url', self::DEFAULT_BALANCE_URL));
 
@@ -201,9 +167,7 @@ class SmsService
             ];
         }
 
-        $response = Http::timeout(10)
-            ->get($balanceUrl, ['api_key' => $apiKey]);
-
+        $response = Http::timeout(10)->get($balanceUrl, ['api_key' => $apiKey]);
         $raw = trim((string) $response->body());
 
         if (! $response->successful()) {
@@ -272,9 +236,160 @@ class SmsService
         return $normalized->implode(',');
     }
 
+    private function sendBulkSmsBd(string $numbers, string $message): array
+    {
+        $apiKey = trim((string) Setting::getValue('integration', 'sms_api_key', ''));
+        $senderId = trim((string) Setting::getValue('integration', 'sms_sender_id', ''));
+        $sendUrl = trim((string) Setting::getValue('integration', 'sms_api_base_url', self::DEFAULT_SEND_URL));
+
+        if ($apiKey === '' || $senderId === '' || $sendUrl === '') {
+            return [
+                'success' => false,
+                'code' => null,
+                'message' => 'SMS integration is not fully configured.',
+                'raw' => null,
+            ];
+        }
+
+        $response = Http::asForm()
+            ->timeout(15)
+            ->post($sendUrl, [
+                'api_key' => $apiKey,
+                'type' => 'text',
+                'number' => $numbers,
+                'senderid' => $senderId,
+                'message' => $message,
+            ]);
+
+        $raw = trim((string) $response->body());
+        $decoded = json_decode($raw, true);
+        $code = null;
+        $success = false;
+
+        if (is_array($decoded)) {
+            $code = isset($decoded['response_code']) ? (int) $decoded['response_code'] : null;
+            $success = ($code === 202);
+        } elseif (ctype_digit($raw)) {
+            $code = (int) $raw;
+            $success = ($code === 202);
+        }
+
+        return [
+            'success' => $success,
+            'code' => $code,
+            'message' => $this->resolveCodeMessage($code, $raw),
+            'raw' => $raw,
+        ];
+    }
+
+    private function sendReveSms(string $numbers, string $message): array
+    {
+        $apiKey = trim((string) Setting::getValue('integration', 'sms_api_key', ''));
+        $secretKey = trim((string) Setting::getValue('integration', 'revesms_secret_key', ''));
+        $clientId = trim((string) Setting::getValue('integration', 'revesms_client_id', ''));
+        $senderId = trim((string) Setting::getValue('integration', 'sms_sender_id', ''));
+        $sendUrl = trim((string) Setting::getValue('integration', 'sms_api_base_url', self::DEFAULT_REVE_SEND_URL));
+
+        if ($apiKey === '' || $secretKey === '' || $senderId === '' || $sendUrl === '') {
+            return [
+                'success' => false,
+                'code' => null,
+                'message' => 'REVE SMS integration is not fully configured.',
+                'raw' => null,
+            ];
+        }
+
+        $query = array_filter([
+            'apikey' => $apiKey,
+            'secretkey' => $secretKey,
+            'callerID' => $senderId,
+            'toUser' => $numbers,
+            'messageContent' => $message,
+            'client_id' => $clientId !== '' ? $clientId : null,
+        ], static fn ($value) => $value !== null && $value !== '');
+
+        $response = Http::timeout(15)->get($sendUrl, $query);
+        $raw = trim((string) $response->body());
+        $decoded = json_decode($raw, true);
+        $code = null;
+        $success = false;
+
+        if (is_array($decoded)) {
+            $status = (string) ($decoded['Status'] ?? $decoded['status'] ?? '');
+            $text = strtoupper((string) ($decoded['Text'] ?? $decoded['text'] ?? ''));
+            $code = is_numeric($status) ? (int) $status : null;
+            $success = $status === '0' || str_contains($text, 'ACCEPT') || str_contains($text, 'SUCCESS');
+        } elseif (ctype_digit($raw)) {
+            $code = (int) $raw;
+            $success = $code === 0;
+        } else {
+            $success = str_contains(strtoupper($raw), 'ACCEPT') || str_contains(strtoupper($raw), 'SUCCESS');
+        }
+
+        return [
+            'success' => $success,
+            'code' => $code,
+            'message' => $this->resolveCodeMessage($code, $raw),
+            'raw' => $raw,
+        ];
+    }
+
+    private function getReveBalance(): array
+    {
+        $apiKey = trim((string) Setting::getValue('integration', 'sms_api_key', ''));
+        $secretKey = trim((string) Setting::getValue('integration', 'revesms_secret_key', ''));
+        $clientId = trim((string) Setting::getValue('integration', 'revesms_client_id', ''));
+        $balanceUrl = trim((string) Setting::getValue('integration', 'sms_balance_url', self::DEFAULT_REVE_BALANCE_URL));
+
+        if ($apiKey === '' || $secretKey === '' || $balanceUrl === '') {
+            return [
+                'success' => false,
+                'message' => 'REVE SMS balance API is not configured.',
+                'balance' => null,
+                'raw' => null,
+            ];
+        }
+
+        $response = Http::timeout(10)->get($balanceUrl, array_filter([
+            'apikey' => $apiKey,
+            'secretkey' => $secretKey,
+            'client_id' => $clientId !== '' ? $clientId : null,
+        ], static fn ($value) => $value !== null && $value !== ''));
+
+        $raw = trim((string) $response->body());
+
+        if (! $response->successful()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to fetch balance.',
+                'balance' => null,
+                'raw' => $raw,
+            ];
+        }
+
+        $balance = $this->extractBalanceValue($raw);
+
+        if ($balance === null) {
+            return [
+                'success' => false,
+                'message' => 'Could not parse balance from SMS API response.',
+                'balance' => null,
+                'raw' => $raw,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Balance fetched successfully.',
+            'balance' => $balance,
+            'raw' => $raw,
+        ];
+    }
+
     private function resolveCodeMessage(?int $code, string $raw): string
     {
         $messages = [
+            0 => 'SMS submitted successfully.',
             202 => 'SMS submitted successfully.',
             1001 => 'Invalid number.',
             1002 => 'Sender ID is invalid or disabled.',
@@ -295,9 +410,11 @@ class SmsService
             1021 => 'Parent account active price not found.',
             1031 => 'Account not verified.',
             1032 => 'IP is not whitelisted.',
+            108 => 'Invalid password or secret key.',
+            109 => 'User not provided or deleted.',
+            114 => 'Message content not provided.',
         ];
 
-        // If it's a JSON response, try to find a message field
         $decoded = json_decode($raw, true);
         if (is_array($decoded)) {
             $msg = $decoded['error_message'] ?? $decoded['success_message'] ?? $decoded['message'] ?? null;
