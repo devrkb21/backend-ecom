@@ -447,7 +447,9 @@ class SmsService
             'balance' => $balance,
             'raw' => $raw,
         ];
-    }    private function sendCustomSms(string $numbers, string $message): array
+    }
+
+    private function sendCustomSms(string $numbers, string $message): array
     {
         $endpoint = $this->resolveCustomEndpoint('send');
 

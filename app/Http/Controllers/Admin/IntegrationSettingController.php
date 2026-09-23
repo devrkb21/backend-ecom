@@ -174,7 +174,7 @@ class IntegrationSettingController extends Controller
         if ($result['success']) {
             return response()->json([
                 'success' => true,
-                'message' => 'Test SMS sent successfully to ' . $validated['sms_test_number'] . '.',
+                'message' => 'Test SMS sent successfully to '.$validated['sms_test_number'].'.',
             ]);
         }
 
