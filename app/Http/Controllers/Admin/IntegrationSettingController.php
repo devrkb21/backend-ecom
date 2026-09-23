@@ -52,7 +52,7 @@ class IntegrationSettingController extends Controller
             'mail_from_address' => ['nullable', 'email', 'max:255'],
             'mail_from_name' => ['nullable', 'string', 'max:255'],
             'sms_enabled' => ['nullable', 'boolean'],
-            'sms_provider' => ['nullable', 'string', 'max:100'],
+            'sms_provider' => ['nullable', 'string', 'max:100', 'in:bulksmsbd,revesms,custom'],
             'sms_api_base_url' => ['nullable', 'string', 'max:255'],
             'sms_api_key' => ['nullable', 'string', 'max:255'],
             'sms_sender_id' => ['nullable', 'string', 'max:100'],
@@ -61,6 +61,12 @@ class IntegrationSettingController extends Controller
             'revesms_secret_key' => ['nullable', 'string', 'max:255'],
             'revesms_sender_id' => ['nullable', 'string', 'max:100'],
             'revesms_client_id' => ['nullable', 'string', 'max:100'],
+            'custom_sms_api_key' => ['nullable', 'string', 'max:255'],
+            'custom_sms_secret_key' => ['nullable', 'string', 'max:255'],
+            'custom_sms_sender_id' => ['nullable', 'string', 'max:100'],
+            'custom_sms_client_id' => ['nullable', 'string', 'max:100'],
+            'custom_sms_send_url' => ['nullable', 'url', 'max:255'],
+            'custom_sms_balance_url' => ['nullable', 'url', 'max:255'],
             'live_chat_enabled' => ['nullable', 'boolean'],
             'live_chat_whatsapp_enabled' => ['nullable', 'boolean'],
             'live_chat_whatsapp_number' => ['nullable', 'string', 'max:20'],
@@ -81,6 +87,7 @@ class IntegrationSettingController extends Controller
             ->all();
 
         $fieldToggleMap = $this->fieldToggleMap();
+        $smsEndpointOverrides = $this->resolveSmsEndpointValues($request);
 
         foreach ($this->definitions() as $index => $definition) {
             $key = $definition['key'];
@@ -105,6 +112,10 @@ class IntegrationSettingController extends Controller
                     $value = trim((string) ($validated[$key] ?? ''));
                 } else {
                     $value = (string) ($currentValues[$key] ?? ($definition['default'] ?? ''));
+                }
+
+                if (array_key_exists($key, $smsEndpointOverrides)) {
+                    $value = $smsEndpointOverrides[$key];
                 }
             }
 
@@ -142,6 +153,82 @@ class IntegrationSettingController extends Controller
             'success' => false,
             'message' => $result['message'],
         ], 422);
+    }
+
+    public function sendTestSms(Request $request): JsonResponse
+    {
+        $this->ensureDefaultSettings();
+
+        $validated = $request->validate([
+            'sms_test_number' => ['required', 'string', 'max:20'],
+            'sms_test_message' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $message = trim((string) ($validated['sms_test_message'] ?? ''));
+        if ($message === '') {
+            $message = 'Test SMS';
+        }
+
+        $result = $this->smsService->send($validated['sms_test_number'], $message);
+
+        if ($result['success']) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Test SMS sent successfully to ' . $validated['sms_test_number'] . '.',
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => $result['message'] ?? 'Failed to send test SMS.',
+        ], 422);
+    }
+
+    /**
+     * Canonical per-provider endpoints. BulkSMSBD and REVE SMS always use their
+     * documented endpoints; custom gateways may override with manual URLs.
+     *
+     * @return array<string, string>
+     */
+    private function resolveSmsEndpointValues(Request $request): array
+    {
+        if (! $request->boolean('sms_enabled')) {
+            return [];
+        }
+
+        $provider = strtolower(trim((string) $request->input('sms_provider', '')));
+
+        if ($provider === 'bulksmsbd') {
+            return [
+                'sms_api_base_url' => SmsService::BULKSMSBD_SEND_URL,
+                'sms_balance_url' => SmsService::BULKSMSBD_BALANCE_URL,
+            ];
+        }
+
+        if ($provider === 'revesms') {
+            return [
+                'sms_api_base_url' => SmsService::REVESMS_SEND_URL,
+                'sms_balance_url' => SmsService::REVESMS_BALANCE_URL,
+            ];
+        }
+
+        if ($provider === 'custom') {
+            $overrides = [];
+
+            $customSendUrl = trim((string) $request->input('custom_sms_send_url', ''));
+            if ($customSendUrl !== '') {
+                $overrides['sms_api_base_url'] = $customSendUrl;
+            }
+
+            $customBalanceUrl = trim((string) $request->input('custom_sms_balance_url', ''));
+            if ($customBalanceUrl !== '') {
+                $overrides['sms_balance_url'] = $customBalanceUrl;
+            }
+
+            return $overrides;
+        }
+
+        return [];
     }
 
     private function ensureDefaultSettings(): void
@@ -331,8 +418,64 @@ class IntegrationSettingController extends Controller
                 'key' => 'sms_api_base_url',
                 'label' => 'SMS Send API URL',
                 'type' => 'text',
-                'default' => 'http://www.bulksmsbd.net/api/smsapi',
-                'description' => 'BulkSMSBD send endpoint or provider-specific send endpoint.',
+                'default' => '',
+                'description' => 'Canonical send endpoint, auto-set from the selected provider (or custom gateway URL).',
+                'is_public' => false,
+            ],
+            [
+                'key' => 'custom_sms_api_key',
+                'label' => 'Custom Gateway API Key',
+                'type' => 'text',
+                'default' => '',
+                'description' => 'Custom gateway API key.',
+                'is_public' => false,
+            ],
+            [
+                'key' => 'custom_sms_secret_key',
+                'label' => 'Custom Gateway Secret Key',
+                'type' => 'text',
+                'default' => '',
+                'description' => 'Custom gateway secret key (if required).',
+                'is_public' => false,
+            ],
+            [
+                'key' => 'custom_sms_sender_id',
+                'label' => 'Custom Gateway Sender ID',
+                'type' => 'text',
+                'default' => '',
+                'description' => 'Custom gateway sender ID.',
+                'is_public' => false,
+            ],
+            [
+                'key' => 'custom_sms_client_id',
+                'label' => 'Custom Gateway Client ID',
+                'type' => 'text',
+                'default' => '',
+                'description' => 'Custom gateway client or account ID (if required).',
+                'is_public' => false,
+            ],
+            [
+                'key' => 'custom_sms_send_url',
+                'label' => 'Custom Gateway Send URL',
+                'type' => 'text',
+                'default' => '',
+                'description' => 'Full send endpoint for custom gateway mode.',
+                'is_public' => false,
+            ],
+            [
+                'key' => 'custom_sms_balance_url',
+                'label' => 'Custom Gateway Balance URL',
+                'type' => 'text',
+                'default' => '',
+                'description' => 'Full balance endpoint for custom gateway mode.',
+                'is_public' => false,
+            ],
+            [
+                'key' => 'sms_test_number',
+                'label' => 'SMS Test Recipient',
+                'type' => 'text',
+                'default' => '',
+                'description' => 'Last used test recipient for the Send Test SMS button.',
                 'is_public' => false,
             ],
             [
@@ -355,8 +498,8 @@ class IntegrationSettingController extends Controller
                 'key' => 'sms_balance_url',
                 'label' => 'SMS Balance API URL',
                 'type' => 'text',
-                'default' => 'http://www.bulksmsbd.net/api/getBalanceApi',
-                'description' => 'BulkSMSBD balance endpoint or provider-specific balance endpoint.',
+                'default' => '',
+                'description' => 'Canonical balance endpoint, auto-set from the selected provider (or custom gateway URL).',
                 'is_public' => false,
             ],
             [
@@ -490,6 +633,13 @@ class IntegrationSettingController extends Controller
             'revesms_secret_key' => 'sms_enabled',
             'revesms_sender_id' => 'sms_enabled',
             'revesms_client_id' => 'sms_enabled',
+            'custom_sms_api_key' => 'sms_enabled',
+            'custom_sms_secret_key' => 'sms_enabled',
+            'custom_sms_sender_id' => 'sms_enabled',
+            'custom_sms_client_id' => 'sms_enabled',
+            'custom_sms_send_url' => 'sms_enabled',
+            'custom_sms_balance_url' => 'sms_enabled',
+            'sms_test_number' => 'sms_enabled',
             'live_chat_whatsapp_enabled' => 'live_chat_enabled',
             'live_chat_whatsapp_number' => 'live_chat_enabled',
             'live_chat_whatsapp_message' => 'live_chat_enabled',

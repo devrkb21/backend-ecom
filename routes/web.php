@@ -252,6 +252,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::redirect('integrations', '/admin/settings/system?group=integrations')->name('integrations');
             Route::put('integrations', [IntegrationSettingController::class, 'update'])->name('integrations.update');
             Route::get('integrations/sms-balance', [IntegrationSettingController::class, 'smsBalance'])->name('integrations.sms-balance');
+            Route::post('integrations/sms-test', [IntegrationSettingController::class, 'sendTestSms'])->name('integrations.sms-test');
 
             // Couriers
             Route::redirect('couriers', '/admin/settings/system?group=couriers')->name('couriers');
