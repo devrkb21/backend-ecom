@@ -11,26 +11,6 @@
 
     $smsProvider = strtolower(trim((string) $valueOf('sms_provider', 'bulksmsbd')));
 
-    // Canonical per-provider endpoints (no hardcoded customer data — these are the
-    // official API endpoints from BulkSMSBD and REVE SMS documentation).
-    $smsEndpoints = json_encode([
-        'bulksmsbd' => [
-            'send' => 'https://www.bulksmsbd.net/api/smsapi',
-            'balance' => 'https://www.bulksmsbd.net/api/getBalanceApi',
-            'hint' => 'BulkSMSBD endpoints are applied automatically; just fill in your API key and sender ID.',
-        ],
-        'revesms' => [
-            'send' => 'https://smpp.revesms.com:7790/sendtext',
-            'balance' => 'https://smpp.revesms.com/sms/smsConfiguration/smsClientBalance.jsp',
-            'hint' => 'REVE SMS endpoints are applied automatically; just fill in your API key, secret key, sender ID and client ID.',
-        ],
-        'custom' => [
-            'send' => '',
-            'balance' => '',
-            'hint' => 'Custom gateway: fill in your own endpoints and credentials below.',
-        ],
-    ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
-
     $siteVerificationEntries = old('site_verification_entries');
 
     if (!is_array($siteVerificationEntries)) {
@@ -65,8 +45,6 @@
         'custom' => 'Custom Meta Name',
     ];
 @endphp
-
-<script type="application/json" id="sms-provider-endpoints">{{ $smsEndpoints }}</script>
 
 <div class="row g-4">
     <div class="col-lg-8">
@@ -354,10 +332,9 @@
                                 @error('sms_provider')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
-                                <div class="form-text small" data-sms-endpoint-hint></div>
                             </div>
 
-                            {{-- Hidden canonical API URLs, kept in sync with the selected provider. --}}
+                            {{-- Hidden API URL fields are canonicalized by the controller on save. --}}
                             <input type="hidden" id="sms_api_base_url" name="sms_api_base_url" value="{{ $valueOf('sms_api_base_url') }}" data-sms-url-field="send">
                             <input type="hidden" id="sms_balance_url" name="sms_balance_url" value="{{ $valueOf('sms_balance_url') }}" data-sms-url-field="balance">
                         </div>
@@ -379,13 +356,6 @@
                                 @enderror
                             </div>
 
-                            <div class="col-12">
-                                <div class="alert alert-light border py-2 small mb-0">
-                                    <i class="bi bi-link-45deg me-1"></i>Endpoints used automatically — send:
-                                    <code>https://www.bulksmsbd.net/api/smsapi</code>, balance:
-                                    <code>https://www.bulksmsbd.net/api/getBalanceApi</code>
-                                </div>
-                            </div>
                         </div>
 
                         <div class="row g-3" data-sms-provider-group="revesms">
@@ -421,13 +391,6 @@
                                 @enderror
                             </div>
 
-                            <div class="col-12">
-                                <div class="alert alert-light border py-2 small mb-0">
-                                    <i class="bi bi-link-45deg me-1"></i>Endpoints used automatically — send:
-                                    <code>https://smpp.revesms.com:7790/sendtext</code>, balance:
-                                    <code>https://smpp.revesms.com/sms/smsConfiguration/smsClientBalance.jsp</code>
-                                </div>
-                            </div>
                         </div>
 
                         <div class="row g-3" data-sms-provider-group="custom">
@@ -479,11 +442,6 @@
                                 @enderror
                             </div>
 
-                            <div class="col-12">
-                                <div class="alert alert-light border py-2 small mb-0">
-                                    Custom mode starts blank — enter your gateway's endpoints and credentials manually. If left blank, saved REVE SMS or BulkSMSBD credentials are reused automatically.
-                                </div>
-                            </div>
                         </div>
 
                         <div class="border rounded p-3 mt-3" data-sms-test-card>
@@ -801,30 +759,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const smsProviderSelect = document.getElementById('sms_provider');
     const smsProviderGroups = document.querySelectorAll('[data-sms-provider-group]');
-    const smsEndpointHints = document.querySelectorAll('[data-sms-endpoint-hint]');
-
-    const smsProviderDefaults = JSON.parse(document.getElementById('sms-provider-endpoints')?.textContent || '{}');
-
     const syncSmsProviderGroups = () => {
         if (!smsProviderSelect) return;
         const provider = (smsProviderSelect.value || 'bulksmsbd').toLowerCase();
 
         smsProviderGroups.forEach((group) => {
             const groupKey = (group.getAttribute('data-sms-provider-group') || '').toLowerCase();
-            const show = provider === 'custom' || provider === groupKey;
+            const show = provider === groupKey;
             group.classList.toggle('d-none', !show);
         });
-
-        const endpoints = smsProviderDefaults[provider];
-        if (endpoints) {
-            const sendField = document.querySelector('[data-sms-url-field="send"]');
-            const balanceField = document.querySelector('[data-sms-url-field="balance"]');
-            if (sendField && !sendField.value) sendField.value = endpoints.send || '';
-            if (balanceField && !balanceField.value) balanceField.value = endpoints.balance || '';
-            smsEndpointHints.forEach((hint) => {
-                hint.textContent = endpoints.hint || '';
-            });
-        }
     };
 
     if (smsProviderSelect) {
