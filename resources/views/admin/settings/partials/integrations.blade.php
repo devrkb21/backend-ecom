@@ -9,6 +9,28 @@
         return filter_var($valueOf($key, '0'), FILTER_VALIDATE_BOOLEAN);
     };
 
+    $smsProvider = strtolower(trim((string) $valueOf('sms_provider', 'bulksmsbd')));
+
+    // Canonical per-provider endpoints (no hardcoded customer data — these are the
+    // official API endpoints from BulkSMSBD and REVE SMS documentation).
+    $smsEndpoints = json_encode([
+        'bulksmsbd' => [
+            'send' => 'https://www.bulksmsbd.net/api/smsapi',
+            'balance' => 'https://www.bulksmsbd.net/api/getBalanceApi',
+            'hint' => 'BulkSMSBD endpoints are applied automatically; just fill in your API key and sender ID.',
+        ],
+        'revesms' => [
+            'send' => 'https://smpp.revesms.com:7790/sendtext',
+            'balance' => 'https://smpp.revesms.com/sms/smsConfiguration/smsClientBalance.jsp',
+            'hint' => 'REVE SMS endpoints are applied automatically; just fill in your API key, secret key, sender ID and client ID.',
+        ],
+        'custom' => [
+            'send' => '',
+            'balance' => '',
+            'hint' => 'Custom gateway: fill in your own endpoints and credentials below.',
+        ],
+    ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+
     $siteVerificationEntries = old('site_verification_entries');
 
     if (!is_array($siteVerificationEntries)) {
@@ -43,6 +65,8 @@
         'custom' => 'Custom Meta Name',
     ];
 @endphp
+
+<script type="application/json" id="sms-provider-endpoints">{{ $smsEndpoints }}</script>
 
 <div class="row g-4">
     <div class="col-lg-8">
@@ -239,7 +263,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div data-integration-form="mail_enabled" class="{{ $isChecked('mail_enabled') ? '' : 'd-none' }}">
                         <div class="row g-3">
                             <div class="col-md-6">
@@ -293,7 +317,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="small text-muted mt-2 {{ $isChecked('mail_enabled') ? 'd-none' : '' }}" data-integration-disabled-note="mail_enabled">
                         Disabled. Custom mail configuration is disabled. System defaults will be loaded from server configurations (.env file).
                     </div>
@@ -319,49 +343,167 @@
 
                         <div class="alert d-none py-2 small" id="smsBalanceAlert"></div>
 
-                        <div class="row g-3">
+                        <div class="row g-3 mb-2">
                             <div class="col-md-6">
-                                <label class="form-label small text-muted mb-1" for="sms_provider">Provider Name</label>
-                                <input type="text" class="form-control form-control-sm @error('sms_provider') is-invalid @enderror" id="sms_provider" name="sms_provider" value="{{ $valueOf('sms_provider') }}" placeholder="BulkSMSBD">
+                                <label class="form-label small text-muted mb-1" for="sms_provider">Provider</label>
+                                <select class="form-select form-select-sm @error('sms_provider') is-invalid @enderror" id="sms_provider" name="sms_provider" data-sms-provider>
+                                    <option value="bulksmsbd" {{ $smsProvider === 'bulksmsbd' ? 'selected' : '' }}>BulkSMSBD</option>
+                                    <option value="revesms" {{ $smsProvider === 'revesms' ? 'selected' : '' }}>REVE SMS</option>
+                                    <option value="custom" {{ $smsProvider === 'custom' ? 'selected' : '' }}>Custom</option>
+                                </select>
                                 @error('sms_provider')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
+                                <div class="form-text small" data-sms-endpoint-hint></div>
                             </div>
 
-                            <div class="col-12">
-                                <label class="form-label small text-muted mb-1" for="sms_api_base_url">SMS Send API URL</label>
-                                <input type="url" class="form-control form-control-sm @error('sms_api_base_url') is-invalid @enderror" id="sms_api_base_url" name="sms_api_base_url" value="{{ $valueOf('sms_api_base_url') }}" placeholder="https://api.provider.com/v1/send">
-                                @error('sms_api_base_url')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
+                            {{-- Hidden canonical API URLs, kept in sync with the selected provider. --}}
+                            <input type="hidden" id="sms_api_base_url" name="sms_api_base_url" value="{{ $valueOf('sms_api_base_url') }}" data-sms-url-field="send">
+                            <input type="hidden" id="sms_balance_url" name="sms_balance_url" value="{{ $valueOf('sms_balance_url') }}" data-sms-url-field="balance">
+                        </div>
 
+                        <div class="row g-3" data-sms-provider-group="bulksmsbd">
                             <div class="col-md-6">
-                                <label class="form-label small text-muted mb-1" for="sms_api_key">API Key</label>
-                                <input type="text" class="form-control form-control-sm @error('sms_api_key') is-invalid @enderror" id="sms_api_key" name="sms_api_key" value="{{ $valueOf('sms_api_key') }}" placeholder="Enter API key">
+                                <label class="form-label small text-muted mb-1" for="sms_api_key">BulkSMSBD API Key</label>
+                                <input type="text" class="form-control form-control-sm @error('sms_api_key') is-invalid @enderror" id="sms_api_key" name="sms_api_key" value="{{ $valueOf('sms_api_key') }}" placeholder="BulkSMSBD API key">
                                 @error('sms_api_key')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
 
                             <div class="col-md-6">
-                                <label class="form-label small text-muted mb-1" for="sms_sender_id">Sender ID</label>
-                                <input type="text" class="form-control form-control-sm @error('sms_sender_id') is-invalid @enderror" id="sms_sender_id" name="sms_sender_id" value="{{ $valueOf('sms_sender_id') }}" placeholder="8809617XXXXXX">
+                                <label class="form-label small text-muted mb-1" for="sms_sender_id">BulkSMSBD Sender ID</label>
+                                <input type="text" class="form-control form-control-sm @error('sms_sender_id') is-invalid @enderror" id="sms_sender_id" name="sms_sender_id" value="{{ $valueOf('sms_sender_id') }}" placeholder="Approved BulkSMSBD sender ID">
                                 @error('sms_sender_id')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
 
                             <div class="col-12">
-                                <label class="form-label small text-muted mb-1" for="sms_balance_url">Balance API URL</label>
-                                <input type="url" class="form-control form-control-sm @error('sms_balance_url') is-invalid @enderror" id="sms_balance_url" name="sms_balance_url" value="{{ $valueOf('sms_balance_url') }}" placeholder="http://www.bulksmsbd.net/api/getBalanceApi">
-                                @error('sms_balance_url')
+                                <div class="alert alert-light border py-2 small mb-0">
+                                    <i class="bi bi-link-45deg me-1"></i>Endpoints used automatically — send:
+                                    <code>https://www.bulksmsbd.net/api/smsapi</code>, balance:
+                                    <code>https://www.bulksmsbd.net/api/getBalanceApi</code>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3" data-sms-provider-group="revesms">
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1" for="revesms_api_key">REVE SMS API Key</label>
+                                <input type="text" class="form-control form-control-sm @error('revesms_api_key') is-invalid @enderror" id="revesms_api_key" name="revesms_api_key" value="{{ $valueOf('revesms_api_key') }}" placeholder="REVE apikey">
+                                @error('revesms_api_key')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1" for="revesms_secret_key">REVE SMS Secret Key</label>
+                                <input type="text" class="form-control form-control-sm @error('revesms_secret_key') is-invalid @enderror" id="revesms_secret_key" name="revesms_secret_key" value="{{ $valueOf('revesms_secret_key') }}" placeholder="REVE secret key">
+                                @error('revesms_secret_key')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1" for="revesms_sender_id">REVE SMS Sender ID (callerID)</label>
+                                <input type="text" class="form-control form-control-sm @error('revesms_sender_id') is-invalid @enderror" id="revesms_sender_id" name="revesms_sender_id" value="{{ $valueOf('revesms_sender_id') }}" placeholder="Approved REVE callerID">
+                                @error('revesms_sender_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1" for="revesms_client_id">REVE SMS Client ID (balance)</label>
+                                <input type="text" class="form-control form-control-sm @error('revesms_client_id') is-invalid @enderror" id="revesms_client_id" name="revesms_client_id" value="{{ $valueOf('revesms_client_id') }}" placeholder="REVE client id">
+                                @error('revesms_client_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-12">
+                                <div class="alert alert-light border py-2 small mb-0">
+                                    <i class="bi bi-link-45deg me-1"></i>Endpoints used automatically — send:
+                                    <code>https://smpp.revesms.com:7790/sendtext</code>, balance:
+                                    <code>https://smpp.revesms.com/sms/smsConfiguration/smsClientBalance.jsp</code>
+                                </div>
+                            </div>
                         </div>
-                        <div class="alert alert-info mt-3 mb-0 py-2 small">
-                            <strong>OTP Format:</strong> Your {Brand/Company Name} OTP is XXXX
+
+                        <div class="row g-3" data-sms-provider-group="custom">
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1" for="custom_sms_api_key">API Key</label>
+                                <input type="text" class="form-control form-control-sm @error('custom_sms_api_key') is-invalid @enderror" id="custom_sms_api_key" name="custom_sms_api_key" value="{{ $valueOf('custom_sms_api_key') }}" placeholder="Gateway API key">
+                                @error('custom_sms_api_key')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1" for="custom_sms_secret_key">Secret Key</label>
+                                <input type="text" class="form-control form-control-sm @error('custom_sms_secret_key') is-invalid @enderror" id="custom_sms_secret_key" name="custom_sms_secret_key" value="{{ $valueOf('custom_sms_secret_key') }}" placeholder="Gateway secret key (if required)">
+                                @error('custom_sms_secret_key')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1" for="custom_sms_sender_id">Sender ID</label>
+                                <input type="text" class="form-control form-control-sm @error('custom_sms_sender_id') is-invalid @enderror" id="custom_sms_sender_id" name="custom_sms_sender_id" value="{{ $valueOf('custom_sms_sender_id') }}" placeholder="Approved sender ID">
+                                @error('custom_sms_sender_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1" for="custom_sms_client_id">Client / Account ID</label>
+                                <input type="text" class="form-control form-control-sm @error('custom_sms_client_id') is-invalid @enderror" id="custom_sms_client_id" name="custom_sms_client_id" value="{{ $valueOf('custom_sms_client_id') }}" placeholder="Client or account ID (if required)">
+                                @error('custom_sms_client_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1" for="custom_sms_send_url">Send API URL</label>
+                                <input type="url" class="form-control form-control-sm @error('custom_sms_send_url') is-invalid @enderror" id="custom_sms_send_url" name="custom_sms_send_url" value="{{ $valueOf('custom_sms_send_url') }}" placeholder="Full send endpoint URL">
+                                @error('custom_sms_send_url')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1" for="custom_sms_balance_url">Balance API URL</label>
+                                <input type="url" class="form-control form-control-sm @error('custom_sms_balance_url') is-invalid @enderror" id="custom_sms_balance_url" name="custom_sms_balance_url" value="{{ $valueOf('custom_sms_balance_url') }}" placeholder="Full balance endpoint URL">
+                                @error('custom_sms_balance_url')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-12">
+                                <div class="alert alert-light border py-2 small mb-0">
+                                    Custom mode starts blank — enter your gateway's endpoints and credentials manually. If left blank, saved REVE SMS or BulkSMSBD credentials are reused automatically.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="border rounded p-3 mt-3" data-sms-test-card>
+                            <h6 class="fw-semibold text-dark mb-3"><i class="bi bi-send-check me-1 text-primary"></i>Send Test SMS</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted mb-1" for="sms_test_number">Test Phone Number</label>
+                                    <input type="text" class="form-control form-control-sm" id="sms_test_number" placeholder="8801XXXXXXXXX" value="{{ old('sms_test_number', $valueOf('sms_test_number')) }}" maxlength="20">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted mb-1" for="sms_test_message">Test Message</label>
+                                    <input type="text" class="form-control form-control-sm" id="sms_test_message" placeholder="Test message" value="{{ old('sms_test_message', 'Test SMS from your store') }}" maxlength="300">
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline-success btn-sm mt-3" id="sendTestSmsBtn" data-url="{{ route('admin.settings.integrations.sms-test') }}">
+                                <span class="test-btn-label"><i class="bi bi-send me-1"></i> Send Test SMS</span>
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                            </button>
+                            <div class="alert d-none py-2 small mt-3 mb-0" id="smsTestAlert"></div>
+                            <div class="form-text small mt-2">Sends through the saved settings above — save first if you just changed them.</div>
                         </div>
                     </div>
 
@@ -511,7 +653,7 @@
                     <li>GA4: G-XXXXXXXXXX</li>
                     <li>Facebook Pixel: numeric ID</li>
                     <li>TikTok Pixel: alphanumeric ID</li>
-                    <li>BulkSMSBD Send URL: http://www.bulksmsbd.net/api/smsapi</li>
+                    <li>SMS endpoints auto-apply from the selected provider dropdown</li>
                 </ul>
             </div>
         </div>
@@ -656,6 +798,104 @@ document.addEventListener('DOMContentLoaded', function () {
             section.classList.toggle('d-none', !this.checked);
         });
     });
+
+    const smsProviderSelect = document.getElementById('sms_provider');
+    const smsProviderGroups = document.querySelectorAll('[data-sms-provider-group]');
+    const smsEndpointHints = document.querySelectorAll('[data-sms-endpoint-hint]');
+
+    const smsProviderDefaults = JSON.parse(document.getElementById('sms-provider-endpoints')?.textContent || '{}');
+
+    const syncSmsProviderGroups = () => {
+        if (!smsProviderSelect) return;
+        const provider = (smsProviderSelect.value || 'bulksmsbd').toLowerCase();
+
+        smsProviderGroups.forEach((group) => {
+            const groupKey = (group.getAttribute('data-sms-provider-group') || '').toLowerCase();
+            const show = provider === 'custom' || provider === groupKey;
+            group.classList.toggle('d-none', !show);
+        });
+
+        const endpoints = smsProviderDefaults[provider];
+        if (endpoints) {
+            const sendField = document.querySelector('[data-sms-url-field="send"]');
+            const balanceField = document.querySelector('[data-sms-url-field="balance"]');
+            if (sendField && !sendField.value) sendField.value = endpoints.send || '';
+            if (balanceField && !balanceField.value) balanceField.value = endpoints.balance || '';
+            smsEndpointHints.forEach((hint) => {
+                hint.textContent = endpoints.hint || '';
+            });
+        }
+    };
+
+    if (smsProviderSelect) {
+        syncSmsProviderGroups();
+        smsProviderSelect.addEventListener('change', syncSmsProviderGroups);
+    }
+
+    const sendTestSmsBtn = document.getElementById('sendTestSmsBtn');
+    const smsTestAlert = document.getElementById('smsTestAlert');
+
+    if (sendTestSmsBtn && smsTestAlert) {
+        const testLabel = sendTestSmsBtn.querySelector('.test-btn-label');
+        const testSpinner = sendTestSmsBtn.querySelector('.spinner-border');
+
+        const setTestLoading = (loading) => {
+            sendTestSmsBtn.disabled = loading;
+            testSpinner?.classList.toggle('d-none', !loading);
+            testLabel?.classList.toggle('d-none', loading);
+        };
+
+        const showTestAlert = (success, message) => {
+            smsTestAlert.classList.remove('d-none', 'alert-success', 'alert-danger');
+            smsTestAlert.classList.add(success ? 'alert-success' : 'alert-danger');
+            smsTestAlert.textContent = message;
+        };
+
+        sendTestSmsBtn.addEventListener('click', async function () {
+            const url = sendTestSmsBtn.dataset.url;
+            if (!url) return;
+
+            const number = (document.getElementById('sms_test_number')?.value || '').trim();
+            const message = (document.getElementById('sms_test_message')?.value || '').trim();
+
+            if (number === '') {
+                showTestAlert(false, 'Enter a phone number to send the test SMS to.');
+                return;
+            }
+
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            if (!csrfMeta) {
+                showTestAlert(false, 'CSRF token not found on this page.');
+                return;
+            }
+
+            setTestLoading(true);
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrfMeta.content,
+                    },
+                    body: JSON.stringify({ sms_test_number: number, sms_test_message: message }),
+                });
+
+                const payload = await response.json();
+                if (response.ok && payload.success) {
+                    showTestAlert(true, payload.message || 'Test SMS sent successfully.');
+                } else {
+                    showTestAlert(false, payload.message || 'Failed to send test SMS.');
+                }
+            } catch (error) {
+                showTestAlert(false, 'Network error while sending test SMS.');
+            } finally {
+                setTestLoading(false);
+            }
+        });
+    }
 });
 </script>
 @endpush
