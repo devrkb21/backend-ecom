@@ -46,8 +46,6 @@
     ];
 @endphp
 
-<script type="application/json" id="sms-provider-endpoints">{{ $smsEndpoints }}</script>
-
 <div class="row g-4">
     <div class="col-lg-8">
         <form action="{{ route('admin.settings.integrations.update') }}" method="POST">
